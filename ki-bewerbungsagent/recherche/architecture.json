@@ -1,0 +1,616 @@
+{
+  "dimension": "Technische Architektur & Orchestrierung",
+  "summary": "Für einen persönlichen, zeitgesteuerten Bewerbungsagenten mit Qualitätsanspruch (10 geprüfte Bewerbungen/Tag statt Masse) ist der einfachste und zugleich zuverlässigste Weg für einen Einzelentwickler: Claude Agent SDK (Python, 'claude-agent-sdk') selbst gehostet auf einem kleinen Linux-VPS, angestoßen per systemd-Timer oder Cron, nicht Anthropic Managed Agents und nicht Claude Code Routines als primäre Basis. Begründung: Managed Agents (Deployments-API, Beta-Header 'managed-agents-2026-04-01') ist funktional am reichsten – native Cron+Timezone-Scheduled-Deployments, Memory Stores (Text-Dateien, 8 Stores/Session, 10.000 Memories/Store, 100 kB je Memory), Vaults (OAuth/Bearer/Env-Credentials für z. B. SMTP), Webhooks (HMAC-signiert, 3 Retries, Auto-Disable) und harte Budgets (USD-Cent-genau, gemessen an Listenpreisen: Modell-Tokens + Websuche $10/1000 + Session-Laufzeit $0,08/Stunde) – ist aber laut eigener Doku eine Beta mit sich änderndem Verhalten, ausschließlich USD-Budgets, und erfordert das Erlernen einer neuen event-basierten Session-API statt des vertrauten query()-Musters. Claude Code Routines (claude.ai/code/routines) sind für den 'Scan/Recherche/Entwurf'-Teil attraktiv (kostenlos in Pro/Max/Team/Enterprise enthalten, GitHub/API/Cron-Trigger, läuft ohne eigene Infrastruktur), aber jede Routine startet mit frischem Klon ohne Permission-Prompts – für den heiklen 'E-Mail versenden'-Schritt, den der Nutzer ausdrücklich nur nach Freigabe will, ist das autonome Ausführen ohne Rückfrage ein Sicherheitsrisiko (Prompt-Injection aus Stellenanzeigen könnte sonst ungeprüft Aktionen auslösen) und die Session ist zustandslos zwischen Läufen. Das Agent SDK dagegen gibt volle Kontrolle über Permission-Modes (default/acceptEdits/plan/bypassPermissions/dontAsk/auto), Hooks (PreToolUse etc.) und Subagents (isolierte Kontexte für Jobsuche, Unternehmensrecherche, Anschreiben-Autor, ATS-Keyword-Optimierer) bei MIT-Lizenz und Bundling der Claude-Code-CLI (kein separates Node nötig, Python 3.10+). Modellwahl: Sonnet 5 ($2/$10 pro MTok, seit 1.9.2026 dauerhaft statt Erhöhung auf $3/$15) als Arbeitspferd für Scan/Bewertung, Fable 5.1 oder Opus 5 gezielt für die finale Anschreiben-Formulierung, wo Nuance zählt. PDF-Erzeugung läuft am einfachsten über die im Environment vorinstallierten Werkzeuge (LibreOffice headless, Poppler/qpdf, TeX Live) bzw. die bereits vorhandenen Claude-Skills 'pdf'/'docx', alternativ Typst (Apache-2.0, 'typst compile') für sauber gesetzte Lebensläufe – eine zusätzliche Bibliothek ist nicht nötig. Für Speicher reicht in der MVP-Phase SQLite (Zustand/Dedupe/Audit-Log) plus ein privates Git-Repo für erzeugte PDFs; eine Vektor-DB ist bei ~200–300 Bewerbungen/Monat verzichtbar. Erst in v1, wenn semantische Job-Profil-Abgleiche gebraucht werden, lohnt sich pgvector (wenn ohnehin Postgres läuft, praktisch kostenlos) oder LanceDB (embedded, kein Server) vor Qdrant/Chroma. Hosting: Hetzner ist durch die Preiserhöhung vom 15.6.2026 (CX23 3,99→5,49 €, CAX11 4,49→5,99 €, teils Verdopplung bei dedizierten vCPU-Linien) teurer geworden und die günstigsten CX/CAX-Pläne waren zum Recherchezeitpunkt als 'nicht verfügbar' markiert; realistisch bestellbar ist CPX22 (2 vCPU/4 GB/80 GB, 19,99 €/Monat) oder Fly.io shared-cpu-1x/1GB (~5,70–5,92 $/Monat) für den MVP-Server. Browser-Automatisierung: Playwright MCP (Microsoft, Apache-2.0, Accessibility-Tree statt Screenshots, günstiger und deterministischer) als Standard statt browser-use/Stagehand/Skyvern, die zusätzliche Abhängigkeiten und teils AGPL-Lizenz (Skyvern) mitbringen; Claudes eigenes 'computer use'/'browser use' Toolset (computer_toolset_20260801, browser_toolset_20260801) ist client-seitig auszuführen, nicht in Managed Agents verfügbar und für Screenshot-lastige Loops teuer (~1000–1800 Tokens/Screenshot). Observability: Langfuse self-hosted verlangt laut eigener Doku 4+ CPU-Kerne und 16 GB RAM (ClickHouse+Postgres+Redis+MinIO) – für einen Einzelentwickler-VPS unverhältnismäßig; Arize Phoenix (Elastic-2.0, 'pip install arize-phoenix', SQLite-Default, native Anthropic-Instrumentierung) ist die pragmatischere Wahl, bis Skalierung es rechtfertigt. Sicherheit/Prompt-Injection: Anthropics eigene Leitlinie (mitigate-jailbreaks-Doku) verlangt, Inhalte aus Stellenanzeigen/Webseiten ausschließlich in tool_result-Blöcken zu liefern, nie in System-/Nutzer-Text, und im System-Prompt explizit als nicht vertrauenswürdig zu kennzeichnen; der Web-Fetch-Tool kann laut Doku keine URLs abrufen, die nur in Claudes eigener Ausgabe stehen (Exfiltrationsschutz). Der Versand-Schritt darf nie in bypassPermissions/Routine-Autonomie laufen, sondern braucht einen harten Human-in-the-loop-Gate (z. B. eigenes Tool mit canUseTool-Callback oder Vault-Credential, das erst nach expliziter Freigabe aufgerufen wird). Empfehlung: MVP mit Agent SDK + Cron + SQLite + Git + sops/age, optional Claude Code Routines nur für den Lese-/Recherche-Teil; v1 mit Migration einzelner Bausteine zu Managed Agents (Budgets als Tageslimit, Vaults für SMTP/Gmail-Credentials, Memory Stores statt eigener Präferenz-Datei) sobald die Beta stabiler ist, plus Phoenix für Tracing und ggf. pgvector/LanceDB für semantisches Matching.",
+  "findings": [
+    {
+      "claim": "Anthropic Managed Agents berechnet Session-Laufzeit mit $0,08 pro Session-Stunde, sekundengenau/millisekundengenau, nur während der Status 'running' ist; zusätzlich Modell-Tokens zu Listenpreisen und Websuche zu $10 pro 1000 Anfragen.",
+      "detail": "Bestätigt in der offiziellen Budgets-Doku: 'Model tokens, at each served model's list price; Web searches, at $10 per 1,000 searches; Session running time, at $0.08 per hour.' Idle-Zeit (Warten auf Eingabe/Tool-Bestätigung) zählt nicht. Container-Stunden werden nicht zusätzlich berechnet – Session-Laufzeit ersetzt das alte Code-Execution-Container-Modell. Für unser Projekt: realistische Tagesnutzung von 10 geprüften Bewerbungen dürfte Session-Laufzeit im niedrigen einstelligen Dollarbereich/Tag verursachen, Tokenkosten dominieren.",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/budgets"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Managed-Agents-Sessions können mit einem harten Budget in US-Cent gedeckelt werden (max_list_cost), das zwischen Modellanfragen (nicht mitten in einer Anfrage) durchgesetzt wird; eine Session pausiert dann in 'idle' mit stop_reason 'budget_reached' statt zu terminieren.",
+      "detail": "Nur USD wird unterstützt, amount muss volle Cent als String sein. Ein Deployment kann denselben Budget-Wert für jede gestartete Session vergeben (pro Lauf, nicht kumulativ über alle Läufe). Praktische Konsequenz: ideal, um eine Tagesobergrenze für die 10 Bewerbungen zu erzwingen und Kostenexplosion durch Endlosschleifen zu verhindern – aber die Session braucht danach ein manuelles/automatisiertes Budget-Update, um weiterzulaufen.",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/budgets"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Managed-Agents-Memory-Stores sind workspace-weite Text-Dokumentsammlungen, die als Verzeichnis in die Sandbox gemountet werden; maximal 8 Stores pro Session, 10.000 Memories pro Store, 100 kB (~25k Tokens) je Memory, mit unveränderlicher Versionshistorie (30 Tage Aufbewahrung).",
+      "detail": "Zugriff read_only oder read_write konfigurierbar; bei read_write und ungeprüften Eingaben (z. B. Stellenanzeigen-Content) warnt Anthropic explizit vor Prompt-Injection, die spätere Sessions als 'vertrauenswürdigen' Speicherinhalt lesen. Für unser Projekt geeignet als Ablage für Kandidatenprofil, Firmenkontakt-Historie und gelernte Präferenzen – aber kein Ersatz für semantische Vektorsuche, da reine Dateiablage ohne Embeddings.",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/memory"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Managed-Agents-Vaults verwalten Drittanbieter-Credentials (mcp_oauth, static_bearer, environment_variable) pro Endnutzer; environment_variable-Credentials werden als Platzhalter in die Sandbox injiziert und erst beim ausgehenden Request durch den echten Wert ersetzt – der Agent sieht den Klartext-Secret nie.",
+      "detail": "environment_variable-Credentials funktionieren aktuell nicht mit self-hosted Sandboxes. Für den geplanten E-Mail-Versand über das eigene Nutzerkonto ist das die sauberste Lösung: SMTP-/Gmail-API-Zugangsdaten landen nie im Modellkontext. Erfordert allerdings Migration auf Managed Agents statt reines Agent SDK.",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/vaults"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Managed-Agents-Webhooks liefern Ereignis-Typ und -ID (nicht das volle Objekt), HMAC-signiert (whsec_-Secret), mit bis zu 3 Zustellversuchen und automatischer Deaktivierung bei 3xx-Antworten oder anhaltenden Fehlern; keine Zustellgarantie bei dauerhaftem Ausfall des Endpoints.",
+      "detail": "Relevante Events für unser Projekt: session.status_idled (Session wartet auf Freigabe/Eingabe), session.budget_reached, deployment_run.succeeded/failed. Damit lässt sich eine Benachrichtigung bauen ('10 Bewerbungen bereit zur Prüfung'), ohne zu pollen. Ordering ist nicht garantiert, Events sind kein durables Log – für Audit-Zwecke zusätzlich die Session/Deployment-API abfragen.",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/webhooks"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Aktuelle Claude-Modellpreise (Stand September 2026, Claude-API-Preisliste): Fable 5.1 $10/$50 pro MTok (in/out), Opus 5 $5/$25, Sonnet 5 $2/$10 (Einführungspreis wurde dauerhaft, geplante Erhöhung auf $3/$15 zum 1.9.2026 entfällt), Haiku 4.5 $1/$5.",
+      "detail": "Prompt-Caching: 5-Minuten-Cache-Write 1,25x Basispreis, 1-Stunden-Cache-Write 2x, Cache-Hits bei Fable 5.1/Mythos 5.1 nur 0,025x Basispreis (bei allen anderen Modellen 0,1x). Für unser Projekt: Sonnet 5 als Standardmodell für Scan/Bewertung/Recherche extrem günstig, Fable 5.1/Opus 5 gezielt nur für die finalen Anschreiben-Texte einsetzen, um Kosten zu kontrollieren.",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Das Claude Agent SDK für Python ('claude-agent-sdk') liegt aktuell bei Version 0.2.152 (2. September 2026), benötigt Python 3.10+, und bündelt die Claude-Code-CLI automatisch mit – kein separates Node.js-Setup nötig.",
+      "detail": "MIT-Lizenz. query() ist eine async Funktion, die für jeden Aufruf eine neue Session ohne Gedächtnis startet; für Multi-Turn-Konversation ClaudeSDKClient nutzen. Wichtige Exporte: query, ClaudeSDKClient, ClaudeAgentOptions, tool, create_sdk_mcp_server, HookMatcher, AgentDefinition. Für einen Einzelentwickler bedeutet das: pip install genügt, keine zusätzliche Laufzeitumgebung.",
+      "sources": [
+        "https://pypi.org/project/claude-agent-sdk/",
+        "https://github.com/anthropics/claude-agent-sdk-python"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Subagents im Agent SDK werden über den 'agents'-Parameter (AgentDefinition: description, prompt, tools, model) programmatisch definiert oder als Markdown-Dateien unter .claude/agents/ abgelegt; sie laufen in isoliertem Kontext, parallel ausführbar, mit eigener Tool-Beschränkung.",
+      "detail": "Vorteile laut Doku: Kontextisolation (Zwischenergebnisse bleiben im Subagent, nur die Endzusammenfassung geht an den Parent), Parallelisierung, spezialisierte System-Prompts, Tool-Restriktion. Ideal für unsere Architektur: separate Subagents für 'Job-Scanner', 'Unternehmensrecherche', 'Anschreiben-Autor', 'ATS-Keyword-Check', 'CV-Anpassung' – jeder mit minimalen Rechten (z. B. Recherche-Subagent nur Read/WebFetch/WebSearch, kein Bash/Edit).",
+      "sources": [
+        "https://code.claude.com/docs/en/agent-sdk/subagents"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Permission-Evaluierung im Agent SDK läuft in sechs Schritten: Hooks → Deny-Regeln → Ask-Regeln → Permission-Mode → Allow-Regeln → canUseTool-Callback; bypassPermissions genehmigt fast alles außer rm/rmdir auf kritischen Pfaden.",
+      "detail": "Modi: default, acceptEdits, plan, bypassPermissions, dontAsk, auto (Classifier-Modell prüft place statt Nutzer). Für ein autonomes Tages-Batch-System ist bypassPermissions riskant, wenn ungeprüfte Web-/Stellenanzeigen-Inhalte im Kontext sind. Empfehlung: canUseTool-Callback selbst implementieren, der z. B. jeden 'send_email'-Tool-Aufruf hart blockiert, bis eine separate Freigabe-Datei/DB-Flag gesetzt ist.",
+      "sources": [
+        "https://code.claude.com/docs/en/agent-sdk/permissions"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Das vom Agent SDK gemeldete total_cost_usd bzw. costUSD ist ausdrücklich eine client-seitige Schätzung aus einer zur Build-Zeit gebündelten Preistabelle, keine autoritative Abrechnung; für verbindliche Kosten ist die Usage and Cost API oder die Claude-Console-Usage-Seite zu verwenden.",
+      "detail": "Kann abweichen bei Preisänderungen, unbekannten Modellen in älteren SDK-Versionen, oder bei Data-Residency-Aufschlägen (inference_geo:'us' → 1,1x Listenpreis, ab TS SDK v0.3.239/Python v0.2.144). Für unser Tages-Budget-Tracking (10 Bewerbungen/Tag) sollte man sich nicht allein auf das SDK-Feld verlassen, sondern periodisch die Usage/Cost API abfragen.",
+      "sources": [
+        "https://code.claude.com/docs/en/agent-sdk/cost-tracking"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Claude-Code-Routines (claude.ai/code/routines) sind in Pro/Max/Team/Enterprise-Plänen enthalten ('research preview'), unterstützen Scheduled- (min. 1 Stunde Intervall), API- und GitHub-Trigger, laufen autonom ohne Permission-Prompts auf Anthropic-verwalteter Cloud-Infrastruktur oder self-hosted Environment.",
+      "detail": "Jede Routine startet mit frischem Repo-Klon (kein Zugriff auf lokale Dateien), zählt gegen das persönliche Tageskontingent des Accounts und wird nicht mit Teammitgliedern geteilt. Aktionen über verbundenes GitHub/Connectors erscheinen als der Nutzer selbst (Commits, Slack-Nachrichten etc.). Für unser Projekt gut geeignet für den reinen Scan-/Recherche-/Entwurfsteil, aber wegen fehlender Permission-Prompts ungeeignet für den E-Mail-Versand-Schritt.",
+      "sources": [
+        "https://code.claude.com/docs/en/routines"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Desktop-Scheduled-Tasks (lokal) unterscheiden sich von Cloud-Routines dadurch, dass sie nur laufen, während Rechner und App aktiv sind, aber direkten Zugriff auf lokale Dateien haben und ein Mindestintervall von 1 Minute statt 1 Stunde erlauben.",
+      "detail": "Vergleichstabelle aus der Doku: Cloud=kein Maschinenzwang/kein lokaler Dateizugriff/keine Permission-Prompts; Desktop=Maschine muss an sein/lokaler Dateizugriff/Permission-Modus konfigurierbar; /loop=nur während offener Session. Für einen Einzelentwickler mit eigenem Server ist weder Desktop noch /loop die richtige Basis für einen 24/7-Tagesjob – ein VPS mit Cron/systemd-Timer + Agent SDK ist robuster.",
+      "sources": [
+        "https://code.claude.com/docs/en/desktop-scheduled-tasks"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Cloud-Sandboxes von Managed Agents laufen als isolierte Linux-Container (Ubuntu 24.04 LTS, x86_64) mit bis zu 8 GB RAM und 10 GB Disk, vorinstalliertem Python 3.10-3.13, Node 20/21/22, Playwright+Chromium (nicht auf PATH, über PLAYWRIGHT_BROWSERS_PATH), PostgreSQL 16 und Redis 7 (beide nicht standardmäßig gestartet), LibreOffice headless, Poppler/qpdf, Tesseract-OCR (nur Englisch), TeX Live und pandoc.",
+      "detail": "API-erzeugte Environments sind standardmäßig 'unrestricted' im Networking, über Claude Studio erzeugte defaulten auf 'limited'. Für unser PDF-Erzeugungs-Bedürfnis (Lebensläufe/Anschreiben) sind die vorinstallierten Tools ausreichend, ohne eigene Abhängigkeiten zu installieren – Tesseract nur Englisch ist ein Manko, falls OCR von deutschen Dokumenten nötig wird (z. B. Scan von Ausschreibungs-PDFs).",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/cloud-sandboxes-reference"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Skills im Agent SDK werden als SKILL.md-Dateien im Dateisystem entdeckt (~/.claude/skills/, <cwd>/.claude/skills/ und übergeordnete Verzeichnisse), nicht programmatisch registriert; über den 'skills'-Parameter (Liste, 'all' oder []) wird gesteuert, welche Skills nutzbar sind.",
+      "detail": "Für unser Projekt: eigene Skills für 'ATS-Keyword-Optimierung', 'Deutsches Anschreiben-Format', 'Unternehmensrecherche-Checkliste' als SKILL.md im Projektrepo ablegen, damit sie bei jedem Cron-Lauf automatisch geladen werden. Bereits vorhandene Bundled Skills (pdf, docx) lassen sich direkt für die Dokumentenerzeugung nutzen.",
+      "sources": [
+        "https://code.claude.com/docs/en/agent-sdk/skills"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Der Agent SDK schreibt Session-Transkripte standardmäßig als JSONL unter ~/.claude/projects/ auf lokale Disk; ein SessionStore-Adapter (append/load, optional listSessions/delete) erlaubt das Spiegeln nach S3/Redis/eigener DB für Multi-Host-Deployments und Durability.",
+      "detail": "Ohne SessionStore überlebt kein Sessionverlauf einen Container-Neustart oder Node-Wechsel. Für einen einzelnen VPS mit persistentem Volume ist ein SessionStore-Adapter nicht zwingend nötig; relevant erst, wenn horizontale Skalierung/Autoscaling geplant ist.",
+      "sources": [
+        "https://code.claude.com/docs/en/agent-sdk/session-storage"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Beim Selbst-Hosten des Agent SDK entspricht jede Session einem eigenen 'claude'-CLI-Subprozess (stdio-Kommunikation); N gleichzeitige Sessions bedeuten N Subprozesse mit eigenem Prozessbaum und Transkript-Datei, standardmäßig im selben Arbeitsverzeichnis, sofern nicht per cwd-Option getrennt.",
+      "detail": "Drei Zustandsarten liegen lokal auf Container-Disk und überleben keinen Neustart/Scale-down: Session-Transkripte, CLAUDE.md-Speicherdateien, Arbeitsverzeichnis-Artefakte. Für unseren Fall (1 Nutzer, 10 Bewerbungen/Tag, kein Autoscaling) ist das unproblematisch – ein einzelner Dauer-Server mit persistentem Volume reicht.",
+      "sources": [
+        "https://code.claude.com/docs/en/agent-sdk/hosting"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Anthropics offizielle Leitlinie gegen indirekte Prompt-Injection verlangt, Inhalte aus Web-Fetches/Tool-Ergebnissen ausschließlich in tool_result-Blöcken zu liefern (nie in System- oder Klartext-User-Nachrichten), die Herkunft explizit zu kennzeichnen, und im System-Prompt eine 'untrusted_content_policy' zu verankern, die eingebettete Anweisungen als zu meldende Information statt als Befehl behandelt.",
+      "detail": "Zusätzlich: Harmlessness-Screen mit einem leichten Modell (Haiku 4.5) vor kritischen Aktionen, strukturierte Klassifikations-Outputs. Für unser Projekt zentral: Stellenanzeigen-Text und Firmenwebseiten-Inhalte sind per Definition ungeprüfte Drittinhalte und dürfen niemals Tool-Aufrufe wie E-Mail-Versand auslösen dürfen, ohne dass ein Mensch bestätigt.",
+      "sources": [
+        "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Der Web-Fetch-Tool (aktuell web_fetch_20260318) kann laut Sicherheitswarnung keine URLs abrufen, die ausschließlich in Claudes eigener Ausgabe erscheinen – nur URLs, die zuvor in Nutzer-Nachrichten, Client-Tool-Ergebnissen oder früheren Web-Search/-Fetch-Resultaten auftauchten; das mindert (aber eliminiert nicht) Datenexfiltrationsrisiken.",
+      "detail": "Zusätzliche Schutzmaßnahmen: max_uses-Parameter und allowed_domains-Restriktion. Unterstützt keine JS-gerenderten Seiten – für moderne, JS-lastige Jobbörsen ist stattdessen ein Browser-Tool (Playwright MCP oder browser_toolset) nötig. Web Fetch ist serverseitig ausgeführt (kein eigener Code nötig), aber nicht auf Amazon Bedrock oder Google Cloud verfügbar.",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Claude Code Sandboxing (macOS Seatbelt, Linux bubblewrap/WSL2) isoliert Dateisystem und Netzwerk pro Bash-Befehl, konfigurierbar über /sandbox; nativ nur macOS/Linux/WSL2, kein natives Windows.",
+      "detail": "Für autonome Tages-Läufe auf einem Linux-VPS lässt sich damit eine Netzwerk-Allowlist (z. B. nur bestimmte Jobbörsen-Domains + api.anthropic.com) durchsetzen, ohne bei jedem Tool-Aufruf zu fragen – reduziert Prompt-Fatigue bei gleichzeitig harter technischer Grenze statt reiner Modell-Disziplin.",
+      "sources": [
+        "https://code.claude.com/docs/en/security"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Anthropics Computer-Use-Toolset (aktuell computer_toolset_20260801, 17 Werkzeuge) und Browser-Use-Toolset (browser_toolset_20260801, 31 Werkzeuge, 27 standardmäßig aktiv) werden client-seitig ausgeführt – Anthropic führt selbst nichts aus, die Anwendung muss Sandbox/Browser bereitstellen und Ergebnisse zurückliefern.",
+      "detail": "Browser-Use ist NICHT in Managed Agents verfügbar und nicht auf Amazon Bedrock/Azure Foundry, nur Claude API + Google Cloud Vertex. Screenshots kosten ca. 1000-1800 Tokens pro Bild; Anthropic empfiehlt, Screenshots in Batches zu pruning und Prompt-Caching zu nutzen. Für tägliches Scannen mehrerer Jobbörsen ist Playwright MCP (Accessibility-Tree statt Screenshots) daher token-günstiger als Computer/Browser-Use.",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool",
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/browser-use-tool"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Playwright MCP (microsoft/playwright-mcp, Apache-2.0) steuert Browser über strukturierte Accessibility-Snapshots statt Screenshots, unterstützt Domain-Allowlisting (--allowed-hosts, --blocked-origins/--allowed-origins) und explizit deaktivierbare Capabilities (vision, pdf, devtools); Installation via 'npx @playwright/mcp@latest'.",
+      "detail": "Die Doku warnt ausdrücklich: 'Playwright MCP is not a security boundary' – eigene Permission-Kontrolle bleibt nötig. Für unser Projekt der pragmatischste Standard-Browser-Automatisierer: kein Vision-Modell nötig, deterministischer als reine Screenshot-Loops, MIT-kompatible Lizenz-Situation (Apache-2.0).",
+      "sources": [
+        "https://github.com/microsoft/playwright-mcp"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "browser-use (Python, MIT) erreicht laut Anbieterangaben 89,1% auf dem WebVoyager-Benchmark und unterstützt Anthropic-Modelle direkt; Skyvern (AGPL-3.0, self-hostbar via docker compose) erreichte 85,85% auf WebVoyager 2.0 und ist auf Formular-lastige Aufgaben mit 2FA/TOTP-Support spezialisiert; Stagehand (MIT, TS/Python/Go, v4) bietet act/observe/extract als hybride Playwright+LLM-Schicht.",
+      "detail": "Skyverns AGPL-3.0-Lizenz ist bei Eigenentwicklung/Weitergabe restriktiver als MIT/Apache – für ein rein privates Einzelnutzer-Tool unkritisch, aber bei späterer Kommerzialisierung zu prüfen. Für unser MVP ist Playwright MCP als leichtgewichtige, deterministische Lösung vorzuziehen; browser-use/Skyvern erst bei Bedarf für stark JS-lastige, formularintensive Bewerbungsportale nachrüsten.",
+      "sources": [
+        "https://github.com/browser-use/browser-use",
+        "https://github.com/Skyvern-AI/skyvern",
+        "https://github.com/browserbase/stagehand"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "n8n Community Edition ist unter der Sustainable-Use-License (Fair-Code) kostenlos self-hostbar mit unbegrenzten Workflows/Executions; KI-Agent-Knoten sind auf Plattformebene kostenlos, es fällt nur der Modell-Token-Preis des jeweiligen Anbieters an. n8n Cloud startet bei 20 €/Monat (Starter, 2.500 Executions), Business-Self-Hosting kostet 667 €/Monat (nur nötig für SSO/SAML/Git-Versionierung).",
+      "detail": "Für unser Projekt als reine Glue-/Orchestrierungsschicht (Polling der Jobbörsen, Webhook-Fanout, Retry) denkbar, aber die AI-Agent-Knoten sind dünne LLM-Wrapper und kein Ersatz für Subagents/Hooks/Permissions des Claude Agent SDK. Empfehlung: n8n nur ergänzend für klassische Automatisierungsstrecken (z. B. E-Mail-Versand-Trigger nach Freigabe), nicht als Kern der Reasoning-Pipeline.",
+      "sources": [
+        "https://github.com/n8n-io/n8n"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Temporal (MIT, Server selbst hostbar mit Postgres/Cassandra/MySQL + optional Elasticsearch, SDKs Go/Java/Python/TS, ~9.800 Commits/mehrteilige Services), Trigger.dev (Apache-2.0, nur TypeScript, self-hostbar, Free 0$/Monat mit 20 gleichzeitigen Läufen/10 Schedules/1 Tag Logs, Hobby 10$, Pro 50$) und Inngest (SSPL Server + Apache-2.0 SDKs, Python/TS/Go/Kotlin, kostenlose Kontingente je nach Quelle 25k-100k Läufe/Monat, bezahlte Stufen ab ca. 75$/Monat) sind Durable-Execution-/Workflow-Plattformen für event-getriebene, fan-out-lastige Hintergrundjob-Systeme.",
+      "detail": "Für einen Einzelentwickler mit ~10 Bewerbungen/Tag (1 täglicher Batch-Lauf, kein Fan-out) ist der Betriebs-/Lernaufwand aller drei im Verhältnis zum Nutzen zu hoch; ein einfacher Cron-Trigger + Python-Skript mit eigener Idempotenz-Logik (Dedupe per Job-ID in SQLite) ist einfacher zu debuggen und kostenlos. Temporal erst relevant, falls das System später für mehrere Nutzer/Mandanten skaliert werden soll; Trigger.dev/Inngest nur bei echtem Event-Fan-out-Bedarf.",
+      "sources": [
+        "https://github.com/temporalio/temporal",
+        "https://github.com/triggerdotdev/trigger.dev",
+        "https://github.com/inngest/inngest"
+      ],
+      "confidence": "low",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "pgvector 0.8.6 (Postgres 13+) unterstützt HNSW- und IVFFlat-Indizes, sechs Distanzoperatoren sowie vector/halfvec/bit/sparsevec-Typen bis 16.000 Dimensionen; für Workloads unter 5 Millionen Vektoren ist die Performance laut Vergleichsquellen mehr als ausreichend und bei bereits vorhandenem Postgres praktisch kostenlos zusätzlich nutzbar.",
+      "detail": "LanceDB (Apache-2.0, Python/TS/Rust) ist embedded/serverless ohne eigenen Serverprozess, läuft lokal auf Disk oder S3 und eignet sich für Datensätze größer als der Arbeitsspeicher. Chroma wird häufig für Prototyping empfohlen (ca. 30% der Prototypen bleiben in Produktion), Qdrant (Apache-2.0) punktet bei komplexer Metadaten-Filterung und Quantisierung (-97% RAM). Für unser Projekt bei geringem Volumen: pgvector, falls ohnehin Postgres für den Anwendungszustand genutzt wird, sonst LanceDB als serverlose Alternative ohne zusätzliche Infrastruktur.",
+      "sources": [
+        "https://github.com/pgvector/pgvector",
+        "https://github.com/lancedb/lancedb",
+        "https://github.com/qdrant/qdrant"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Voyage-3.5-Embeddings kosten laut aktueller Preisrecherche $0,06 pro Million Input-Tokens (32k Kontextfenster, Stand Mai 2026 verifiziert); ältere Voyage-3.x-Modelle enthalten kein Gratis-Kontingent mehr, während die neuere voyage-4-Generation 200 Millionen Freitokens bietet.",
+      "detail": "Zum Vergleich: OpenAI text-embedding-3-large $0,13/M (Batch-API $0,065/M), Jina Embeddings v3 $0,02/M, Cohere embed-v4 laut einer Quelle $0,01/M (Wert wirkt ungewöhnlich niedrig gegenüber anderen Quellen – separat verifizieren). Für deutschsprachige Bewerbungsunterlagen wurde in der Recherche keine explizite Deutsch-Benchmark-Bestätigung für Voyage gefunden; multilingual-e5 oder BGE-M3 (beide open-weight, selbst hostbar, kostenlos) sind eine Alternative, falls Datenschutz/Kosten bei Embeddings Priorität haben.",
+      "sources": [],
+      "confidence": "low",
+      "info_date": "2026-05"
+    },
+    {
+      "claim": "Hetzner erhöhte am 15. Juni 2026 die Preise für Shared-vCPU-Pläne um 30-38% (CX23 3,99→5,49 €, CAX11 4,49→5,99 €), während dedizierte/AMD-Shared-Linien sich teils verdoppelten bis fast verdreifachten; zum Recherchezeitpunkt (September 2026) waren CX23/CX33/CX43/CX53 und CAX11-CAX41 als 'nicht verfügbar' für Neubestellung markiert.",
+      "detail": "Bestellbare günstigste Alternativen laut Recherche: CPX12 (1 vCPU AMD, 2 GB RAM, 40 GB NVMe) 11,99 €/Monat, CPX22 (2 vCPU, 4 GB, 80 GB) 19,99 €/Monat. Bestehende Server sind von der Preiserhöhung nicht betroffen, solange kein Rescale erfolgt. Für unser Projekt: CPX22 als MVP-Server realistisch budgetieren statt der oft zitierten alten CX22/CX32-Kampfpreise.",
+      "sources": [
+        "https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-06"
+    },
+    {
+      "claim": "Hetzner Object Storage kostet 4,99 €/Monat Basispreis (inkl. 1 TB Speicher + 1 TB Egress, S3-kompatibel); Mehrverbrauch wird mit 0,0067 €/TB-Stunde Speicher und 1,00 €/TB ausgehendem Traffic abgerechnet, Ingress und EU-interner Traffic sowie S3-API-Aufrufe sind kostenlos.",
+      "detail": "Für unser Projekt (PDF-Ablage von ~10 Bewerbungen/Tag, also geringes Datenvolumen) ist ein separates Object-Storage-Abo in der MVP-Phase nicht nötig; ein privates Git-Repo oder das lokale VPS-Volume genügt bis weit über 1000 Bewerbungen. Erst bei Langzeitarchivierung/Backup-Strategie relevant.",
+      "sources": [
+        "https://www.hetzner.com/storage/object-storage/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Langfuse (MIT-Lizenz außer 'ee'-Ordner) benötigt für Self-Hosting laut eigener Doku mindestens 4+ CPU-Kerne, 16 GiB RAM und ca. 100 GiB Speicher (Postgres 15+, ClickHouse ≥25.12, Redis 7+, S3/MinIO); Langfuse Cloud kostet $0 (Hobby, 50k Units/Monat, 30 Tage Retention, 2 Nutzer), $29/Monat (Core, 100k Units, unbegrenzte Nutzer, 90 Tage), $199/Monat (Pro, 3 Jahre Retention) bzw. $2.499/Monat (Enterprise); Überschreitung wird gestaffelt ab $8/100k Units berechnet.",
+      "detail": "Der Self-Hosting-Ressourcenbedarf (16 GB RAM) übersteigt einen typischen Einzelentwickler-MVP-Server deutlich – würde einen zweiten, größeren VPS allein für Observability erfordern. Arize Phoenix (Elastic-2.0, 'pip install arize-phoenix', SQLite-Default, native openinference-instrumentation-anthropic) ist für unseren Maßstab die leichtgewichtigere Alternative.",
+      "sources": [
+        "https://langfuse.com/self-hosting",
+        "https://github.com/langfuse/langfuse"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Arize Phoenix (Elastic License 2.0) lässt sich mit einem einzigen Befehl ('pip install arize-phoenix && phoenix serve' oder 'uvx arize-phoenix serve') betreiben, nutzt standardmäßig SQLite (Postgres optional für Produktion), basiert auf OpenTelemetry/OpenInference und bietet native Anthropic-Instrumentierung über das Paket 'openinference-instrumentation-anthropic'.",
+      "detail": "Deutlich geringerer Infrastruktur-Fußabdruck als Langfuse; für einen Einzelentwickler-VPS mit begrenztem RAM die praktikablere Wahl für Tracing der Subagent-Läufe (Kosten, Latenz, Tool-Aufrufe nachvollziehen).",
+      "sources": [
+        "https://github.com/Arize-ai/phoenix"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "1Password Business kostet 7,99 $/Nutzer/Monat inkl. CLI/Service-Accounts (op run); Doppler bietet eine kostenlose Stufe bis 5 Identitäten/3 Projekte, Pro 18 $/Identität/Monat, Team 21 $/Nutzer/Monat, kein Self-Hosting; Infisical (MIT außer 'ee'-Ordner) ist komplett kostenlos self-hostbar via 'docker compose -f docker-compose.prod.yml up', Cloud-Pro-Tarif 18 $/Monat/Identität.",
+      "detail": "sops (MPL-2.0, CNCF-Sandbox-Projekt) verschlüsselt einzelne Werte in YAML/JSON/ENV-Dateien direkt im Git-Repo, unterstützt age/PGP/AWS-KMS/GCP-KMS/Azure-KeyVault und bietet 'sops exec-env' zum Setzen von Umgebungsvariablen aus der verschlüsselten Datei. Für einen Einzelentwickler ohne Team ist sops+age (kostenlos, kein zusätzlicher Dienst, git-versionierbar) der einfachste Weg für die MVP-Phase; Infisical self-hosted als Alternative, falls eine Web-UI zur Secret-Verwaltung gewünscht ist.",
+      "sources": [
+        "https://github.com/getsops/sops",
+        "https://github.com/Infisical/infisical"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Der Claude Agent SDK Credit-Pool (separates monatliches Kontingent für nicht-interaktive Nutzung wie Agent-SDK/claude -p) wurde von Anthropic am 15. Juni 2026 angekündigt, aber zum selben Datum pausiert; Stand der Recherche zahlt Agent-SDK-Nutzung weiterhin aus dem normalen Abo-Nutzungslimit, außer es wird explizit ANTHROPIC_API_KEY gesetzt (dann reine API-Abrechnung).",
+      "detail": "Für die Kostenplanung unseres Projekts wichtig: Wer den Agenten über ein Pro/Max-Abo statt API-Key laufen lässt, zehrt die normalen Interaktions-Nutzungslimits auf und konkurriert damit ggf. mit der eigenen interaktiven Claude-Code-Nutzung. Für einen dedizierten Automatisierungs-Server ist ein separater API-Key mit eigenem Nutzungsbudget die sauberere, planbarere Lösung.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": "2026-06"
+    },
+    {
+      "claim": "CrewAI (MIT, Python 3.10-<3.14) unterscheidet 'Crews' (autonome, rollenbasierte Agenten-Teams) und 'Flows' (event-getriebene, präzise steuerbare Workflows); LangGraph (MIT) ist ein 'low-level orchestration framework' mit Durable Execution und Checkpointing für zustandsbehaftete, langlaufende Agenten, Deployment über LangSmith/LangGraph Platform.",
+      "detail": "Beide sind Provider-agnostische Frameworks, die eine eigene Tool-Loop-Implementierung erfordern – im Gegensatz zum Claude Agent SDK, das die Loop, Hooks, Permissions und Skills bereits fertig mitbringt. Für ein Projekt, das explizit auf Claude/Anthropic als Kerntechnologie setzt, ist der Zusatznutzen von CrewAI/LangGraph gegenüber dem nativen Agent SDK gering und bringt zusätzliche Abstraktionsebenen/Lock-in-Risiko in die andere Richtung (Provider-Wechsel-Fähigkeit, die hier nicht gefordert ist). Als reine In-Process-Scheduling-Bibliothek (statt vollem Orchestrierungs-Framework) wäre zusätzlich APScheduler denkbar (MIT, Cron-/Interval-/Kalender-Trigger, persistente Job-Stores für Postgres/MySQL/SQLite/MongoDB) – dessen v3.x ist stabil/produktionsreif, v4.0 ist laut eigener Warnung ein Pre-Release und ausdrücklich nicht für Produktion empfohlen; für einen täglichen Batch-Lauf ist ein simpler systemd-Timer/Cron-Job aber robuster und einfacher zu überwachen als ein dauerhaft laufender Scheduler-Prozess.",
+      "sources": [
+        "https://github.com/crewAIInc/crewAI",
+        "https://github.com/langchain-ai/langgraph",
+        "https://github.com/agronholm/apscheduler"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Typst (Apache-2.0) kompiliert Markup-Quelldateien direkt zu PDF via 'typst compile file.typ', als deutlich einfachere Alternative zu LaTeX für programmatisch erzeugte, sauber gesetzte Dokumente wie Lebensläufe.",
+      "detail": "Explizite Bestätigung von PDF/A- oder Tagged-PDF-Unterstützung konnte in der Recherche nicht gefunden werden (niedrige Konfidenz für dieses Detail). Da die Managed-Agents-/Agent-SDK-Sandboxes bereits LibreOffice headless, Poppler/qpdf und TeX Live vorinstalliert haben, ist eine zusätzliche Typst-Installation für die PDF-Erzeugung nicht zwingend nötig – die bereits vorhandenen Werkzeuge (plus die bereits verfügbaren 'pdf'/'docx'-Skills) reichen für den MVP.",
+      "sources": [
+        "https://github.com/typst/typst"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Fly.io (shared-cpu-1x/1GB ca. 5,70-5,92 $/Monat), Railway (Hobby 5 $/Monat + nutzungsabhängig 10 $/GB-RAM/Monat & 20 $/vCPU/Monat) und Render (Starter 7 $/Monat, Standard 25 $/Monat, feste statt nutzungsbasierte Preise) sind Alternativen zu Hetzner für einen kleinen Dauer-Server, mit tendenziell höheren Kosten als ein europäischer VPS-Anbieter, aber einfacherem Deployment (Git-Push-Deploy, kein eigenes Server-Management).",
+      "detail": "Für einen technisch versierten Einzelentwickler, der ohnehin Docker/systemd beherrschen muss (z. B. für Playwright-Browser, sops, SQLite-Backups), bietet ein Hetzner-VPS das beste Preis-Kontrolle-Verhältnis; Fly.io/Railway/Render lohnen sich, wenn Zero-Ops-Deployment wichtiger ist als der niedrigste Preis.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": "2026-06"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Claude Agent SDK (Python: claude-agent-sdk, TypeScript: @anthropic-ai/claude-agent-sdk)",
+      "url": "https://code.claude.com/docs/en/agent-sdk/overview",
+      "category": "Bibliothek",
+      "access": "pip install claude-agent-sdk bzw. npm; Auth über ANTHROPIC_API_KEY oder Claude-Code-OAuth-Login; kein separates Limit dokumentiert außer normalen API-Rate-Limits",
+      "pricing": "Kostenlose MIT-lizenzierte Bibliothek; Nutzung zahlt sich über Standard-API-Tokenpreise (Sonnet 5 $2/$10 pro MTok) oder Abo-Nutzungslimits ab, Stand September 2026",
+      "verdict": "empfohlen – Kern der MVP-Architektur, volle Kontrolle über Subagents/Hooks/Permissions bei geringstem Infrastruktur-Overhead"
+    },
+    {
+      "name": "Anthropic Managed Agents (Deployments-/Sessions-API)",
+      "url": "https://platform.claude.com/docs/en/managed-agents/overview",
+      "category": "API",
+      "access": "REST-API mit x-api-key, Beta-Header managed-agents-2026-04-01 (Memory-Endpunkte: agent-memory-2026-07-22); Scheduled Deployments per Cron+Timezone, minutengenau",
+      "pricing": "$0,08 pro Session-Stunde + Standard-Token-Preise + $10 pro 1000 Websuchen, Stand September 2026 laut offizieller Budgets-Doku; Beta, kann sich ändern",
+      "verdict": "optional – funktional am reichsten (Memory Stores, Vaults, Webhooks, Budgets), aber Beta-Status und neue API-Form sprechen für Einsatz erst in v1, nicht im MVP"
+    },
+    {
+      "name": "Claude Code Routines",
+      "url": "https://code.claude.com/docs/en/routines",
+      "category": "SaaS",
+      "access": "claude.ai/code/routines, Desktop-App oder /schedule-CLI-Befehl; Scheduled/API/GitHub-Trigger, Mindestintervall 1 Stunde",
+      "pricing": "In Pro/Max/Team/Enterprise-Abos enthalten (kein separater Preis dokumentiert), zählt gegen persönliches Tageskontingent; research preview",
+      "verdict": "optional – gut für den Scan-/Recherche-Teil ohne eigene Infrastruktur, wegen fehlender Permission-Prompts nicht für den E-Mail-Versand-Schritt geeignet"
+    },
+    {
+      "name": "Playwright MCP (microsoft/playwright-mcp)",
+      "url": "https://github.com/microsoft/playwright-mcp",
+      "category": "MCP-Server",
+      "access": "npx @playwright/mcp@latest; lokal oder als MCP-Server in Agent-SDK/Claude-Code eingebunden; Domain-Allowlisting über --allowed-hosts/--blocked-origins",
+      "pricing": "Kostenlos, Apache-2.0",
+      "verdict": "empfohlen – Standard-Browser-Automatisierung für Jobbörsen-Scans, deterministischer und günstiger als Screenshot-basierte Ansätze"
+    },
+    {
+      "name": "browser-use",
+      "url": "https://github.com/browser-use/browser-use",
+      "category": "Bibliothek",
+      "access": "pip/uv install browser-use; unterstützt Anthropic-Modelle direkt über provider-prefixed Model-IDs",
+      "pricing": "Kostenlos self-hosted (MIT); Cloud-Angebot mit einmaligem 15$-Signup-Guthaben für bestimmte Anmeldewege",
+      "verdict": "optional – für stärker autonome, ziel-getriebene Browser-Aufgaben, wenn Playwright MCP an Grenzen stößt (z. B. sehr dynamische Bewerbungsportale)"
+    },
+    {
+      "name": "Skyvern",
+      "url": "https://github.com/Skyvern-AI/skyvern",
+      "category": "SaaS",
+      "access": "Self-hosted via 'docker compose up -d' (Postgres+API+UI) oder Managed Cloud; unterstützt mehrere Claude-Modelle",
+      "pricing": "AGPL-3.0 für Self-Hosting (Anti-Bot-Features nur im Managed-Angebot), Cloud-Preise nicht in der Recherche bestätigt",
+      "verdict": "optional – stark bei formularlastigen Bewerbungsportalen mit 2FA, aber AGPL-Lizenz und zusätzlicher Betriebsaufwand gegen Nutzen abwägen"
+    },
+    {
+      "name": "Stagehand",
+      "url": "https://github.com/browserbase/stagehand",
+      "category": "Bibliothek",
+      "access": "TypeScript/Python/Go SDK; act/observe/extract-Primitive, funktioniert mit Browserbase oder eigenem Playwright-Setup",
+      "pricing": "Kostenlos, MIT; Browserbase als optionaler kostenpflichtiger Begleitdienst",
+      "verdict": "optional – für Teams mit TypeScript-Präferenz und Bedarf an strukturierter Datenextraktion aus Webseiten interessant"
+    },
+    {
+      "name": "n8n (Community Edition, self-hosted)",
+      "url": "https://github.com/n8n-io/n8n",
+      "category": "SaaS",
+      "access": "Docker/Quick-Install-Skript, lokal unter http://localhost:5678; unbegrenzte Workflows/Executions/Nutzer im Self-Hosting",
+      "pricing": "Kostenlos self-hosted (Sustainable Use License/Fair-Code); Cloud ab 20 €/Monat, Business-Self-Hosting 667 €/Monat/Jahr (nur für SSO/Git-Versionierung nötig)",
+      "verdict": "optional – als Glue-Layer für klassische Automatisierung (Webhook-Fanout, E-Mail-Trigger nach Freigabe), nicht als Ersatz für den Agent-SDK-Kern"
+    },
+    {
+      "name": "Temporal",
+      "url": "https://github.com/temporalio/temporal",
+      "category": "SaaS",
+      "access": "Self-hosted Server (Postgres/Cassandra/MySQL, optional Elasticsearch) oder Temporal Cloud; SDKs für Go/Java/Python/TypeScript",
+      "pricing": "Server MIT-lizenziert kostenlos self-hostbar; Temporal Cloud Preise nicht abschließend recherchiert (Suchbudget erschöpft)",
+      "verdict": "vermeiden – Betriebskomplexität für 1 Nutzer/10 Bewerbungen-pro-Tag unverhältnismäßig hoch"
+    },
+    {
+      "name": "Trigger.dev",
+      "url": "https://github.com/triggerdotdev/trigger.dev",
+      "category": "SaaS",
+      "access": "Self-hosted via Docker/Kubernetes oder Cloud; nur TypeScript/JavaScript-SDK; Durable Cron bis 1 Jahr Laufzeit",
+      "pricing": "Free 0$/Monat (20 gleichzeitige Läufe, 10 Schedules, 1 Tag Logs), Hobby 10$/Monat, Pro 50$/Monat, Stand ca. Mai 2026",
+      "verdict": "vermeiden für MVP – für ein einzelnes tägliches Batch-Skript überdimensioniert, TS-only passt nicht zwingend zum Python-Agent-SDK-Stack"
+    },
+    {
+      "name": "Inngest",
+      "url": "https://github.com/inngest/inngest",
+      "category": "SaaS",
+      "access": "Self-hosted (SSPL Server, Apache-2.0 SDKs) oder Cloud; SDKs für TS/Python/Go/Kotlin; Dev-Server via 'npx inngest-cli@latest dev'",
+      "pricing": "Kostenloses Kontingent (Quellen uneinig: 25k-100k Funktionsläufe/Monat), bezahlte Stufen ab ca. 75$/Monat laut Vergleichsquelle",
+      "verdict": "vermeiden für MVP – Event-Fan-out-Fokus passt nicht zum einfachen Ein-Batch-pro-Tag-Anwendungsfall"
+    },
+    {
+      "name": "pgvector",
+      "url": "https://github.com/pgvector/pgvector",
+      "category": "Bibliothek",
+      "access": "Postgres-Extension, apt install postgresql-*-pgvector oder Docker-Image pgvector/pgvector:pg18; SQL-Operatoren für Vektorsuche",
+      "pricing": "Kostenlos, Open Source; Kosten nur für die Postgres-Instanz selbst",
+      "verdict": "empfohlen für v1 – falls ohnehin Postgres für Anwendungszustand läuft, praktisch kostenlose semantische Suche für Job-Profil-Matching"
+    },
+    {
+      "name": "LanceDB",
+      "url": "https://github.com/lancedb/lancedb",
+      "category": "Bibliothek",
+      "access": "Python/TypeScript/Rust-SDK, embedded (kein Serverprozess), lokal auf Disk oder S3",
+      "pricing": "Kostenlos, Apache-2.0; optionaler Managed-Cloud-Dienst",
+      "verdict": "optional – serverlose Alternative zu pgvector, wenn kein Postgres vorhanden ist oder Einfachheit vor SQL-Integration priorisiert wird"
+    },
+    {
+      "name": "Qdrant",
+      "url": "https://github.com/qdrant/qdrant",
+      "category": "SaaS",
+      "access": "docker run -p 6333:6333 qdrant/qdrant (unsecured Default!), Clients für Go/Rust/JS/Python/.NET/Java; Cloud mit Free-Tier verfügbar",
+      "pricing": "Kostenlos self-hosted (Apache-2.0); Cloud-Free-Tier ohne genaue Limits in der Recherche bestätigt",
+      "verdict": "optional – nur bei Bedarf an komplexer Metadaten-Filterung und Quantisierung, für unser geringes Volumen nicht zwingend nötig"
+    },
+    {
+      "name": "Voyage AI Embeddings (voyage-3.5)",
+      "url": "https://docs.voyageai.com/docs/pricing",
+      "category": "API",
+      "access": "REST-API, API-Key; 32k-Token-Kontextfenster",
+      "pricing": "$0,06 pro Million Input-Tokens (Stand Mai 2026, kein Freikontingent für 3.x-Generation)",
+      "verdict": "optional – solide Qualität, aber Deutsch-spezifische Benchmarks nicht bestätigt; multilingual-e5/BGE-M3 (kostenlos, open-weight) als datenschutzfreundlichere Alternative prüfen"
+    },
+    {
+      "name": "OpenAI text-embedding-3-large",
+      "url": "https://platform.openai.com/docs/pricing",
+      "category": "API",
+      "access": "REST-API, API-Key",
+      "pricing": "$0,13 pro Million Tokens (Batch-API $0,065/M)",
+      "verdict": "optional – etablierter Standard, aber teurer als Voyage/Jina bei diesem Volumen"
+    },
+    {
+      "name": "sops (Secrets OPerationS)",
+      "url": "https://github.com/getsops/sops",
+      "category": "CLI",
+      "access": "CLI-Tool, verschlüsselt einzelne Werte in YAML/JSON/ENV/INI/BINARY; Backends: age, PGP, AWS/GCP/Azure KMS",
+      "pricing": "Kostenlos, MPL-2.0, CNCF Sandbox",
+      "verdict": "empfohlen für MVP – einfachster, git-versionierbarer Weg für Secrets ohne zusätzlichen laufenden Dienst"
+    },
+    {
+      "name": "Infisical",
+      "url": "https://github.com/Infisical/infisical",
+      "category": "SaaS",
+      "access": "Self-hosted via docker compose oder Cloud; CLI 'infisical run', SDKs für Node/Python/Go/Ruby/Java/.NET",
+      "pricing": "Kostenlos self-hosted (MIT außer ee/-Ordner); Cloud Pro 18$/Monat/Identität",
+      "verdict": "optional – wenn eine Web-UI zur Secret-Verwaltung gewünscht ist statt reiner Datei-Verschlüsselung wie bei sops"
+    },
+    {
+      "name": "1Password CLI (op run)",
+      "url": "https://developer.1password.com/docs/cli/",
+      "category": "CLI",
+      "access": "CLI-Tool, Service-Accounts für CI/Automatisierung",
+      "pricing": "1Password Business 7,99 $/Nutzer/Monat (CLI/Service-Accounts inklusive)",
+      "verdict": "optional – sinnvoll, falls ohnehin ein 1Password-Abo für persönliche Zwecke besteht, sonst kein Zusatznutzen gegenüber sops"
+    },
+    {
+      "name": "Doppler",
+      "url": "https://www.doppler.com/",
+      "category": "SaaS",
+      "access": "Cloud-only, kein Self-Hosting; CLI und Integrationen",
+      "pricing": "Free bis 5 Identitäten/3 Projekte, Pro 18$/Identität/Monat, Team 21$/Nutzer/Monat",
+      "verdict": "vermeiden für Einzelentwickler-MVP – kein Self-Hosting, teurer als sops/Infisical ohne klaren Mehrwert bei 1 Nutzer"
+    },
+    {
+      "name": "Langfuse (self-hosted)",
+      "url": "https://langfuse.com/self-hosting",
+      "category": "SaaS",
+      "access": "Docker Compose (Postgres+ClickHouse+Redis+MinIO), 4+ CPU/16 GiB RAM empfohlen",
+      "pricing": "Self-Hosting kostenlos (MIT außer ee/); Cloud Hobby $0 (50k Units/Monat), Core $29/Monat, Pro $199/Monat, Enterprise $2.499/Monat",
+      "verdict": "optional – erst in v1/v2 bei ausreichend dimensioniertem Zweit-Server sinnvoll, für MVP zu ressourcenintensiv"
+    },
+    {
+      "name": "Arize Phoenix",
+      "url": "https://github.com/Arize-ai/phoenix",
+      "category": "Bibliothek",
+      "access": "pip install arize-phoenix && phoenix serve, oder Docker/Helm; SQLite-Default, Postgres optional",
+      "pricing": "Kostenlos, Elastic License 2.0",
+      "verdict": "empfohlen für v1 – leichtgewichtiges Tracing mit nativer Anthropic-Instrumentierung, passt zu einem kleinen VPS"
+    },
+    {
+      "name": "Hetzner Cloud (CPX/CX/CAX)",
+      "url": "https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/",
+      "category": "SaaS",
+      "access": "Cloud-Konsole/API/Terraform, europäische Rechenzentren",
+      "pricing": "CPX12 11,99 €/Monat, CPX22 19,99 €/Monat (Stand September 2026, nach Preiserhöhung vom 15.6.2026); alte CX22/CX32/CAX11-Kampfpreise bei Neubestellung nicht mehr verfügbar",
+      "verdict": "empfohlen – bestes Preis-Kontrolle-Verhältnis für einen dauerhaft laufenden Einzelentwickler-Server in der EU (Datenschutz-Standort Deutschland/Nutzer)"
+    },
+    {
+      "name": "Hetzner Object Storage",
+      "url": "https://www.hetzner.com/storage/object-storage/",
+      "category": "SaaS",
+      "access": "S3-kompatible API",
+      "pricing": "4,99 €/Monat inkl. 1 TB Speicher + 1 TB Egress; Mehrverbrauch 0,0067 €/TB-Stunde bzw. 1,00 €/TB Egress",
+      "verdict": "optional – erst relevant bei Langzeitarchivierung deutlich über MVP-Volumen hinaus"
+    },
+    {
+      "name": "Fly.io",
+      "url": "https://fly.io/",
+      "category": "SaaS",
+      "access": "Git/CLI-Deploy, globale Regionen",
+      "pricing": "shared-cpu-1x/1GB ca. 5,70-5,92 $/Monat, Stand ca. Juni 2026",
+      "verdict": "optional – Alternative bei Wunsch nach Zero-Ops-Deployment statt eigenem Server-Management"
+    },
+    {
+      "name": "Anthropic Web Search Tool",
+      "url": "https://platform.claude.com/docs/en/managed-agents/budgets",
+      "category": "API",
+      "access": "Server-seitiges Tool, in Agent-SDK/Managed-Agents/API direkt aktivierbar",
+      "pricing": "$10 pro 1000 Suchanfragen, Stand September 2026",
+      "verdict": "empfohlen – für Unternehmensrecherche/Ansprechpartner-Suche einsetzen, aber Nutzung pro Tag begrenzen (Kostenkontrolle)"
+    },
+    {
+      "name": "Anthropic Web Fetch Tool (web_fetch_20260318)",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool",
+      "category": "API",
+      "access": "Server-seitig, kann nur URLs abrufen, die bereits im Konversationsverlauf vorkommen; unterstützt kein JS-Rendering",
+      "pricing": "In den Standard-Token-Preisen enthalten, kein zusätzlicher Per-Request-Preis dokumentiert",
+      "verdict": "empfohlen – für statische Firmenseiten/Impressum-Abruf einsetzen, für JS-lastige Jobbörsen Playwright MCP ergänzen"
+    }
+  ],
+  "recommendations": [
+    "MVP (Wochen 1-4): Claude Agent SDK (Python) selbst gehostet auf einem Hetzner-CPX22-VPS (EU-Standort), angestoßen per systemd-Timer/Cron einmal täglich; Subagents für Job-Scan, Unternehmensrecherche, Anschreiben-Autor, ATS-Keyword-Check, CV-Anpassung mit jeweils minimaler Tool-Berechtigung.",
+    "Modellwahl gestaffelt: Sonnet 5 als Standard für Scan/Bewertung/Recherche (günstig), Fable 5.1 oder Opus 5 gezielt nur für die finale Anschreiben-Formulierung (Qualität vor Kosten dort, wo es zählt).",
+    "Zustand/Dedupe/Audit-Log in SQLite auf dem VPS führen (welche Stellen bereits gesehen/bewertet/beworben wurden); erzeugte PDFs in einem privaten Git-Repo versionieren statt separatem Objektspeicher – ausreichend bis weit über MVP-Volumen hinaus.",
+    "PDF-Erzeugung über die bereits vorinstallierten Sandbox-/Systemwerkzeuge (LibreOffice headless, Poppler/qpdf, TeX Live) bzw. vorhandene Claude-Skills 'pdf'/'docx' lösen, keine zusätzliche Bibliothek wie Typst einführen, außer bei konkretem Bedarf an präzisem Custom-Layout.",
+    "Browser-Automatisierung primär mit Playwright MCP (Accessibility-Tree, kein Vision-Modell nötig, Domain-Allowlist konfigurierbar); browser-use/Skyvern erst nachrüsten, wenn konkrete Jobportale mit Playwright MCP nicht zuverlässig funktionieren.",
+    "Secrets-Verwaltung mit sops+age direkt im (privaten) Git-Repo für die MVP-Phase; Migration zu Infisical self-hosted oder Managed-Agents-Vaults erst, wenn mehrere Umgebungen/Dienste eine Web-UI rechtfertigen.",
+    "Harte Trennung zwischen autonomem Lese-/Recherche-/Entwurfsteil und dem Freigabe-/Versand-Schritt: E-Mail-Versand niemals in bypassPermissions oder in einer autonomen Claude-Code-Routine ausführen, sondern über ein eigenes Tool mit explizitem canUseTool-Gate, das erst nach manueller Nutzerfreigabe (z. B. Checkliste in einer täglichen Review-Datei/Artefakt) freigeschaltet wird.",
+    "Prompt-Injection-Abwehr gemäß Anthropics eigener Leitlinie umsetzen: Stellenanzeigen-/Webseiten-Inhalte ausschließlich als tool_result liefern, System-Prompt mit expliziter 'untrusted_content_policy' versehen, Web-Fetch nur mit allowed_domains betreiben.",
+    "v1 (Monat 2-3): bei Bedarf an semantischem Job-Profil-Matching pgvector (falls Postgres ohnehin läuft) oder LanceDB (serverlos) ergänzen; Observability mit Arize Phoenix statt Langfuse aufsetzen (deutlich geringerer Ressourcenbedarf für Einzelentwickler-Infrastruktur).",
+    "v1: Migration einzelner Bausteine zu Anthropic Managed Agents prüfen, sobald die Beta stabiler ist – insbesondere Budgets als hartes Tageslimit, Vaults für SMTP-/Gmail-Zugangsdaten (Agent sieht nie den Klartext-Secret) und Memory Stores als Ablage für Kandidatenprofil/gelernte Präferenzen; vollständige Migration weg vom Agent SDK nicht vor Stabilisierung der Beta.",
+    "Claude Code Routines optional ergänzend für den reinen nächtlichen Scan-/Recherche-Teil nutzen (kein eigener Server nötig für diesen Teilschritt), aber niemals für Schritte mit Außenwirkung (Versand, verbindliche Zusagen).",
+    "Kostenkontrolle: nicht allein auf Agent-SDK-total_cost_usd verlassen (nur Schätzung), sondern regelmäßig die Anthropic Usage and Cost API abfragen und ein separates Tagesbudget/Alerting einrichten.",
+    "Temporal, Trigger.dev, Inngest, LangGraph, CrewAI und n8n als Kernorchestrierung vermeiden – bei diesem Volumen (1 Nutzer, ~10 Bewerbungen/Tag) erhöhen sie Komplexität und Lock-in ohne proportionalen Nutzen; n8n allenfalls als optionale Glue-Schicht für den Freigabe-/Versand-Workflow."
+  ],
+  "risks": [
+    "Anthropic Managed Agents und Claude Code Routines sind laut eigener Dokumentation Beta/'research preview' – Preise, Limits und Verhalten können sich ändern; kritische Produktionslogik nicht vollständig darauf aufbauen, bevor GA-Status erreicht ist.",
+    "Prompt-Injection aus Stellenanzeigen oder Firmenwebseiten kann versuchen, den Agenten zu unerwünschten Aktionen zu bewegen (z. B. Versand ungeprüfter Bewerbungen, Preisgabe von Zugangsdaten); erfordert strikte Trennung von vertrauenswürdigem System-Prompt und untrusted tool_result-Inhalten sowie einen Human-in-the-loop-Gate vor jedem Versand.",
+    "Autonome Claude-Code-Routines laufen ohne Permission-Prompts – ein Fehlgriff im Prompt-Design kann dort unbemerkt zu unerwünschten Aktionen führen, da kein Freigabeschritt eingebaut ist.",
+    "Agent-SDK-total_cost_usd ist nur eine clientseitige Schätzung; ohne zusätzliches Monitoring über die Usage and Cost API kann das tatsächliche Tagesbudget unbemerkt überschritten werden.",
+    "Web-Fetch-Tool unterstützt keine JS-gerenderten Seiten – viele moderne Jobbörsen benötigen daher zwingend einen Browser-Automatisierungs-Layer (Playwright MCP), was zusätzliche Komplexität, Wartungsaufwand und Angriffsfläche gegenüber reinem API-/Fetch-Zugriff bedeutet.",
+    "Hetzners Shared-vCPU-Kampfpreise (CX22/CX32/CAX11) waren zum Recherchezeitpunkt für Neubestellungen nicht verfügbar und die Preise seit Juni 2026 um 30-38% gestiegen – Kostenplanung auf Basis alter, oft zitierter Preise ist überholt.",
+    "Langfuse-Self-Hosting-Ressourcenbedarf (16 GB RAM) passt nicht zu einem knapp dimensionierten Einzelentwickler-VPS; wird dieser Punkt übersehen, drohen OOM-Abstürze oder unerwartete Zusatzkosten für einen größeren Server.",
+    "Skyverns AGPL-3.0-Lizenz kann bei späterer Kommerzialisierung oder Weitergabe des Systems restriktive Copyleft-Pflichten auslösen – vor produktivem Einsatz juristisch prüfen, falls das Projekt über den rein privaten Gebrauch hinauswächst.",
+    "Der pausierte Agent-SDK-Credit-Pool bedeutet, dass Abo-basierte (nicht API-Key-basierte) Nutzung weiterhin die normalen interaktiven Nutzungslimits belastet – bei intensiver täglicher Automatisierung kann das die eigene interaktive Claude-Code-Nutzung einschränken.",
+    "Scraping von Jobbörsen/Karriereseiten kann gegen deren Nutzungsbedingungen verstoßen und Rate-Limiting/IP-Sperren nach sich ziehen; dieses Risiko liegt teils außerhalb der reinen Architektur-Dimension, beeinflusst aber die Wahl zwischen offiziellen APIs/Feeds und Browser-Automatisierung."
+  ],
+  "open_questions_for_user": [
+    "Soll der Automatisierungs-Server über einen separaten Anthropic-API-Key (reine, planbare API-Abrechnung) laufen oder über das persönliche Pro/Max-Abo (dann Konkurrenz mit der eigenen interaktiven Nutzung um dieselben Limits)?",
+    "Ist ein eigener, dauerhaft laufender VPS (z. B. Hetzner CPX22 in Deutschland/EU) akzeptabel, oder wird eine vollständig Anthropic-verwaltete Lösung (Managed Agents/Routines) trotz Beta-Status bevorzugt, um selbst keine Server-Administration zu übernehmen?",
+    "Welches E-Mail-Konto soll für den Versand genutzt werden (Gmail API, generisches SMTP, Outlook/Exchange) – das bestimmt, ob Managed-Agents-Vaults (OAuth) oder eine einfachere SMTP-Zugangsdaten-Lösung (sops-verschlüsselt) passender ist?",
+    "Wie hoch soll das tägliche/monatliche Kostenlimit für Modell-Tokens, Websuche und Session-Laufzeit sein, damit ein konkretes Budget (z. B. als Managed-Agents-Budget-Objekt oder eigene Kostenkontrolle) hinterlegt werden kann?",
+    "Soll Bewerbungsdaten-/CV-Speicherung ausschließlich in der EU liegen (Hetzner) oder ist auch US-Cloud-Infrastruktur (Managed Agents, Fly.io US-Regionen) akzeptabel – relevant für DSGVO-Überlegungen, die außerhalb dieser Architektur-Dimension liegen, aber die Hosting-Wahl beeinflussen?"
+  ],
+  "search_log": [
+    "[aus Salvage] Anthropic Managed Agents pricing session container per hour 2026",
+    "[aus Salvage] Claude Agent SDK Python claude-agent-sdk query() subagents hooks documentation 2026",
+    "[aus Salvage] Hetzner Cloud CX22 CX32 CAX11 Preis 2026 monatlich",
+    "[aus Salvage] Claude Code Routines scheduled triggers cloud cron documentation",
+    "[aus Salvage] Claude Agent SDK pricing billing API key subscription claude-agent-sdk cost",
+    "[aus Salvage] Voyage AI voyage-3.5 embedding pricing per million tokens 2026 multilingual German",
+    "[aus Salvage] OpenAI text-embedding-3-large price Cohere embed-v4 price Jina embeddings v4 price 2026",
+    "[aus Salvage] Playwright MCP server Microsoft playwright-mcp 2026 features snapshot mode",
+    "[aus Salvage] Langfuse self-hosted docker compose 2026 requirements Postgres ClickHouse Redis",
+    "[aus Salvage] Fly.io Railway Render pricing 2026 small VM shared-cpu 1GB monthly cost",
+    "[aus Salvage] hetzner.com pressroom cloud price adjustment 2026 CX23 CAX11 shared vCPU",
+    "[aus Salvage] n8n self-hosted community edition license AI Agent node 2026 pricing cloud",
+    "[aus Salvage] browser-use vs Stagehand vs Skyvern comparison 2026 open source browser agent",
+    "[aus Salvage] Fetch: code.claude.com/docs/en/agent-sdk/overview, /sub-agents, /hooks, /sessions, /permissions, /mcp, /skills, /agent-loop, /session-storage, /hosting, /cost-tracking",
+    "[aus Salvage] Fetch: platform.claude.com/docs/en/managed-agents/overview, reference, pricing, scheduled-deployments, environments, vaults, cloud-sandboxes-reference",
+    "[aus Salvage] Fetch: code.claude.com/docs/en/headless, routines, desktop-scheduled-tasks, cloud-environments, security, sandboxing",
+    "[aus Salvage] Fetch: platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool, browser-use-tool, web-fetch-tool",
+    "[aus Salvage] Fetch: platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks",
+    "[aus Salvage] Fetch: github.com Repos pgvector, qdrant, lancedb, langfuse, phoenix, n8n, langgraph, crewAI, temporal, inngest, trigger.dev, sops, infisical, browser-use, stagehand, skyvern, playwright-mcp, claude-agent-sdk-python",
+    "Hetzner Object Storage pricing 2026 per TB S3 compatible",
+    "Langfuse Cloud pricing 2026 Hobby Core Pro free tier units per month",
+    "1Password CLI op run pricing 2026 vs Doppler pricing vs Infisical self-hosted free",
+    "Voyage AI pricing voyage-3.5 dollar per million tokens 2026",
+    "Trigger.dev pricing 2026 free tier vs Inngest pricing solo developer",
+    "Fetch: platform.claude.com/docs/en/managed-agents/memory",
+    "Fetch: platform.claude.com/docs/en/managed-agents/webhooks",
+    "Fetch: platform.claude.com/docs/en/managed-agents/budgets",
+    "pgvector vs Qdrant vs LanceDB vs Chroma 2026 solo developer small scale comparison"
+  ],
+  "verification_notes": [
+    "[verify-C] Bestätigt: Managed-Agents-Preise ($0,08/Session-Stunde nur 'running', $10/1000 Websuchen, Budget nur USD in ganzen Cent, budget_reached → idle); Modellpreise inkl. Sonnet 5 $2/$10 dauerhaft; claude-agent-sdk 0.2.152 (2.9.2026, Python 3.10+, MIT, CLI gebündelt); Memory-Store-Limits (8/Session, 10.000, 100 kB, 30 Tage); Web-Fetch-URL-Restriktion, kein JS, nicht auf Bedrock/Vertex.",
+    "[verify-C] Korrektur Hetzner: CX23 3,99→5,49 € und CAX11 4,49→5,99 € am 15.6.2026 bestätigt (Drittquellen; docs.hetzner.com gesperrt). CPX22 wird in Drittquellen mit 7,99→19,49 €/Monat (inkl. MwSt.) angegeben, nicht 19,99 €. Die 'Nichtverfügbarkeit' von CX23/CAX11 für Neubestellungen ist nicht belegbar – im Konfigurator prüfen. Es war die vierte Preisanpassung 2026.",
+    "[verify-C] Ergänzung Web Fetch: URLs, die nur im System-Prompt stehen, sind ebenfalls nicht abrufbar (zusätzlich in User-Message aufnehmen); Ergebnisse anderer Server-Tools gelten nicht als Quelle.",
+    "[verify-C] Langfuse-Ressourcenbedarf (4+ CPU, 16 GiB, ~100 GiB) über Sekundärquellen bestätigt; langfuse.com direkt gesperrt.",
+    "[verify-C] Nicht geprüft: Voyage-Preise, Fly.io/Railway/Render, n8n/Trigger.dev/Inngest-Preise, Agent-SDK-Credit-Pool-Pause – Confidence unverändert lassen."
+  ]
+}

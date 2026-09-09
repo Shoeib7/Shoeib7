@@ -1,0 +1,241 @@
+{
+  "group": "A",
+  "verification_context": "Prüfung am 2026-09-08. Einschränkung: Der Egress-Proxy dieser Session blockierte praktisch alle Domains außer raw.githubusercontent.com, registry.npmjs.org und pypi.org (EGRESS_BLOCKED bzw. CONNECT 403 für arbeitsagentur.de, greenhouse.io, lever.co, personio.de, serpapi.com, firecrawl.dev, dgfp.de, bitkom.org, gesetze-im-internet.de u.v.m.); das WebSearch-Kontingent der Session war nach 4 Suchanfragen erschöpft. Live-Tests der Job-APIs waren daher nicht möglich; Verdicts stützen sich auf 4 WebSearch-Ergebnisse, GitHub-Rohdateien und Paketregister. Alles, was so nicht belegbar war, ist strikt als 'unverifiable' markiert.",
+  "verdicts": [
+    {
+      "file": "jobboards.json",
+      "claim": "BA-Jobsuche-API: Community-Projekt bundesAPI/jobsuche-api, Auth per Header X-API-Key: jobboerse-jobsuche, Basis-URL rest.arbeitsagentur.de/jobboerse/jobsuche-service, Endpunkte /pc/v6/jobs, /pc/v4/app/jobs, /pc/v4/jobdetails/{base64(refnr)}, /ct/v1/arbeitgeberlogo/{hash}",
+      "verdict": "confirmed",
+      "correction": "Durch openapi.yaml und README des Repos bestätigt (README-Hinweis: falls 'clientId' nicht funktioniert, Header 'X-API-KEY: jobboerse-jobsuche' verwenden). Live-Aufruf gegen rest.arbeitsagentur.de war in dieser Session nicht möglich (Egress-Block), d.h. Erreichbarkeit/Antwortschema Stand heute bleibt ungetestet.",
+      "sources": [
+        "https://raw.githubusercontent.com/bundesAPI/jobsuche-api/main/openapi.yaml",
+        "https://raw.githubusercontent.com/bundesAPI/jobsuche-api/main/README.md"
+      ]
+    },
+    {
+      "file": "jobboards.json",
+      "claim": "BA-API-Filterparameter zeitarbeit, angebotsart, veroeffentlichtseit, pav, befristung, arbeitszeit",
+      "verdict": "confirmed",
+      "correction": "Parameter zeitarbeit, angebotsart, veroeffentlichtseit, pav sind in openapi.yaml für /pc/v6/jobs und /pc/v4/app/jobs definiert.",
+      "sources": [
+        "https://raw.githubusercontent.com/bundesAPI/jobsuche-api/main/openapi.yaml"
+      ]
+    },
+    {
+      "file": "jobboards.json",
+      "claim": "Indeed Publisher-API wurde 2023/2024 eingestellt; 2026 keine Self-Service-Such-API für Dritte",
+      "verdict": "partially_correct",
+      "correction": "Abschaltung erfolgte 2023 (nicht 2023/2024): bestehende Publisher-Keys liefern seitdem keine Daten; Ersatz ist nur das iframe-Widget publisher.indeed.com und ein NDA-/sales-gebundenes Enterprise-Datenpartnerprogramm. Kern der Aussage (kein öffentlicher Lese-API-Zugang) bestätigt.",
+      "sources": [
+        "https://jobspipe.dev/blog/indeed-publisher-api",
+        "https://rolesapi.com/blog/does-indeed-have-an-api/",
+        "https://www.jobboardly.com/blog/indeed-affiliate-program"
+      ]
+    },
+    {
+      "file": "jobboards.json",
+      "claim": "Lever Postings API öffentlich ohne Auth (api.lever.co/v0/postings/{site}?mode=json), EU-Instanz api.eu.lever.co, 429 nur für POST-Bewerbungen ab >2 req/s",
+      "verdict": "confirmed",
+      "correction": "README des offiziellen Repos bestätigt Global-/EU-Basis-URL, skip/limit-Parameter, API-Key nur für POST, 429 bei mehr als 2 Application-POSTs pro Sekunde. Live-Test nicht möglich (Egress).",
+      "sources": [
+        "https://raw.githubusercontent.com/lever/postings-api/master/README.md"
+      ]
+    },
+    {
+      "file": "jobboards.json",
+      "claim": "Workday CXS-Endpunkt POST /wday/cxs/{tenant}/{site}/jobs, GET liefert 400, Seitengröße hart 20",
+      "verdict": "partially_correct",
+      "correction": "Nur durch Community-Quellen belegt (agentic-career-search-Guide: 'Hard page size is 20. Larger limits return an empty jobPostings array', Body {appliedFacets, limit, offset, searchText}). dev.to-Artikel und Live-Test nicht erreichbar. Keine offizielle Workday-Dokumentation - Aussage bleibt 'inoffiziell, kann sich ändern'; Confidence sollte 'medium' statt 'high' sein.",
+      "sources": [
+        "https://raw.githubusercontent.com/Francis1998/agentic-career-search/main/docs/guides/WORKDAY_SOURCE_GUIDE.md"
+      ]
+    },
+    {
+      "file": "jobboards.json",
+      "claim": "Jooble Free-API: 500 Requests lebenslang pro Key, Antrag per Formular",
+      "verdict": "confirmed",
+      "correction": "Mehrere unabhängige Quellen (jobspipe.dev, publicapis.io, Jooble Help Center) bestätigen 500 Requests als absolutes Lebenszeit-Kontingent (nicht monatlich); Key per Formular auf jooble.org/api/about. API ist POST-only mit JSON-Body.",
+      "sources": [
+        "https://jobspipe.dev/blog/jooble-api",
+        "https://publicapis.io/jooble-api",
+        "https://help.jooble.org/en/support/solutions/articles/60001448238-rest-api-documentation"
+      ]
+    },
+    {
+      "file": "jobboards.json",
+      "claim": "SerpAPI: 250 kostenlose Suchen/Monat, ab 25 USD/Monat für 1.000, bis 275 USD/Monat für 30.000",
+      "verdict": "confirmed",
+      "correction": "Bestätigt (Stand 2026): Free 250/Monat; 25 USD/1.000; 75 USD/5.000; 150 USD/15.000; 275 USD/30.000 Suchen. Quelle sind Drittanbieter-Preisvergleiche, serpapi.com selbst war nicht erreichbar.",
+      "sources": [
+        "https://costbench.com/software/web-scraping/serpapi/",
+        "https://apiserpent.com/blog/serpapi-pricing-explained",
+        "https://costbench.com/software/web-scraping/serpapi/free-plan/"
+      ]
+    },
+    {
+      "file": "jobboards.json",
+      "claim": "python-jobspy Version 1.1.82 (28. Juli 2025), Boards LinkedIn/Indeed/Glassdoor/Google/ZipRecruiter/Bayt/Naukri/BDJobs, LinkedIn rate-limitet ab ca. 10. Seite",
+      "verdict": "confirmed",
+      "correction": "PyPI: 1.1.82 hochgeladen 2025-07-28 - seither (13 Monate) kein Release, was den Wartungsvorbehalt verstärkt. README bestätigt Board-Liste sowie 'Indeed ... no rate limiting' und 'LinkedIn ... rate limits around the 10th page with one ip. Proxies are a must'.",
+      "sources": [
+        "https://pypi.org/project/python-jobspy/",
+        "https://raw.githubusercontent.com/speedyapply/JobSpy/main/README.md"
+      ]
+    },
+    {
+      "file": "jobboards.json",
+      "claim": "Crawl4AI Version 0.9.3 (Sicherheitsrelease), Apache-2.0",
+      "verdict": "confirmed",
+      "correction": "PyPI: crawl4ai 0.9.3 vom 2026-08-31. Lizenz konnte über PyPI-Metadaten nicht bestätigt werden (kein License-Classifier) - Apache-2.0 laut Repo, nicht separat geprüft.",
+      "sources": [
+        "https://pypi.org/project/crawl4ai/"
+      ]
+    },
+    {
+      "file": "ats.json",
+      "claim": "EU AI Act Digital Omnibus: Regulation (EU) 2026/1744, ABl. 24.7.2026, in Kraft 27.7.2026, Annex-III-Hochrisikopflichten (inkl. Recruiting) auf 2.12.2027 verschoben, Annex I auf 2.8.2028",
+      "verdict": "confirmed",
+      "correction": "Alle Daten durch mehrere Kanzlei-/Fachquellen bestätigt (White & Case, Hunton, Gibson Dunn, CSA).",
+      "sources": [
+        "https://www.whitecase.com/insight-alert/eu-ai-omnibus-enters-force-amending-ai-act",
+        "https://www.hunton.com/privacy-and-cybersecurity-law-blog/eu-digital-omnibus-on-ai-enters-into-force",
+        "https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/",
+        "https://labs.cloudsecurityalliance.org/research/csa-research-note-eu-ai-act-high-risk-deadline-omnibus-20260/"
+      ]
+    },
+    {
+      "file": "ats.json",
+      "claim": "Apache Tika: aktuelle Version 3.3.0 (18.3.2026); 4.0.0 nur als Alpha/Beta",
+      "verdict": "refuted",
+      "correction": "Veraltet: Laut CHANGES.txt im Hauptzweig ist Tika 4.0.0 am 18.8.2026 final erschienen (Alpha-1 4.5.2026, Beta-1 29.6.2026); 3.3.0 vom 18.3.2026 ist damit nicht mehr die aktuelle Hauptversion. 4.1.0 ist in Arbeit ('unreleased'). Für Markdown-Default-Output und VLM-Parser also 4.0.0 einsetzen.",
+      "sources": [
+        "https://raw.githubusercontent.com/apache/tika/main/CHANGES.txt"
+      ]
+    },
+    {
+      "file": "ats.json",
+      "claim": "webappanalyzer: unklar, ob es eine ATS-Kategorie gibt und wie granular Personio/softgarden/rexx erkannt werden",
+      "verdict": "partially_correct",
+      "correction": "Jetzt geklärt: categories.json enthält Kategorie 101 'Recruitment & staffing'. Darin Fingerprints für Personio, Greenhouse, Lever, Recruitee, SmartRecruiters, Teamtailor und 'onlyfy Application Manager'. Workday ist nur als Kategorie 53 (CRM) erfasst. KEINE Fingerprints für softgarden, rexx systems, d.vinci, SAP SuccessFactors oder JOIN - für die DE-spezifischen Top-Anbieter muss ein eigener Detektor (URL-/HTML-Muster) gebaut werden.",
+      "sources": [
+        "https://raw.githubusercontent.com/enthec/webappanalyzer/main/src/categories.json",
+        "https://raw.githubusercontent.com/enthec/webappanalyzer/main/src/technologies/p.json",
+        "https://raw.githubusercontent.com/enthec/webappanalyzer/main/src/technologies/o.json"
+      ]
+    },
+    {
+      "file": "portals.json",
+      "claim": "Playwright MCP unterstützt Datei-Uploads (input[type=file]) laut Issue #31 nicht zuverlässig; Funktionsumfang undokumentiert",
+      "verdict": "refuted",
+      "correction": "Veraltet: Das aktuelle README von microsoft/playwright-mcp (npm-Version 0.0.80, Stand 2026-09) dokumentiert das Tool 'browser_file_upload' (Parameter paths: absolute Dateipfade, ein oder mehrere Dateien; ohne paths wird der File-Chooser abgebrochen). Der Upload läuft über den File-Chooser-Mechanismus, d.h. das Tool wird nach einem Klick auf das Upload-Element aufgerufen. Empfehlung 'eigenes Playwright-Skript mit setInputFiles' bleibt als robuste Alternative sinnvoll, ist aber kein Show-Stopper mehr.",
+      "sources": [
+        "https://raw.githubusercontent.com/microsoft/playwright-mcp/main/README.md",
+        "https://registry.npmjs.org/@playwright/mcp/latest"
+      ]
+    },
+    {
+      "file": "ats.json",
+      "claim": "DGFP-Studie 'Recruiting-Strukturen 2025': nur SAP SuccessFactors, softgarden, Personio, rexx über 5% ATS-Marktanteil",
+      "verdict": "unverifiable",
+      "correction": "dgfp.de war durch den Egress-Proxy blockiert und das Suchkontingent erschöpft; Zahl konnte weder bestätigt noch widerlegt werden. Vor Verwendung als Architekturgrundlage die Studie direkt prüfen.",
+      "sources": []
+    },
+    {
+      "file": "de_culture.json",
+      "claim": "StepStone-Studie 2025: nur 51% der Unternehmen verlangen Anschreiben, 26% der Recruiter halten es für entscheidend, 15% Abbruch",
+      "verdict": "unverifiable",
+      "correction": "Einzige angegebene Quelle ist meinbezirk.at (österreichisches Lokalportal) - unklar, ob es sich um die deutsche StepStone-Studie oder eine Österreich-Erhebung handelt. Primärquelle (stepstone.de) nicht erreichbar. Zahl nur mit 'low' Confidence und Hinweis auf Herkunft verwenden.",
+      "sources": []
+    },
+    {
+      "file": "de_culture.json",
+      "claim": "Bitkom März 2025 (852 Unternehmen): 1% screenen Bewerbungen mit KI, 4% KI-Chatbot",
+      "verdict": "unverifiable",
+      "correction": "bitkom.org/bitkom-research.de nicht erreichbar, Suchkontingent erschöpft. Angabe plausibel, aber in dieser Session nicht geprüft.",
+      "sources": []
+    },
+    {
+      "file": "jobboards.json",
+      "claim": "Teamtailor-Karriereseiten liefern einen öffentlichen JSON-Feed ohne Auth",
+      "verdict": "unverifiable",
+      "correction": "docs.teamtailor.com nicht erreichbar. Widerspruch innerhalb der Recherche: ats.json (Finding 21) behauptet, die öffentliche Teamtailor-Career-Site-API erfordere einen Token. Beide Aussagen sind unbelegt; vor Nutzung an einer realen Teamtailor-Karriereseite testen (z.B. /jobs.rss bzw. JSON-Endpunkte im Netzwerk-Tab).",
+      "sources": []
+    },
+    {
+      "file": "jobboards.json",
+      "claim": "Greenhouse Job Board API (boards-api.greenhouse.io/v1/boards/{token}/jobs) ohne Auth; Personio XML-Feed {firma}.jobs.personio.de/xml; Recruitee {firma}.recruitee.com/api/offers; SmartRecruiters Posting API",
+      "verdict": "unverifiable",
+      "correction": "Alle vier Endpunkte waren über den Egress-Proxy blockiert (CONNECT 403); keine Bestätigung/Widerlegung in dieser Session. Die Angaben decken sich mit den bekannten Anbieter-Dokumentationen, sollten aber vor Produktivsetzung per Live-Aufruf verifiziert werden.",
+      "sources": []
+    }
+  ],
+  "url_spot_checks": [
+    {
+      "url": "https://raw.githubusercontent.com/bundesAPI/jobsuche-api/main/openapi.yaml",
+      "exists": true,
+      "supports_claim": true
+    },
+    {
+      "url": "https://github.com/bundesAPI/jobsuche-api/blob/main/README.md",
+      "exists": true,
+      "supports_claim": true
+    },
+    {
+      "url": "https://github.com/lever/postings-api",
+      "exists": true,
+      "supports_claim": true
+    },
+    {
+      "url": "https://pypi.org/project/python-jobspy/",
+      "exists": true,
+      "supports_claim": true
+    },
+    {
+      "url": "https://github.com/speedyapply/JobSpy",
+      "exists": true,
+      "supports_claim": true
+    },
+    {
+      "url": "https://github.com/microsoft/playwright-mcp/issues/31",
+      "exists": "nicht direkt prüfbar (api.github.com in Session gesperrt)",
+      "supports_claim": false,
+      "note": "README belegt inzwischen browser_file_upload - Claim veraltet"
+    },
+    {
+      "url": "https://github.com/apache/tika/blob/main/CHANGES.txt",
+      "exists": true,
+      "supports_claim": false,
+      "note": "belegt 4.0.0-Release vom 18.8.2026, Claim '3.3.0 aktuell' veraltet"
+    },
+    {
+      "url": "https://github.com/enthec/webappanalyzer",
+      "exists": true,
+      "supports_claim": true,
+      "note": "Offene Frage im Claim jetzt beantwortet (Kategorie 101)"
+    },
+    {
+      "url": "https://github.com/Francis1998/agentic-career-search/blob/main/docs/guides/WORKDAY_SOURCE_GUIDE.md",
+      "exists": true,
+      "supports_claim": true
+    }
+  ],
+  "suspicious_urls": [
+    "https://www.meinbezirk.at/c-lokales/worauf-personaler-bei-bewerbungen-wirklich-achten_a7456336 (österreichisches Lokalportal als einzige Quelle für eine 'StepStone-Studie 2025' zu deutschen Unternehmen)",
+    "https://apify.com/jupri/stepstone-scraper/resources/resources/scraping_with_apify (untypischer doppelter Pfad 'resources/resources', nicht prüfbar)",
+    "https://dev.to/udaninn/workday-job-boards-have-a-json-api-too-its-just-better-hidden-23fl (nicht erreichbar; Workday-Claim nur über Community-Repo gegengeprüft)",
+    "https://arxiv.org/pdf/2606.27287 (Prompt-Injection-Studie Juni 2026; arxiv in Session gesperrt, ID nicht verifiziert)",
+    "https://github.com/microsoft/playwright-mcp/issues/31 (Stand März 2025 - Aussage durch aktuelles README überholt)",
+    "https://resumeoptimizerpro.com/blog/workday-resume-format und https://applyarc.com/blog/workday-ats-resume-optimization (SEO-Blogs, '>60% Parsing-Fehlerquote' ohne Primärquelle - bereits im File als low markiert)",
+    "https://api.stepstone.com/wp-content/uploads/2019/07/2019-01_Info_JobFeed_DE.pdf (Dokument von 2019, Aktualität unklar)"
+  ],
+  "additions": [
+    "Apache Tika 4.0.0 ist final (18.8.2026) - Markdown-Output und VLM-Parser sind damit in einer Release-Version verfügbar: https://raw.githubusercontent.com/apache/tika/main/CHANGES.txt",
+    "Playwright MCP (npm @playwright/mcp 0.0.80) hat das Tool browser_file_upload; für Lebenslauf-Uploads ist der MCP-Server damit grundsätzlich nutzbar: https://raw.githubusercontent.com/microsoft/playwright-mcp/main/README.md",
+    "webappanalyzer-Kategorie 101 'Recruitment & staffing' liefert fertige Fingerprints für Personio, Greenhouse, Lever, Recruitee, SmartRecruiters, Teamtailor, onlyfy - aber nicht für softgarden, rexx, d.vinci, SuccessFactors: https://raw.githubusercontent.com/enthec/webappanalyzer/main/src/categories.json",
+    "SerpAPI-Zwischenstufen: 75 USD/5.000 und 150 USD/15.000 Suchen/Monat (2026) - relevant für die Kapazitätsplanung zwischen 1.000 und 30.000 Suchen: https://costbench.com/software/web-scraping/serpapi/",
+    "Jooble-API ist POST-only (https://jooble.org/api/{key} mit JSON-Body keywords/location/page): https://jobspipe.dev/blog/jooble-api",
+    "python-jobspy: seit 1.1.82 (28.7.2025) kein weiteres Release - 13 Monate ohne Update, Wartungsrisiko konkret: https://pypi.org/project/python-jobspy/"
+  ],
+  "overall_reliability": "medium",
+  "notes": "Von 18 geprüften Behauptungen: 9 confirmed, 3 partially_correct (Indeed-Abschaltjahr 2023 statt 2023/24; Workday nur Community-belegt; webappanalyzer-Frage jetzt geklärt), 2 refuted (beide veraltet: Tika-Version, Playwright-MCP-Upload), 4 unverifiable. Die technischen GitHub-/Registry-belegten Fakten (BA-API-Spezifikation, Lever, JobSpy, Crawl4AI) und die Rechtsangaben zum EU AI Act Omnibus sind belastbar. Die Statistiken aus de_culture.json (StepStone, Bitkom, XING, DGFP) konnten wegen Egress-Sperre und erschöpftem Suchkontingent nicht gegengeprüft werden und sollten im Masterplan als 'nicht unabhängig verifiziert' gekennzeichnet werden; insbesondere die meinbezirk.at-Quelle ist fragwürdig. Live-Erreichbarkeit der Job-APIs (BA, Greenhouse, Personio, Recruitee, SmartRecruiters, Workday) muss vor Produktivsetzung in einer Umgebung ohne Egress-Sperre nachgeholt werden. Interner Widerspruch Teamtailor (jobboards vs. ats) bleibt offen."
+}

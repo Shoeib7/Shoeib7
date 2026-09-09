@@ -1,0 +1,450 @@
+{
+  "dimension": "Schreibqualität, Stimme, Anti-Generik",
+  "summary": "Die Recherche bestätigt den Leitsatz des Projekts: Nicht KI-Erkennung ist das Kernrisiko, sondern Generik. StepStone (Studie 2025) beziffert, dass bereits 61% der Bewerber KI-Tools für Anschreiben nutzen, aber 69% der Recruiter beklagen dadurch weniger individuell zugeschnittene Unterlagen, 73% empfinden sie als weniger authentisch und der StepStone Hiring Trends Index Q1/2025 zeigt bei 81% der Recruiter einen wahrgenommenen Qualitätsrückgang. Gleichzeitig zeigt die Recruiter-Selbsteinschätzung ein Vertrauens-Genauigkeits-Gefälle: 67-74% der Personaler behaupten, KI-Texte erkennen zu können, tatsächliche Trefferquoten in Blindtests liegen aber nur bei 52-54% (bzw. scheiterten 82% der Recruiter 2023 daran, alle KI-Briefe korrekt zu identifizieren). Der entscheidende Hebel ist daher nicht ein KI-Detektor-Score, sondern Personalisierung: 62% der Recruiter lehnen KI-Bewerbungen ohne personalisierte Details ab, 78% suchen aktiv danach. Für den Agenten heißt das: Qualitätssicherung muss auf 'klingt nach dieser Person und dieser Stelle' zielen, nicht auf 'besteht GPTZero-Test'. KI-Detektoren selbst sind ohnehin ungeeignet als Gatekeeper: GPTZero hat laut Vergleichsstudien niedrige False-Positive-Raten (0,24% in einer Studie, ≤1% bei mittleren/langen Texten laut University-of-Chicago-Booth-Forschung 08/2025), aber Originality.ai liegt deutlich höher (4,79-8%), und alle Detektoren zeigen eine massive Schieflage bei Nicht-Muttersprachlern (bis zu 23-61% False-Positive-Rate je nach Studie) - für einen deutschsprachigen Kandidaten mit ggf. formellem Schreibstil ein reales Risiko fälschlicher Flags, wenn Texte zu 'glatt' bleiben. Wichtiger Befund für die Architektur: Recruiter setzen AI-Detektoren in der Praxis selten aktiv ein, weil die Tools als unzuverlässig gelten - der Bauchgefühl-Eindruck ('klingt nach Textbaustein') zieht stärker als ein Score. Strukturell erkennbare KI-Tells sind belegt: die 'Not-X-but-Y'-Konstruktion ('nicht nur..., sondern...') taucht in rund 6% aller ChatGPT-Nachrichten auf, KI-Text zeigt niedrigere Perplexität und Burstiness (gleichmäßigere Satzlängen) als menschlicher Text, und Recruiter erkennen identische Formulierungsmuster über mehrere Bewerbungen hinweg als Signal für Prompt-Wiederverwendung. Der Agent sollte deshalb aktiv auf Satzlängen-Varianz, Verzicht auf Tricolon/Dreierlisten und harte Anti-Floskel-Filter setzen. Für das deutsche Anschreiben gilt 2025/2026 ein klarer Formats-Konsens: 250-350 Wörter, eine DIN-A4-Seite, Einstieg ohne 'Hiermit bewerbe ich mich', konkreter Unternehmensbezug im ersten Satz, 2-3 belegte Erfolge mit Zahlen, kein Konjunktiv beim Gehalt. Gleichzeitig wird das Anschreiben selbst zunehmend optional (laut Taledo-Umfrage bei 64% der Unternehmen), während StepStone gegenläufig zeigt, dass noch 45% der Firmen eines verlangen und 60% der Bewerber es weiter nutzen - der Agent sollte also flexibel zwischen Vollanschreiben, Kurzbewerbung und Verzicht (nur Lebenslauf plus Kurzprofil) entscheiden, abhängig von der Stellenanzeige. Für die Stimmerfassung liefert die Forschung eine wichtige Einschränkung: Few-Shot-Style-Transfer erreicht bei prominenten Autoren mit viel Textkorpus bis zu 23,5-fach höhere Trefferquoten als Zero-Shot, bleibt aber bei 'everyday authors' mit wenigen, informellen Textproben signifikant hinter echtem menschlichem Schreiben zurück (ACL Findings 2025) - der Agent darf also keine perfekte Stimm-Kopie versprechen, sondern muss mit einem soliden Onboarding-Interview (Story-Bank im STAR/CAR-Format, Zahlen, Werte, Wechselmotive) und echten Textproben arbeiten und die Lücke über explizite Stilregeln statt reiner Imitation schließen. Für die Qualitätsschleife liefert Anthropics eigener 'doc-coauthoring'-Skill ein direkt übertragbares Muster: Kontext sammeln, Optionen brainstormen und vom Nutzer kuratieren lassen, entwerfen, dann mit einem 'frischen' Claude-Kontext (ohne Prompt-Wissen) als Leser testen - genau das Pattern, das für Anschreiben-Kritiker-Loops und den '6-Sekunden-Test' taugt. Für LLM-as-Judge-Bewertung gilt: rubrikbasierte Einzelbewertung (nicht paarweiser Vergleich) reduziert Position-Bias, ein anderes Modell sollte bewerten als das schreibende, und Kriterien müssen 'detailed, clear rubrics' mit Zahlen statt vagen Adjektiven sein (Anthropic Eval-Doku). Bei Pairwise-Vergleichen kann allein die Präsentationsreihenfolge die Bewertung um über 10% verschieben. Für Prompting gilt bei Fable 5.1/Opus 5 ausdrücklich: zu präskriptive, aggressive Schritt-für-Schritt- Regelwerke ('CRITICAL: You MUST...') senken die Qualität und führen zu Overtriggering - der Schreib-Prompt sollte Rolle, Fakten (Story-Bank) und Stilregeln liefern, aber dem Modell Formulierungsfreiheit lassen. Rechtlich bleibt eine offene Flanke: Wo genau die Grenze zwischen zulässiger Betonung/Umordnung im Lebenslauf und einer nach § 123 BGB anfechtbaren arglistigen Täuschung verläuft, konnte in dieser Recherche nicht mit einer belastbaren, in den Rohdaten zitierten Quelle verifiziert werden (Websuche/Abruf zu Gesetzestext blockiert) - dieser Punkt sollte vor Produktivbetrieb juristisch geprüft und im Skill als harte Leitplanke ('keine erfundenen Titel, Zeiträume oder Abschlüsse') hinterlegt werden.",
+  "findings": [
+    {
+      "claim": "61% der Bewerber in Deutschland nutzen KI-Tools zur Erstellung/Überarbeitung von Anschreiben.",
+      "detail": "StepStone-Studie 'Qualität von Bewerbungen' 2025. Basis für die Annahme, dass KI-Bewerbungen im Bewerbermarkt bereits Normalität sind, unser Produkt konkurriert also nicht gegen 'macht niemand', sondern muss sich durch Qualität von der breiten Masse absetzen.",
+      "sources": [
+        "https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/stepstone-studie-2025-ki-und-jobsuche"
+      ],
+      "confidence": "medium",
+      "info_date": "2025-11"
+    },
+    {
+      "claim": "69% der Recruiter empfinden Bewerbungsunterlagen seit der KI-Verbreitung als weniger individuell auf die Stelle zugeschnitten; 73% als weniger authentisch; 75% gestört von übertriebenen Qualifikationsdarstellungen.",
+      "detail": "Direktes Kernrisiko für unser Produkt: Generik statt KI-Nutzung an sich ist das Ablehnungskriterium. Rechtfertigt hohen Aufwand in Recherche/Personalisierung pro Bewerbung statt Template-Fluten.",
+      "sources": [
+        "https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/stepstone-studie-2025-ki-und-jobsuche"
+      ],
+      "confidence": "medium",
+      "info_date": "2025-11"
+    },
+    {
+      "claim": "StepStone Hiring Trends Index Q1/2025: 81% der Recruiter beobachten einen Rückgang der Bewerbungsqualität.",
+      "detail": "Bestätigt Marktumfeld mit sinkenden Qualitätsstandards bei Mitbewerbern - Chance für qualitativ hochwertige, recherchierte Bewerbungen, sich abzuheben.",
+      "sources": [
+        "https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/bewerberqualitaet-steigern"
+      ],
+      "confidence": "medium",
+      "info_date": "2025-05"
+    },
+    {
+      "claim": "softgarden-Erhebung (Zeitpunkt vor 2025): 12,7% der Bewerber nutzten aktiv KI fürs Anschreiben, weitere 36,6% könnten es sich vorstellen; softgarden untersucht 2025/2026 rund 7.000 Bewerber zum transparenten KI-Einsatz im Recruiting.",
+      "detail": "Älterer Wert (softgarden-Zeitangabe im Rohtext unklar, vermutlich 2023/2024) zeigt Wachstumstrend; aktuelle softgarden-Studie 2026 fokussiert auf Transparenz-Erwartungen der Unternehmen an KI-Content-Anteil - relevant für die Frage, ob unser Agent KI-Nutzung offenlegen sollte.",
+      "sources": [
+        "https://softgarden.com/de/ressourcen/studien/ki-trifft-recruiting-2026/"
+      ],
+      "confidence": "low",
+      "info_date": "vor 2025 (Datum im Quelltext nicht eindeutig)"
+    },
+    {
+      "claim": "In einem ResumeBuilder.com-Blindtest mit 1.000 Recruitern (2023) konnten 82% nicht zuverlässig alle KI-generierten Anschreiben von menschlichen unterscheiden, obwohl 74% vorher angaben, dies zu können.",
+      "detail": "Beleg für die Kluft zwischen wahrgenommener und tatsächlicher Erkennungsfähigkeit von Recruitern - unterstützt die Produktstrategie 'auf Qualität/Personalisierung statt auf KI-Erkennungs-Umgehung optimieren'.",
+      "sources": [
+        "https://coverlettercopilot.ai/blog/recruiters-human-vs-ai-cover-letters"
+      ],
+      "confidence": "medium",
+      "info_date": "2023 (Studie), referenziert 2026"
+    },
+    {
+      "claim": "TopResume-Umfrage 2026 unter 800+ Hiring Managern: 67% geben an, KI-generierte Anschreiben erkennen zu können, 54% bewerten sie negativ; tatsächliche Trefferquote wird andernorts mit ca. 52% beziffert.",
+      "detail": "Bestätigt erneut Selbstüberschätzung der Erkennungsfähigkeit; 54% negative Bewertung ist trotzdem ein reales Risiko, das für hohe Textqualität statt reiner Detektor-Umgehung spricht.",
+      "sources": [
+        "https://coverlettercopilot.ai/blog/recruiters-human-vs-ai-cover-letters"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Resume.io-Umfrage (Januar 2025, 3.000 Hiring Manager): 49% lehnen als KI-generiert identifizierte Lebensläufe automatisch ab.",
+      "detail": "Hohe Auto-Reject-Quote bei erkannter KI-Nutzung - unterstreicht, dass der finale Output unauffällig/individuell wirken MUSS, nicht nur inhaltlich gut sein darf.",
+      "sources": [
+        "https://jobcannon.io/research/stats/resumeio-49-reject"
+      ],
+      "confidence": "medium",
+      "info_date": "2025-01"
+    },
+    {
+      "claim": "Resume-Genius-Umfrage unter 1.000 Hiring Managern: 74% haben bereits KI-generierten Content in Bewerbungen bemerkt, 58% sind besorgt über KI-generierte Bewerbungen.",
+      "detail": "Bestätigt breite Wahrnehmung von KI-Content im Bewerbungsprozess als Normalität mit Vorbehalten.",
+      "sources": [
+        "https://resumegenius.com/blog/job-hunting/ai-impact-on-hiring"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "62% der Recruiter lehnen KI-generierte Lebensläufe ohne erkennbare Personalisierung ab; 78% suchen aktiv nach personalisierten Details als Fit-Signal.",
+      "detail": "Zentraler Befund für die Produktarchitektur: Personalisierung (Firmenbezug, konkrete Zahlen, individuelle Story) ist der entscheidende Qualitätshebel, nicht 'AI-Detektor bestehen'.",
+      "sources": [
+        "https://jobcannon.io/blog/ai-resume-statistics-2026"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "GPTZero erreicht in Vergleichsstudien eine sehr niedrige False-Positive-Rate (0,24% in einer 3.000-Dokumente-Studie), Originality.ai liegt bei 4,79% (gleiche Studie) bzw. 8% FPR / 96% Accuracy in einer November-2025-Studie zu arabischem Text.",
+      "detail": "GPTZero gilt als vergleichsweise zuverlässiger unter den AI-Detektoren, aber selbst niedrige FPR bedeuten bei Millionen Bewerbungen viele falsch markierte, echte Bewerber. Für unser Produkt: Detektoren sind kein Zielmaßstab, höchstens ein optionaler interner Sanity-Check.",
+      "sources": [
+        "https://gradpilot.com/news/ai-detector-false-positive-rates-compared",
+        "https://arxiv.org/pdf/2511.16690"
+      ],
+      "confidence": "medium",
+      "info_date": "2025-2026"
+    },
+    {
+      "claim": "University-of-Chicago-Booth-Forschung (August 2025): GPTZero und Originality.ai halten ihre False-Positive-Rate bei mittellangen bis langen Texten bei ≤1%, bei kürzeren Texten <3%.",
+      "detail": "Relevanter Datenpunkt, falls unser Skill jemals eine interne Detektor-Prüfung als QS-Signal einbauen möchte - Textlänge beeinflusst Zuverlässigkeit.",
+      "sources": [
+        "https://originality.ai/blog/ai-detection-studies-round-up"
+      ],
+      "confidence": "medium",
+      "info_date": "2025-08"
+    },
+    {
+      "claim": "AI-Detektoren zeigen eine deutliche Schieflage gegen Nicht-Muttersprachler: False-Positive-Raten von 23% (vs. 4% bei Muttersprachlern) in einer Studie, in einer anderen sogar 5,1% (nativ) vs. 61,3% (nicht-nativ); eine Stanford-Studie mit 91 TOEFL-Essays bestätigte die Verzerrung, GPTZero lag nach einem Modell-Update laut eigener Angabe noch bei 7,7% FPR.",
+      "detail": "Hohes Fairness-Risiko für formellen, nicht-muttersprachlich klingenden Schreibstil - unterstreicht, dass unser Agent NICHT versuchen sollte, Texte 'roboterhaft glatt' zu vermeiden, indem er künstlich holprig schreibt, sondern echte individuelle Stilmerkmale des Kandidaten nutzen sollte.",
+      "sources": [
+        "https://www.wasitaigenerated.com/research/ai-detection-hiring-recruitment",
+        "https://gptone.me/blog/ai-detector-for-recruiters-screen-ai-written-resumes-2026"
+      ],
+      "confidence": "medium",
+      "info_date": "2023-2025 (verschiedene Studien)"
+    },
+    {
+      "claim": "Recruiter setzen AI-Detektoren in der Praxis selten aktiv gegen Bewerbungen ein, da die Tools als unzuverlässig gelten und der Anreiz gering ist.",
+      "detail": "Bestätigt: der reale Risikofaktor ist der menschliche Eindruck ('klingt generisch'), nicht ein automatisierter Score-Check im ATS. QS-Fokus entsprechend auf Lesbarkeit/Individualität statt Detektor-Bypass legen.",
+      "sources": [
+        "https://www.textora.org/blog/how-recruiters-detect-ai-cover-letters"
+      ],
+      "confidence": "low",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Die 'Nicht-nur-X,-sondern-Y'-Konstruktion ('negation pivot') tritt in rund 6% aller ChatGPT-Nachrichten auf und gilt als eines der auffälligsten stilistischen KI-Tells; Tricolon/Dreierlisten und mathematisch gleichmäßige Absatzrhythmen ('frictionless transitions') sind weitere Signale.",
+      "detail": "Konkrete, umsetzbare Regel für den Anti-Floskel-Katalog: 'nicht nur X, sondern Y'/'es geht nicht um X, sondern um Y' sowie Dreierlisten (Aufzählungen mit exakt drei parallelen Elementen) sollten im Kritiker-Pass hart geprüft und variiert werden.",
+      "sources": [
+        "https://decrypt.co/348923/5-biggest-tells-something-written-ai"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "KI-generierter Text zeigt tendenziell niedrigere Perplexität und Burstiness (gleichmäßigere Satzlängen/-strukturen) als menschlicher Text; menschliches Schreiben hat typischerweise hohe Satzlängen-Varianz mit Brüchen und asymmetrischem Rhythmus.",
+      "detail": "Direkt operationalisierbar: Kritiker-Pass sollte Satzlängen-Standardabweichung im Text messen und bei zu geringer Varianz eine Überarbeitung mit bewusst gemischten kurzen/langen Sätzen anfordern.",
+      "sources": [
+        "https://quillbot.com/blog/ai-writing-tools/burstiness-and-perplexity/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Deutsches Anschreiben 2025/2026: Zielumfang 250-350 Wörter, maximal eine DIN-A4-Seite; Personalverantwortliche entscheiden laut mehreren Quellen in 30-60 Sekunden über Weiterlesen.",
+      "detail": "Harte Formatvorgabe für Anschreiben-Template: Wortzahl-Obergrenze als Constraint im Generierungs-Prompt und als automatisierte Prüfregel vor Ausgabe.",
+      "sources": [
+        "https://skill-sprinters.de/blog/karriere/anschreiben-2026-aufbau/",
+        "https://www.ulmato.de/anschreiben/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Einstieg ohne Floskel 'Hiermit bewerbe ich mich...': stattdessen Einstieg mit konkretem Stellenbezug oder einer belegten Leistung empfohlen, z. B. 'In meinem letzten Projekt habe ich X in Y Monaten verdoppelt.'",
+      "detail": "Konkrete Struktur-Regel für Template 'klassisch': erster Satz MUSS entweder eine Zahl/einen Erfolg aus der Story-Bank oder einen recherchierten Firmenbezug enthalten, niemals eine Standardfloskel.",
+      "sources": [
+        "https://www.ulmato.de/anschreiben/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Eye-Tracking-Studie (The Ladders, 2018): Recruiter entscheiden in durchschnittlich 7,4 Sekunden über einen Lebenslauf; Blickverlauf folgt F-/E-Muster (aktueller Titel/Firma zuerst, dann Daten, dann Ausbildung); klare Struktur mit fetten Titeln und Bullet-Erfolgen schneidet am besten ab.",
+      "detail": "Ältere, aber weiterhin vielzitierte Studie (2018) - als Grundlage für Lebenslauf-Layout-Regeln (Struktur vor Ästhetik) verwendbar, sollte im Skill als 'Stand 2018' gekennzeichnet werden.",
+      "sources": [
+        "https://www.theladders.com/career-advice/you-only-get-6-seconds-of-fame-make-it-count"
+      ],
+      "confidence": "medium",
+      "info_date": "2018"
+    },
+    {
+      "claim": "Trend zum optionalen Anschreiben: Laut Taledo-Umfrage ist für 64% der Unternehmen das Anschreiben inzwischen optional; laut StepStone-Analyse 2025 verlangen aber weiterhin 45% der deutschen Unternehmen eines, während rund 60% der Bewerber es trotzdem nutzen.",
+      "detail": "Der Agent darf sich nicht auf ein einziges Format festlegen: Er muss pro Stellenanzeige prüfen, ob ein Anschreiben explizit gefordert, optional oder gar nicht vorgesehen ist, und entsprechend Vollanschreiben, Kurzbewerbung oder reinen Lebenslauf mit Kurzprofil erzeugen.",
+      "sources": [
+        "https://homeofjobs.de/blog/bewerbung-2025-diese-trends-solltest-du-jetzt-kennen/",
+        "https://cvscore.net/de/blog/braucht-man-2026-noch-ein-anschreiben/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Kurzbewerbung (max. 1-2 Seiten, kombiniert Kern-Anschreiben und Lebenslauf) unterscheidet sich vom Kurzprofil (Zusatzdokument zum vollständigen Lebenslauf) und vom Motivationsschreiben (ausführliches Zusatzdokument zu Motivation/Eignung/Zielen, ergänzend zu Anschreiben und Lebenslauf).",
+      "detail": "Der Agent braucht mindestens drei unterscheidbare Dokumenttypen/Templates (Vollanschreiben, Kurzbewerbung, Motivationsschreiben) plus die Fähigkeit, situativ zu erkennen, welches laut Stellenanzeige verlangt wird.",
+      "sources": [
+        "https://bewerbung.net/kurzbewerbung",
+        "https://www.business-on.de/unterschied-anschreiben-und-motivationsschreiben.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Englische Cover Letter unterscheiden sich strukturell von deutschen Anschreiben: direktere Selbstdarstellung, kürzer (max. ca. 400 Wörter bzw. eine Seite), britische Cover Letter mit Betreffzeile, amerikanische ohne; nötig bei international tätigen Firmen, englischsprachigen Stellenanzeigen oder Unternehmen mit Englisch als Konzernsprache.",
+      "detail": "Für zweisprachige Bewerbungen (DE-Arbeitsmarkt, teils Englisch) braucht der Agent zwei getrennte Stil-Profile/Templates, keine reine Übersetzung des deutschen Anschreibens.",
+      "sources": [
+        "https://lebenslaufdesigns.de/anschreiben-englisch",
+        "https://elinora.net/cover-letter-deutsch"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "STAR-Story-Bank-Methodik: für Interviews/Bewerbungen werden i.d.R. 5 vorbereitete Erfolgsgeschichten empfohlen, strukturiert nach Situation-Task-Action-Result, mit konkreten Zahlen und einer 'Key Learning'-Spalte pro Story.",
+      "detail": "Direkte Vorlage für das Onboarding: Story-Bank-Datenstruktur mit Feldern Situation/Aufgabe/Aktion/Ergebnis(Zahl)/Learning, mindestens 5, besser 8-10 Einträge über verschiedene Kompetenzbereiche hinweg für Wiederverwendbarkeit über mehrere Bewerbungen.",
+      "sources": [
+        "https://blog.careerscribeai.com/star-story-bank-template/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "ATS-Landschaft Deutschland: Personio ist im deutschen Mittelstand mit über 10.000 Unternehmen weit verbreitet und nutzt eingebautes Keyword-Matching; SAP SuccessFactors ist Standard bei DAX-Konzernen (Siemens, Bosch, BMW) mit strengem Parser; Workday verarbeitet international 39% der Fortune-500-Bewerbungen. Neuere Systeme erkennen zunehmend Synonyme statt nur exakter Keyword-Treffer.",
+      "detail": "Bestätigt die Notwendigkeit von Keyword-Spiegelung der Stellenanzeige im Lebenslauf (exakte Begriffe, nicht nur Synonyme) als Kernfunktion des Tailoring-Moduls, mit Sonderbehandlung für SuccessFactors-Ausschreibungen (strengerer Parser, konservativeres Formatting).",
+      "sources": [
+        "https://activate-hr.de/hr-trends/ki-im-hr-ein-vergleich-von-sap-successfactors-workday-und-personio/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Du/Sie-Anrede im Anschreiben: Empfehlung, den Ton der Stellenanzeige zu spiegeln (Du-Anzeige erlaubt Du-Anschreiben als Signal für Kulturpassung), aber stets professionell zu bleiben und keinen Kumpelton zu verwenden; bei Unwohlsein darf trotzdem gesiezt werden.",
+      "detail": "Regel für den Anschreiben-Generator: Anrede-Modus (Du/Sie) wird aus der Stellenanzeige abgeleitet, aber als vom Nutzer überschreibbare Voreinstellung, nicht als starre Automatik.",
+      "sources": [
+        "https://www.karriereakademie.de/duzen-stellenanzeige",
+        "https://bewerbung.com/du-in-stellenanzeigen/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Gehaltsvorstellung/Eintrittstermin gehören nur ins Anschreiben, wenn die Stellenanzeige explizit danach fragt; empfohlen wird eine direkte, konjunktivfreie Formulierung (Spanne oder 'verhandelbar') statt vager Formulierungen.",
+      "detail": "Klare bedingte Regel für den Generator: Gehaltsblock nur einfügen, wenn Anzeige es verlangt; Formulierung ohne Konjunktiv als Stilregel im Anti-Floskel-Katalog.",
+      "sources": [
+        "https://bewerbung.net/gehaltsvorstellung-bewerbung"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Few-Shot-Style-Transfer erreicht bis zu 23,5-fach höhere Stil-Trefferquote als Zero-Shot-Prompting; bei Autoren mit großem öffentlichen Textkorpus (Prominente) gelingt Imitation deutlich besser als bei 'everyday authors' mit wenigen, informellen Textproben - dort bleibt laut ACL-Findings-2025-Studie ('Catch Me If You Can? Not Yet') eine signifikante Lücke zu echtem menschlichem Schreiben bestehen.",
+      "detail": "Wichtige Erwartungssteuerung: Das Voice-Profil kann sich nicht allein auf wenige alte Anschreiben stützen; es braucht ein strukturiertes Interview PLUS möglichst viele echte Textproben (E-Mails, LinkedIn-Posts, alte Bewerbungen) sowie explizite Stilregeln (nicht nur implizite Imitation), um die Lücke zu schließen.",
+      "sources": [
+        "https://arxiv.org/pdf/2509.14543",
+        "https://arxiv.org/abs/2509.24930"
+      ],
+      "confidence": "high",
+      "info_date": "2025-09"
+    },
+    {
+      "claim": "Anthropic empfiehlt XML-Tags als First-Class-Technik für komplexe Claude-Prompts (u. a. <instructions>, <data>, <examples>), warnt aber gleichzeitig davor, Claude bei komplexem Denken zu prescriptiv/schrittweise zu instruieren - eine hochrangige Anweisung ('think deeply') funktioniert oft besser als starre Schritt-für-Schritt-Vorgaben.",
+      "detail": "Direkte Konsequenz für den Schreib-Skill-Prompt: Struktur (Story-Bank-Daten, Stilregeln, Zielformat) klar mit XML-Tags abgrenzen, aber die eigentliche Formulierungsarbeit NICHT in starre Einzelschritte zerlegen - der Kritiker-Pass sollte auf Ergebnisqualität prüfen, nicht auf Befolgung einer Schrittfolge.",
+      "sources": [
+        "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Für Claude Opus 5/Fable 5.1 gilt: aggressive, groß geschriebene Zwangsformulierungen im Prompt ('CRITICAL: You MUST use this tool when...') führen zu Overtriggering; empfohlen wird normale, weniger dringliche Sprache ('Use this tool when...'). Zudem sinkt bei Opus 5 die Qualität, wenn dem Modell rigide, kleinteilige Schritt-für-Schritt-Vorgaben aufgezwungen werden, da neuere Modelle bereits eigenes Urteilsvermögen für Sequenzierung/Formatierung mitbringen.",
+      "detail": "Direkte Warnung für unseren Schreib-Prompt: ein 40-Punkte-Zwangsregelwerk ('MUSST du IMMER 3 Erfolge nennen, MUSST du NIEMALS...') kann kontraproduktiv sein und den Output selbst wieder generischer/steifer machen. Besser: klare Leitplanken plus Beispiele, aber Freiraum für die Formulierung lassen.",
+      "sources": [
+        "https://charlesjones.dev/blog/claude-opus-5-context-engineering-what-to-delete",
+        "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Claude Opus 5 (offizielle Doku): Effort-Parameter steuert Denktiefe/Tokens, nicht automatisch die sichtbare Antwortlänge; für Textlänge ist eine explizite Kürze-Anweisung im Prompt nötig. Claude Sonnet 5 kalibriert Antwortlänge stärker automatisch an die Aufgabenkomplexität, respektiert bei 'low'/'medium' Effort aber strikt den Aufgabenumfang ('scopes to what was asked') mit Risiko von Unterdenken bei komplexen Aufgaben.",
+      "detail": "Für Anschreiben mit harter Wortzahl-Obergrenze (250-350 Wörter) reicht eine Effort-Einstellung allein nicht - der Prompt braucht eine explizite Längenvorgabe; für den Rechercheteil (Firmenrecherche, Story-Matching) sollte Effort eher hoch/xhigh stehen, für reine Formatierungsaufgaben genügt medium.",
+      "sources": [
+        "https://platform.claude.com/docs/en/build-with-claude/effort",
+        "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Anthropic-Leitfaden 'Reduce hallucinations' empfiehlt konkret: Claude explizit erlauben 'Ich weiß es nicht' zu sagen; bei langen Dokumenten zuerst wörtliche Zitate extrahieren, bevor eine Aufgabe erledigt wird; jede Behauptung nachträglich gegen eine Quelle verifizieren und bei fehlendem Beleg zurückziehen/markieren; externes Wissen explizit auf die bereitgestellten Dokumente beschränken.",
+      "detail": "Direkt übertragbar auf den Fakten-Check-Schritt: nach dem Anschreiben-Entwurf soll ein separater Verifikations-Pass jede genannte Zahl/jeden Erfolg gegen die Story-Bank-Einträge des Nutzers abgleichen und unbelegte Aussagen entfernen oder markieren, statt zu halluzinieren.",
+      "sources": [
+        "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-hallucinations"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Anthropic-Eval-Doku (LLM-Grading): Best Practice ist, ein ANDERES Modell als Grader zu verwenden als das, welches den Output erzeugt hat; Rubriken müssen 'detailed, clear' und möglichst empirisch/spezifisch sein (Beispiel: 'weniger als 0,1% von 10.000 Outputs als toxisch markiert' statt 'sichere Outputs'); Skalen (Likert 1-5, ordinal, binär) sollten mit klar definierten Ankerpunkten und der Instruktion 'Output only the number/yes/no' formatiert werden.",
+      "detail": "Blaupause für unseren LLM-as-judge-Kritiker: separates Grader-Modell (z. B. Opus 5 bewertet Sonnet-5-Entwurf oder umgekehrt), klar definierte Rubrik-Kriterien mit Zahlen-Ankern statt vager Adjektive, strukturierte <response>-Tags im Bewertungs-Prompt.",
+      "sources": [
+        "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests",
+        "https://platform.claude.com/docs/en/test-and-evaluate/define-success"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "LLM-as-Judge-Forschung 2025/2026: bei paarweisen Vergleichen (Pairwise) kann allein das Vertauschen der Präsentationsreihenfolge zweier Antworten die Bewertungsgenauigkeit um über 10 Prozentpunkte verschieben (Position Bias); rubrikbasierte Einzelbewertung (nur ein Text pro Bewertungslauf) ist strukturell weniger anfällig für klassischen Position Bias, andere Verzerrungen (Verbosity-, Concreteness-Bias) bleiben aber relevant. Mitigationsansätze: Swap-and-Average, Shuffling, Tie-Markierung bei Widersprüchen.",
+      "detail": "Der Kritiker-Pass sollte primär rubrikbasiert einzeln bewerten (nicht 'Entwurf A vs. B'), und falls doch mehrere Kandidaten verglichen werden, per Swap-and-Average-Verfahren kalibrieren.",
+      "sources": [
+        "https://arxiv.org/html/2602.02219v2",
+        "https://www.adaline.ai/blog/llm-as-a-judge-reliability-bias"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Anthropics eigener 'doc-coauthoring'-Skill (öffentliches skills-Repo) beschreibt einen dreistufigen Schreibprozess: (1) Kontext sammeln inkl. 5-10 Klärungsfragen, (2) pro Abschnitt iterativ Klärungsfragen → Brainstorming von 5-20 Optionen → Nutzer kuratiert (Keep/Remove/Combine) → Gap-Check → Entwurf → Feedback-Loop, (3) 'Reader Testing' mit einem frischen Claude-Kontext ohne Wissen über den Prompt, das 5-10 realistische Leserfragen beantwortet und Widersprüche/Unklarheiten aufdeckt.",
+      "detail": "Direkt als Architekturmuster für unsere Qualitätsschleife übertragbar: Der '6-Sekunden-Test' und 'Würde der Nutzer das so sagen?'-Check lassen sich als eigener Prompt-Aufruf mit frischem Kontext (kein Zugriff auf den Schreib-Prompt, nur der fertige Text) realisieren, der wie ein echter Recruiter reagiert.",
+      "sources": [
+        "https://github.com/anthropics/skills/blob/main/skills/doc-coauthoring/SKILL.md"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Im offiziellen anthropics/skills-Repository (Stand Zugriff 2026) existiert kein dedizierter Skill für 'writing-style', 'voice', 'tone' oder 'brand-voice'; am nächsten kommen 'brand-guidelines' (fokussiert primär auf visuelle Identität: Farben/Typografie, nicht auf Tonfall-Regeln) und 'internal-comms'.",
+      "detail": "Für die Stimmerfassung gibt es kein direkt wiederverwendbares Anthropic-Referenzmuster - das Voice-Profil-Format (Regeln, Beispiele, Anti-Patterns, Satzlängen-Statistik) muss selbst entworfen werden, ggf. angelehnt an die Struktur von brand-guidelines (Primär-/Sekundärton, Kontextregeln) übertragen auf Text statt Design.",
+      "sources": [
+        "https://github.com/anthropics/skills/tree/main/skills"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Flesch Reading Ease für Deutsch: FRE = 180 − ASL − 58,5 × ASW (ASL = durchschnittliche Satzlänge in Wörtern, ASW = durchschnittliche Silbenzahl pro Wort). Die Wiener Sachtextformel bestimmt eine Schulstufen-Einordnung (Skala 4 = sehr leicht bis 15 = sehr schwer) speziell für deutschsprachige Texte. Der LIX-Index berechnet sich aus Satzlänge und Anteil langer Wörter (>6 Buchstaben) und eignet sich sprachübergreifend für europäische Sprachen.",
+      "detail": "Alle drei Formeln sind einfache, selbst implementierbare Berechnungen (keine externe API nötig) - empfiehlt sich als deterministischer Lesbarkeits-Check im Qualitäts-Pipeline-Schritt vor Ausgabe, mit Zielkorridor z. B. Wiener Sachtextformel Schulstufe 8-10 für ein Anschreiben (verständlich, aber nicht zu simpel).",
+      "sources": [
+        "https://fleschindex.de/lesbarkeitsindex",
+        "https://fair-text.com/lesbarkeitsindex-textanalyse-tool/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    }
+  ],
+  "tools": [
+    {
+      "name": "GPTZero",
+      "url": "https://gradpilot.com/news/ai-detector-false-positive-rates-compared",
+      "category": "SaaS",
+      "access": "Web-App/API zur KI-Text-Erkennung; laut Rohdaten niedrigste False-Positive-Rate im Vergleich (0,24%-1%), aber ~7,7% FPR bei nicht-muttersprachlichem Englisch nach eigenem Update.",
+      "pricing": "Nicht in den Rohdaten spezifiziert (Free-Tier laut Marktkenntnis vorhanden, kostenpflichtige Pläne für Volumen/API - nicht verifiziert, daher hier ohne konkreten Preis).",
+      "verdict": "optional - höchstens als interner Sanity-Check vor Versand, niemals als Zielmetrik der Qualitätsschleife (Personalisierung schlägt Detektor-Score laut Recherche)."
+    },
+    {
+      "name": "Originality.ai",
+      "url": "https://originality.ai/blog/ai-detection-studies-round-up",
+      "category": "SaaS",
+      "access": "Web-App/API zur KI-Text-Erkennung; laut Rohdaten höhere False-Positive-Rate als GPTZero (4,79%-8%).",
+      "pricing": "Nicht in den Rohdaten spezifiziert.",
+      "verdict": "vermeiden als primäres QS-Tool - unzuverlässiger als GPTZero laut zitierten Vergleichsstudien, gleiches Grundproblem (Nicht-Muttersprachler-Bias) besteht weiter."
+    },
+    {
+      "name": "anthropics/skills (GitHub-Repository)",
+      "url": "https://github.com/anthropics/skills",
+      "category": "Bibliothek",
+      "access": "Öffentliches Git-Repository, frei einsehbar/klonbar; enthält u. a. den 'doc-coauthoring'-Skill (Kontext→Brainstorm→Entwurf→Reader-Test) als übertragbares Muster für Qualitätsschleifen.",
+      "pricing": "Kostenlos / Open Source.",
+      "verdict": "empfohlen - Struktur des doc-coauthoring-Skills als Vorlage für den Kritiker-/Reader-Test-Schritt des eigenen Anschreiben-Skills adaptieren; kein dedizierter Voice/Tone-Skill vorhanden, muss selbst gebaut werden."
+    },
+    {
+      "name": "Claude Structured Outputs",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/structured-outputs",
+      "category": "API",
+      "access": "API-Feature der Anthropic Claude API zur garantierten JSON-Schema-Konformität von Modell-Outputs.",
+      "pricing": "Teil der regulären Claude-API-Nutzung (Token-Preise gelten, kein separates Preismodell in Rohdaten).",
+      "verdict": "empfohlen für strukturierte Zwischenergebnisse (z. B. Rubrik-Bewertungen, Story-Bank-Matching, Metadaten-Extraktion aus Stellenanzeigen), nicht für den eigentlichen Fließtext von Anschreiben."
+    },
+    {
+      "name": "Lesbarkeitsindex-Rechner (fair-text.com)",
+      "url": "https://fair-text.com/lesbarkeitsindex-textanalyse-tool/",
+      "category": "SaaS",
+      "access": "Web-Tool zur Berechnung von Flesch Reading Ease, Wiener Sachtextformel, LIX für deutsche Texte.",
+      "pricing": "Nicht in Rohdaten spezifiziert.",
+      "verdict": "optional - die zugrunde liegenden Formeln sind trivial genug, um sie selbst in der eigenen Qualitäts-Pipeline zu implementieren (kein externer API-Call pro Bewerbung nötig); Tool höchstens zur manuellen Stichprobenprüfung."
+    }
+  ],
+  "recommendations": [
+    "Onboarding-Interview (30+ Fragen, STAR/CAR-Format) plus Sammlung von 5-10 echten Textproben (alte Anschreiben, berufliche E-Mails, LinkedIn-Posts) als Pflichtschritt vor erster Nutzung - Few-Shot-Style-Transfer allein reicht bei 'everyday authors' laut Forschung nicht aus, es braucht explizite Stilregeln zusätzlich zu Beispielen.",
+    "Story-Bank als strukturierte Datenbank (Situation/Aufgabe/Aktion/Ergebnis mit Zahl/Learning) mit mindestens 8-10 Einträgen anlegen; jede Zahl/jeder Erfolg im generierten Anschreiben muss in einem separaten Verifikations-Pass gegen einen Story-Bank-Eintrag rückverifiziert werden (Anthropic-Pattern 'Zitat extrahieren, sonst zurückziehen').",
+    "Zweistufiger Anti-Floskel-Check: (1) harte deterministische Blacklist/Regex für Todsünden ('hiermit bewerbe ich mich', 'Teamplayer', 'gepaart mit', 'nicht nur..., sondern...', exakte Dreierlisten) als Vor-Ausgabe-Filter, (2) zusätzlich LLM-Rubrik-Kriterium im Kritiker-Pass für subtilere Generik, die eine Wortliste nicht fängt.",
+    "Rubrikbasierte Einzelbewertung statt Pairwise-Vergleich im Kritiker-Loop verwenden (weniger Position-Bias); Kritiker-Modell sollte ein anderes sein als das Entwurfsmodell (z. B. Opus 5 bewertet Sonnet-5-Entwurf), mit klar definierten 1-5-Skalen pro Kriterium (Konkretheit, Firmenbezug, Beleg-Dichte, Satzlängen-Varianz, Floskel-Freiheit) statt einer Gesamtnote.",
+    "Reader-Test als eigener Prompt-Aufruf mit 'frischem' Kontext (kein Zugriff auf System-Prompt/Story-Bank) implementieren, der wie ein Recruiter reagiert: '6-Sekunden-Eindruck', 'Was ist die konkrete Leistung?', 'Würde ich weiterlesen?' - direkt nach dem Muster des doc-coauthoring-Skills.",
+    "Deterministischer Lesbarkeits-Check (Wiener Sachtextformel/Flesch-DE, selbst implementiert, keine externe API) vor Ausgabe: Zielkorridor Schulstufe ca. 8-10 für Anschreiben; zusätzlich Satzlängen-Standardabweichung messen und bei zu geringer Varianz (KI-typische Gleichmäßigkeit) Überarbeitung anfordern.",
+    "Schreib-Prompt bewusst NICHT als 40-Punkte-Zwangsregelwerk gestalten (Anthropic warnt bei Opus 5/Fable 5.1 vor Qualitätsverlust durch zu präskriptive Vorgaben) - stattdessen: Rolle + Story-Bank-Fakten + kompakte Stilregeln (Anti-Floskel-Liste, Ton, Zielformat) als Kontext, Formulierungsfreiheit lassen, Qualität über den nachgelagerten Kritiker-Pass sichern statt über Prompt-Mikromanagement.",
+    "Format-Router pro Stellenanzeige: automatisch erkennen, ob Vollanschreiben (250-350 Wörter), Kurzbewerbung, Motivationsschreiben oder kein Anschreiben (nur Lebenslauf + Kurzprofil) gefordert bzw. sinnvoll ist, statt einheitlich immer ein volles Anschreiben zu erzeugen.",
+    "Harte Leitplanke fürs Lebenslauf-Tailoring: nur Umordnen, Betonen, Kernkompetenzen-Block und Sprachspiegelung (Keywords aus Stellenanzeige exakt übernehmen) erlauben; keine erfundenen Jobtitel, Zeiträume, Abschlüsse oder Zertifikate - vor Produktivbetrieb die rechtliche Grenze zu § 123 BGB (arglistige Täuschung) mit dem Nutzer/einem Anwalt klären, da hierzu in dieser Recherche keine belastbare Quelle verifiziert werden konnte.",
+    "AI-Detektoren (GPTZero u. a.) höchstens als optionalen, nicht-blockierenden internen Sanity-Check einsetzen, niemals als Freigabekriterium - Personalisierungsgrad und Story-Bank-Bezug sind laut Recherche der eigentliche Ablehnungs-/Akzeptanz-Hebel bei Recruitern, nicht ein Detektor-Score.",
+    "Du/Sie-Anrede automatisch aus der Stellenanzeige ableiten (spiegeln), aber als vom Nutzer im Onboarding überschreibbare Grundpräferenz speichern; Gehaltsvorstellung/Eintrittstermin nur einfügen, wenn die Anzeige explizit danach fragt, stets ohne Konjunktiv formuliert."
+  ],
+  "risks": [
+    "AI-Detektoren zeigen bei formellem, nicht-muttersprachlich wirkendem Schreibstil deutlich höhere False-Positive-Raten (bis zu 23-61% je nach Studie) - falls Recruiter/HR-Software solche Tools einsetzen, könnte ein zu 'perfekter' Stil unseren Kandidaten fälschlich als KI-Autor markieren.",
+    "Few-Shot-Voice-Mimicry bleibt bei 'everyday authors' mit wenigen Textproben laut aktueller Forschung (2025) signifikant hinter echtem menschlichem Schreiben zurück - das Produkt darf keine 100%ige Stimm-Authentizität versprechen, sondern muss Erwartungen entsprechend steuern und die Lücke über explizite Regeln statt reiner Imitation schließen.",
+    "Zu präskriptive, lange Regelwerke im Schreib-Prompt können bei Fable 5.1/Opus 5 laut Anthropic-eigener Doku kontraproduktiv wirken und den Output selbst wieder steifer/generischer machen - Risiko eines Zielkonflikts zwischen 'möglichst viele Stilregeln erzwingen' und 'natürlich klingen lassen'.",
+    "LLM-as-Judge-Kritiker sind selbst fehleranfällig (Position-Bias bis >10% Accuracy-Verschiebung bei Pairwise, Verbosity-/Concreteness-Bias) - ein unkalibrierter Kritiker-Pass kann falsches Qualitätssignal liefern und z. B. längere, aber nicht bessere Entwürfe bevorzugen.",
+    "Die rechtliche Grenze zwischen zulässiger Betonung/Umordnung im Lebenslauf-Tailoring und einer nach § 123 BGB anfechtbaren arglistigen Täuschung konnte in dieser Recherche nicht mit einer im Suchergebnis zitierten Quelle belegt werden (Zugriff auf Gesetzestext/Wikipedia durch Netzwerk-Proxy blockiert) - vor Produktivbetrieb juristisch prüfen lassen, nicht allein vom Agenten entscheiden lassen.",
+    "Trend zum optionalen/wegfallenden Anschreiben (bei bis zu 64% der Unternehmen laut Taledo) bei gleichzeitig weiterhin hoher Nutzung durch Bewerber (60%) erzeugt Uneinheitlichkeit - ein starres Ein-Format-System würde in vielen Fällen am Bedarf vorbeiproduzieren."
+  ],
+  "open_questions_for_user": [
+    "Wie viele eigene Textproben (alte Anschreiben, berufliche E-Mails, LinkedIn-/Xing-Posts) kannst und willst du für das initiale Voice-Profil bereitstellen, und dürfen diese dauerhaft für Stil-Training gespeichert werden?",
+    "Sollen bei rechtlichen Grauzonen im Lebenslauf-Tailoring (z. B. Umbenennung eines Jobtitels, Umgang mit Lücken) grundsätzlich Rückfragen an dich gestellt werden, oder möchtest du vorab eine eigene 'rote Linie' festlegen, die der Agent automatisch respektiert?",
+    "Bevorzugst du in Anschreiben generell Sie oder Du, wenn die Stellenanzeige keine klare Präferenz zeigt, oder soll der Ton immer strikt aus der Anzeige abgeleitet werden?",
+    "Soll standardmäßig zusätzlich zum Anschreiben ein Motivationsschreiben erstellt werden (auch wenn nicht explizit verlangt), oder nur auf ausdrückliche Anforderung der Stellenanzeige?",
+    "Wie viel Kontrolle/Transparenz über Prompt-Regeln ist dir wichtiger als maximale Kürze/Natürlichkeit des Prompts - sollen z. B. alle Anti-Floskel-Regeln im System-Prompt sichtbar bleiben, auch wenn das Risiko steifer wirkender Outputs laut Anthropic-Doku steigt?"
+  ],
+  "search_log": [
+    "KI-generierte Bewerbung erkennen Floskeln Recruiter 2025",
+    "recruiters AI-written cover letters survey 2025 2026 percent can tell",
+    "Recruiter Umfrage KI Anschreiben Bewerbung 2025 StepStone Indeed softgarden",
+    "Anschreiben 2026 Tipps Einstieg ohne 'hiermit bewerbe ich mich' Länge Wörter",
+    "GPTZero Originality.ai false positive rate 2025 study AI detector reliability",
+    "Anschreiben optional Trend 2025 Unternehmen verzichten auf Anschreiben Umfrage",
+    "Flesch Reading Ease Deutsch Wiener Sachtextformel LIX Formel Berechnung",
+    "Anthropic prompt engineering Claude 4 best practices XML tags examples overly prescriptive",
+    "LLM-as-a-judge rubric scoring cover letter quality evaluation pairwise bias position bias 2025",
+    "signs of AI writing em dash tricolon 'not just' 'it's not X, it's Y' list of tells",
+    "Kurzbewerbung Kurzprofil Motivationsschreiben Unterschied Anschreiben Aufbau 2025",
+    "English cover letter Germany conventions Anschreiben auf Englisch deutsche Unternehmen Unterschiede",
+    "STAR method story bank interview questions career stories inventory template accomplishments",
+    "ATS keyword matching Personio SAP SuccessFactors Workday KI Vorauswahl Bewerbung Lebenslauf Deutschland 2025",
+    "AI detector used by HR recruiters cover letters GPTZero Turnitin hiring false positives non-native speakers Stanford study",
+    "Eye-Tracking Lebenslauf 7,4 Sekunden Ladders Studie Recruiter Blick F-Muster",
+    "Anschreiben Du oder Sie wenn Stellenanzeige duzt Arbeitgeber Ton spiegeln Empfehlung",
+    "Gehaltsvorstellung Eintrittstermin im Anschreiben nur wenn verlangt Formulierung Schlusssatz Konjunktiv vermeiden",
+    "burstiness perplexity sentence length variance AI text detection human writing stylometry study",
+    "Initiativbewerbung Anschreiben Aufbau Einstieg Bezug Unternehmen Ansprechpartner Beispiel 2025 2026",
+    "LLM mimic author writing style few-shot style transfer voice profile personalization research 2025",
+    "Resume Genius OR Zety OR Greenhouse survey 2025 hiring managers AI-generated resumes cover letters reject percent",
+    "Anthropic Claude Opus 4.5 OR 'Claude 4' prompting 'less prescriptive' OR 'overly firm' guidance system prompt",
+    "Lebenslauf Erfolge statt Aufgaben Formel Zahlen 'Kernkompetenzen' Block ATS Synonyme Stellenanzeige spiegeln Tipps",
+    "Abruf: platform.claude.com prompting best practices",
+    "Abruf: platform.claude.com prompting-claude-fable-5-1",
+    "Abruf: platform.claude.com prompting-claude-opus-5",
+    "Abruf: platform.claude.com prompting-claude-sonnet-5",
+    "Abruf: platform.claude.com reduce-hallucinations",
+    "Abruf: platform.claude.com increase-consistency",
+    "Abruf: platform.claude.com effort",
+    "Abruf: platform.claude.com multishot-prompting",
+    "Abruf: github.com/anthropics/skills",
+    "Abruf: github.com/anthropics/claude-code plugins",
+    "Abruf: platform.claude.com define-success",
+    "Abruf: platform.claude.com develop-tests",
+    "Abruf: platform.claude.com chain-prompts",
+    "Abruf: platform.claude.com prompting-claude-fable-5",
+    "(ergänzend, eigene Session) ChatGPT typische deutsche Floskeln Liste KI-Wörter - kein Suchbudget mehr verfügbar",
+    "(ergänzend, eigene Session) § 123 BGB arglistige Täuschung Lebenslauf falsche Angaben - kein Suchbudget/Zugriff blockiert",
+    "(ergänzend, eigene Session) Turnitin AI detection false positive rate hiring - kein Suchbudget mehr verfügbar",
+    "(ergänzend, eigene Session) github.com/anthropics/skills/tree/main/skills - Abruf erfolgreich",
+    "(ergänzend, eigene Session) github.com/anthropics/skills/blob/main/skills/doc-coauthoring/SKILL.md - Abruf erfolgreich",
+    "(ergänzend, eigene Session) github.com/anthropics/skills/blob/main/skills/brand-guidelines/SKILL.md - Abruf erfolgreich"
+  ]
+}

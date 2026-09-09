@@ -1,0 +1,207 @@
+{
+  "group": "C",
+  "verdicts": [
+    {
+      "file": "architecture.json",
+      "claim": "Managed Agents: $0,08 pro Session-Stunde (nur Status 'running', ms-genau), Modell-Tokens zu Listenpreisen, Websuche $10/1000; Batch-Rabatt gilt nicht; Budget max_list_cost nur USD in ganzen Cent, Session pausiert 'idle' mit stop_reason budget_reached.",
+      "verdict": "confirmed",
+      "correction": "",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/budgets",
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ]
+    },
+    {
+      "file": "claude_ecosystem.json",
+      "claim": "Modellpreise Sept. 2026: Fable 5.1 $10/$50, Opus 5 $5/$25, Sonnet 5 $2/$10 (dauerhaft, Erhöhung auf $3/$15 zum 1.9.2026 entfällt), Haiku 4.5 $1/$5; Cache-Read 0,1x, bei Fable 5.1 0,025x; Cache-Write 1,25x/2x; Batch 50%.",
+      "verdict": "confirmed",
+      "correction": "Ergänzung: Fable 5 (ohne .1) hat Cache-Read $1/MTok (0,1x), nur Fable 5.1/Mythos 5.1 haben 0,025x ($0,25/MTok).",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ]
+    },
+    {
+      "file": "architecture.json",
+      "claim": "claude-agent-sdk (PyPI) Version 0.2.152 vom 2.9.2026, Python 3.10+, MIT, bündelt die Claude-Code-CLI.",
+      "verdict": "confirmed",
+      "correction": "",
+      "sources": [
+        "https://pypi.org/project/claude-agent-sdk/"
+      ]
+    },
+    {
+      "file": "claude_ecosystem.json",
+      "claim": "Claude Code Routines: in Pro/Max/Team/Enterprise enthalten, research preview, Mindestintervall 1 Stunde, keine Permission-Prompts, frischer Repo-Klon je Lauf; Tageslimits Pro 5 / Max 15 / Team+Enterprise 25 Läufe.",
+      "verdict": "partially_correct",
+      "correction": "Plan-Verfügbarkeit, 1h-Minimum, fehlende Permission-Prompts und frischer Klon sind in der offiziellen Doku bestätigt. Die konkreten Tageslimits (5/15/25) stehen NICHT in der Doku; dort heißt es nur, es gebe einen 'daily cap' pro Account, einsehbar unter claude.ai/code/routines. Zusätzlich: One-off-Läufe zählen nicht gegen den Cap; mit aktivierten Usage Credits laufen Routines nach Erreichen des Caps auf Metered Overage weiter. Die Zahlen 5/15/25 sind als unbelegt zu markieren.",
+      "sources": [
+        "https://code.claude.com/docs/en/routines"
+      ]
+    },
+    {
+      "file": "claude_ecosystem.json",
+      "claim": "Scheduled Deployments (Managed Agents): Cron mit Minutengranularität, IANA-Timezone, DST-bewusst, Jitter bis 15 % (max. 9 Min), max. 1000 Deployments/Org, Budget pro Lauf.",
+      "verdict": "confirmed",
+      "correction": "Präzisierung: Jitter min. 5 Sekunden, max. 9 Minuten; Budget wird pro gestarteter Session kopiert (nicht kumulativ).",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/scheduled-deployments"
+      ]
+    },
+    {
+      "file": "architecture.json",
+      "claim": "Memory Stores: max. 8 Stores/Session, 10.000 Memories/Store, 100 kB (~25k Tokens) je Memory, Versionshistorie 30 Tage, Beta-Header agent-memory-2026-07-22, read_only/read_write mit Prompt-Injection-Warnung.",
+      "verdict": "confirmed",
+      "correction": "Ergänzung: Header agent-memory-2026-07-22 darf NICHT mit managed-agents-2026-04-01 kombiniert werden (400).",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/memory"
+      ]
+    },
+    {
+      "file": "claude_ecosystem.json",
+      "claim": "Code-Execution-Tool: kostenlos bei Nutzung mit web_search_20260209+/web_fetch_20260209+; sonst 1.550 Freistunden/Org/Monat, danach $0,05/Stunde/Container, Mindestabrechnung 5 Minuten; python-docx/pypdf/reportlab vorinstalliert.",
+      "verdict": "confirmed",
+      "correction": "",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool",
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ]
+    },
+    {
+      "file": "architecture.json",
+      "claim": "Web-Fetch-Tool (web_fetch_20260318) kann nur URLs abrufen, die zuvor in Nutzer-Nachrichten, Client-Tool-Ergebnissen oder Web-Search/-Fetch-Resultaten auftauchten; kein JS-Rendering; nicht auf Bedrock/Google Cloud; keine Zusatzkosten.",
+      "verdict": "confirmed",
+      "correction": "Ergänzung: URLs, die nur im System-Prompt stehen, sind ebenfalls NICHT abrufbar (müssen zusätzlich in einer User-Message stehen); Ergebnisse anderer Server-Tools (Code Execution, MCP-Connector) gelten nicht als Quelle. Für JS-Seiten empfiehlt die Doku das Browser-Use-Tool (client-seitig).",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool"
+      ]
+    },
+    {
+      "file": "email.json",
+      "claim": "iCloud Mail: 1000 gesendete Nachrichten/Tag, 1000 Empfänger/Tag, max. 500 Empfänger pro Nachricht (Apple Support 102198).",
+      "verdict": "confirmed",
+      "correction": "Direkter Abruf von support.apple.com war gesperrt; Bestätigung über Suchergebnis-Snippets der Apple-Seite (mehrere Regionalversionen) und Macworld.",
+      "sources": [
+        "https://support.apple.com/en-us/102198",
+        "https://www.macworld.com/article/229154/in-case-you-didnt-know-icloud-email-has-limits-on-daily-messages-and-recipients.html"
+      ]
+    },
+    {
+      "file": "email.json",
+      "claim": "Gmail-API-Scopes: gmail.send ist 'Sensitive', gmail.compose und gmail.modify sind 'Restricted' (Finding) – ABER Summary/Tools/Recommendations derselben Datei nennen gmail.compose als 'Sensitive-Tier'.",
+      "verdict": "partially_correct",
+      "correction": "Das Finding ist korrekt: gmail.send ist der einzige Gmail-Scope, der nur 'Sensitive' ist; gmail.compose, gmail.modify, gmail.readonly und mail.google.com sind 'Restricted' (CASA-Sicherheitsprüfung bei Veröffentlichung). Summary, Tools-Eintrag 'Gmail API (Drafts + Send)' und Empfehlung ('gmail.compose-Scope … Sensitive') sind in sich widersprüchlich und falsch. Konsequenz: Der empfohlene Draft-First-Ansatz (users.drafts.create) braucht gmail.compose oder gmail.modify – beide Restricted. Im Testing-Modus (1 Testnutzer) ist das unproblematisch, eine spätere Veröffentlichung ('In Production') würde aber eine CASA-Prüfung erfordern. gmail.send allein erlaubt keine Drafts.",
+      "sources": [
+        "https://developers.google.com/workspace/gmail/api/auth/scopes",
+        "https://www.unipile.com/gmail-api-scopes-guide/",
+        "https://learn.emailengine.app/docs/accounts/gmail/gmail-api-scopes"
+      ]
+    },
+    {
+      "file": "email.json",
+      "claim": "Google-OAuth-Testing-Modus: bis 100 Testnutzer ohne Verifizierung; Tokens laufen nach 7 Tagen ab und erfordern Re-Autorisierung; 'Internal' nur mit Workspace-Domain.",
+      "verdict": "confirmed",
+      "correction": "Präzisierung: Es ist der Refresh-Token, der bei External + Testing nach 7 Tagen abläuft (nicht nur der Access-Token). Direkter Abruf von support.google.com war gesperrt; bestätigt über Google-Groups/Unipile/Nango-Quellen.",
+      "sources": [
+        "https://support.google.com/cloud/answer/15549945?hl=en",
+        "https://www.unipile.com/google-oauth-refresh-token/",
+        "https://nango.dev/blog/google-oauth-invalid-grant-token-has-been-expired-or-revoked/"
+      ]
+    },
+    {
+      "file": "architecture.json",
+      "claim": "Hetzner Preiserhöhung 15.6.2026: CX23 3,99→5,49 €, CAX11 4,49→5,99 €; bestellbar CPX22 19,99 €/Monat, CPX12 11,99 €; CX23/CAX11 als 'nicht verfügbar' markiert.",
+      "verdict": "partially_correct",
+      "correction": "Datum und CX23/CAX11-Werte bestätigt (mehrere Quellen, docs.hetzner.com selbst war gesperrt). CPX22 wird in Drittquellen mit 7,99→19,49 € angegeben (nicht 19,99 €); Preisangaben teils inkl. 19 % MwSt., was die Differenz erklären kann – vor Budgetierung im Hetzner-Konfigurator prüfen. Die Nichtverfügbarkeit von CX23/CAX11 für Neubestellungen ist nicht belegbar. Zusätzlich: Es war bereits die vierte Preisanpassung 2026 (u. a. +30–37 % am 1.4.2026).",
+      "sources": [
+        "https://docs.hetzner.com/de/general/infrastructure-and-availability/price-adjustment/",
+        "https://wz-it.com/en/blog/hetzner-price-increase-june-2026-cpx-ccx-alternatives/",
+        "https://northflank.com/blog/hetzner-cloud-server-price-increases"
+      ]
+    },
+    {
+      "file": "claude_ecosystem.json",
+      "claim": "GongRzhe/Gmail-MCP-Server ist seit 3.3.2026 archiviert (read-only). email.json sagt dagegen 'seit August 2025 unmaintained, 72+ offene PRs, aktiver Fork ArtyMcLabin'.",
+      "verdict": "partially_correct",
+      "correction": "Archivierung am 3.3.2026 und MIT-Lizenz bestätigt (GitHub). Aktuell werden 32 offene PRs angezeigt, nicht 72+. Die Existenz/Aktivität des Forks ArtyMcLabin/Gmail-MCP-Server konnte nicht geprüft werden (unverifiable). Empfehlung beider Dateien (nicht produktiv einsetzen) bleibt gültig.",
+      "sources": [
+        "https://github.com/GongRzhe/Gmail-MCP-Server"
+      ]
+    },
+    {
+      "file": "claude_ecosystem.json",
+      "claim": "Brave Search API hat den Free Tier im Februar 2026 abgeschafft; jetzt guthabenbasiert ($5 Startguthaben, ca. $0,003–0,005/Anfrage, Kreditkarte Pflicht).",
+      "verdict": "partially_correct",
+      "correction": "Abschaffung im Februar 2026 und Kreditkartenpflicht bestätigt. Preisstruktur laut Quellen: $5 pro 1.000 Search-Requests ($0,005/Query); jeder Plan enthält $5 kostenlose Credits PRO MONAT (≈1.000 Suchen/Monat), nicht nur ein einmaliges Startguthaben. Für 10 Bewerbungen/Tag mit einigen Suchen je Stelle könnte das Monatsguthaben bereits reichen.",
+      "sources": [
+        "https://www.implicator.ai/brave-drops-free-search-api-tier-puts-all-developers-on-metered-billing/",
+        "https://agentdeals.dev/vendor/brave-search-api",
+        "https://github.com/openclaw/openclaw/issues/16629"
+      ]
+    },
+    {
+      "file": "architecture.json",
+      "claim": "Langfuse Self-Hosting benötigt laut eigener Doku mind. 4+ CPU-Kerne, 16 GiB RAM, ~100 GiB Speicher (Postgres, ClickHouse, Redis 7+, S3/MinIO).",
+      "verdict": "confirmed",
+      "correction": "langfuse.com direkt gesperrt; bestätigt über Suchergebnisse, die die Langfuse-Doku (Scaling/Infrastructure) zitieren. ClickHouse-Minimum lt. Doku: 3 Nodes à 2 Kerne/8 GiB für Produktion.",
+      "sources": [
+        "https://langfuse.com/self-hosting/configuration/scaling",
+        "https://langfuse.com/self-hosting/deployment/infrastructure/clickhouse",
+        "https://github.com/orgs/langfuse/discussions/5924"
+      ]
+    },
+    {
+      "file": "documents.json",
+      "claim": "WeasyPrint unterstützt PDF/A- und PDF/UA-Varianten (pdf/a-1b … pdf/a-4b/u, pdf/ua-1, pdf/ua-2) über pdf_variant; Release Februar 2026; Python 3.10+.",
+      "verdict": "partially_correct",
+      "correction": "PDF/A- und PDF/UA-Varianten (inkl. pdf/ua-1, pdf/ua-2, pdf/a-4u) sind laut WeasyPrint-Doku vorhanden, aber ausdrücklich als 'experimentell' (seit v57) gekennzeichnet: erzeugte Dokumente sind NICHT garantiert konform, Validierung liegt beim Nutzer. Aktuelle stabile Doku-Version: 69.0; 'Release Februar 2026' und Python-Mindestversion konnten nicht geprüft werden (doc.courtbouillon.org gesperrt).",
+      "sources": [
+        "https://doc.courtbouillon.org/weasyprint/stable/api_reference.html",
+        "https://doc.courtbouillon.org/weasyprint/stable/common_use_cases.html",
+        "https://github.com/Kozea/WeasyPrint/issues/2153"
+      ]
+    },
+    {
+      "file": "claude_ecosystem.json",
+      "claim": "Anthropic Usage Policy stuft 'Employment decisions' (Resume-Screening) als Hochrisiko-Use-Case mit Human-in-the-Loop- und Offenlegungspflicht ein ('don't auto-reject a resume'); Pflichten gelten primär für B2C, nicht B2B.",
+      "verdict": "partially_correct",
+      "correction": "Hochrisiko-Einstufung von Employment Screening, HITL-Pflicht (qualifizierter Mensch prüft vor Finalisierung) und Offenlegung gegenüber Endkonsumenten sind belegt. Die Aussage 'primär B2C, nicht B2B' ist nur für die Offenlegungspflicht ('when outputs face consumers') belegt; die HITL-Anforderung wird in den Quellen nicht auf B2C beschränkt. Die zitierten anthropic.com/news-URLs waren nicht abrufbar (Egress gesperrt); kanonische Quelle ist https://www.anthropic.com/aup.",
+      "sources": [
+        "https://www.anthropic.com/aup",
+        "https://conductatlas.com/platform/anthropic/anthropic-usage-policy/",
+        "https://seventnews.com/en/articles/anthropic-updates-usage-policy-new-rules-for-high-risk-ai-applications"
+      ]
+    },
+    {
+      "file": "documents.json",
+      "claim": "Personio: 10 MB pro Dokument im Kandidatenprofil, 20 MB via Bewerbungsformular, nur PDF/DOCX, max. 25 Dateien.",
+      "verdict": "unverifiable",
+      "correction": "community.personio.de war über den Egress-Proxy gesperrt; kein unabhängiger Beleg gefunden. Confidence 'low' der Datei ist angemessen; Werte vor Nutzung im Personio-Helpcenter prüfen.",
+      "sources": [
+        "https://community.personio.de/recruiting-2/upload-bewerberdatei-inkl-lebenslaeufe-5027"
+      ]
+    }
+  ],
+  "suspicious_urls": [
+    "https://www.anthropic.com/news/usage-policy-update (nicht abrufbar, Existenz unbelegt; kanonisch: https://www.anthropic.com/aup)",
+    "https://www.anthropic.com/news/updating-our-usage-policy (nicht abrufbar, Existenz unbelegt)",
+    "https://tygartmedia.com/claude-managed-agents-pricing-cost-analysis/ (Drittanbieter-Blog als Quelle für offizielle Preise; offizielle Pricing-Seite reicht)",
+    "(salvage legal.md, Suche 11: AGG Lebenslauf Foto Geburtsdatum Familienstand) – Platzhalter statt URL in documents.json",
+    "https://www.nutrient.io/blog/how-to-generate-pdf-reports-from-html-in-python/ (Drittanbieter-Quelle für WeasyPrint-Features statt offizieller Doku)",
+    "https://github.com/ArtyMcLabin/Gmail-MCP-Server (Fork-Existenz/Aktivität nicht geprüft)",
+    "https://support.google.com/cloud/answer/13464323?hl=en (nicht geprüft)",
+    "https://platform.claude.com/docs/en/agents-and-tools/skills.md (URL mit .md-Suffix; nicht geprüft, ob identisch mit /build-with-claude/skills-guide)"
+  ],
+  "additions": [
+    "Web-Fetch kann keine URLs abrufen, die nur im System-Prompt stehen – Jobbörsen-/Firmen-URLs müssen in einer User-Message oder einem Client-Tool-Result stehen: https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool",
+    "Routines: One-off-Läufe zählen nicht gegen den Tages-Cap; mit aktivierten Usage Credits laufen Routines nach Erreichen des Caps auf Metered Overage weiter: https://code.claude.com/docs/en/routines",
+    "Routines: Verbundene Connectors dürfen während eines Laufs ohne Nachfrage schreiben – für E-Mail-Connectors relevant, Connector aus der Routine entfernen: https://code.claude.com/docs/en/routines",
+    "Managed-Agents-Budget: Cap wird zwischen Modellanfragen geprüft, Überschreitung um eine Anfrage pro Thread möglich; Budget kann nur bei Session-Erstellung gesetzt und nach Entfernen nicht wieder gesetzt werden: https://platform.claude.com/docs/en/managed-agents/budgets",
+    "Gmail Drafts-API (users.drafts.create) erfordert gmail.compose oder gmail.modify – beide 'Restricted'; gmail.send (Sensitive) erlaubt nur Senden, keine Entwürfe: https://developers.google.com/workspace/gmail/api/auth/scopes",
+    "Brave Search: $5 Gratis-Credits pro Monat in jedem Plan (≈1.000 Suchen), Abrechnung $5/1.000 Requests: https://agentdeals.dev/vendor/brave-search-api",
+    "Hetzner: bereits vierte Preisanpassung 2026 (Setup-Gebühren Februar, +30–37 % am 1.4., dedizierte Setup-Gebühren 29.4., Cloud 15.6.); CPX22 laut Drittquellen 7,99→19,49 €: https://northflank.com/blog/hetzner-cloud-server-price-increases",
+    "WeasyPrint PDF/A und PDF/UA sind experimentell (seit v57), Konformität nicht garantiert – für ATS irrelevant, aber nicht als 'PDF/UA-fähig' bewerben: https://doc.courtbouillon.org/weasyprint/stable/common_use_cases.html",
+    "Pricing-Seite: 'inference_geo: us' kostet 1,1x auf alle Token-Kategorien (auch in Managed Agents) – relevant, falls US-only-Inferenz für DSGVO-Argumentation erwogen wird: https://platform.claude.com/docs/en/about-claude/pricing"
+  ],
+  "overall_reliability": "high",
+  "notes": "25 Web-Zugriffe verwendet (14 WebFetch, 11 WebSearch). Direkt abrufbar und bestätigt: platform.claude.com (Pricing, Budgets, Scheduled Deployments, Memory, Code Execution, Web Fetch), pypi.org, code.claude.com/routines, github.com/GongRzhe. Durch Egress-Proxy gesperrt: support.apple.com, developers.google.com, support.google.com, docs.hetzner.com, langfuse.com, doc.courtbouillon.org, community.personio.de, www.anthropic.com – diese Behauptungen wurden per WebSearch über Sekundärquellen geprüft. Die Kern-Architekturannahmen (Modellpreise inkl. Sonnet-5-Dauerpreis, Managed-Agents-Preise/Limits, Agent-SDK-Version, Web-Fetch-Einschränkungen, iCloud-Limits, OAuth-Testing-7-Tage) halten stand. Wesentliche Korrekturen: (1) email.json widerspricht sich bei gmail.compose (Restricted, nicht Sensitive) – Draft-First-Ansatz braucht einen Restricted-Scope; (2) Routines-Tageslimits 5/15/25 sind nicht belegt; (3) Hetzner CPX22 eher 19,49 € als 19,99 €, Nichtverfügbarkeit von CX23/CAX11 unbelegt; (4) Brave hat $5 Monats-Credits, nicht nur Startguthaben; (5) WeasyPrint PDF/UA nur experimentell. Nicht geprüft (Budget erschöpft): Voyage-Preise, Fly.io-Preise, n8n-/Trigger.dev-/Inngest-Preise, Fastmail/mailbox.org-Preise, Cowork-Verfügbarkeit, DIN-5008-Details, StepStone/Taledo-Statistiken."
+}

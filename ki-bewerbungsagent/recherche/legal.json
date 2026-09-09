@@ -1,0 +1,501 @@
+{
+  "dimension": "Recht, Datenschutz, Ethik (DE/EU)",
+  "summary": "Der geplante Bewerbungsagent bewegt sich rechtlich auf vier getrennten Baustellen, die jeweils eigene Risikoprofile haben: (1) Scraping von Jobbörsen, (2) DSGVO/Auftragsverarbeitung mit Anthropic, (3) E-Mail-Versand, (4) AGG/AI Act/Wahrheitspflicht im Bewerbungstext selbst. Beim Scraping gilt: Automatisierter Zugriff auf LinkedIn, StepStone, Indeed, XING und Monster verstößt gegen deren Nutzungsbedingungen (LinkedIn § 8.2 'Dos and Don'ts', Indeed 'no robots, spiders, scraper', StepStone-AGB vom 27.04.2022, Monster Terms of Use). Das ist urheber- und wettbewerbsrechtlich meist kein Straftatbestand (BGH I ZR 224/12 'Flugvermittlung im Internet': Screen Scraping frei zugänglicher Daten ist per se nicht wettbewerbswidrig i.S.d. § 4 Nr. 10 UWG), aber ein Vertragsbruch mit zivilrechtlichen Folgen (Unterlassung, Kontosperrung, im Extremfall Schadensersatz), wie EuGH C-30/14 (Ryanair/PR Aviation) und der US-Fall hiQ v. LinkedIn (Settlement 2022, 500.000 USD Urteil wegen Breach of Contract) zeigen. Strafrechtlich (§ 202a StGB) wird es erst kritisch, wenn technische Zugangssicherungen (Login, Captcha, IP-Sperren) mit nicht unerheblichem Aufwand umgangen werden - reines Lesen öffentlicher, nicht gesperrter Stellenanzeigen erfüllt den Tatbestand nicht. Die urheberrechtliche TDM-Schranke (§ 44b UrhG) hilft kaum, weil die meisten Portale einen (AGB-basierten) Nutzungsvorbehalt haben. Praktische Konsequenz fuer einen Einzelnutzer mit 10 Bewerbungen/Tag: Automatisiertes Scraping der grossen Portale ist vermeidbar und sollte vermieden werden; die inoffizielle, aber kostenlose Jobsuche-API der Bundesagentur fuer Arbeit (bundesAPI/jobsuche-api, X-API-Key 'jobboerse-jobsuche') ist der rechtlich sauberste technische Zugang, hat aber keine offiziellen Nutzungsbedingungen oder Rate Limits - Betriebsrisiko, kein Rechtsrisiko. Bei der DSGVO greift fuer die reine private Jobsuche einer Person tendenziell die Haushaltsausnahme (Art. 2 Abs. 2 lit. c DSGVO), begrenzt durch die EuGH-Linie (Lindqvist/C-345/17-Analogie): Sobald Daten Dritter (Recruiter-Kontakte, Unternehmensdaten) systematisch gespeichert und vor allem sobald das System spaeter fuer andere Nutzer kommerzialisiert wird, entfaellt die Ausnahme vollstaendig und volle Verantwortlichkeit (AVV mit Anthropic, Loeschkonzept, ggf. Verzeichnis von Verarbeitungstaetigkeiten) greift. Bei Anthropic selbst ist die Wahl der Vertragsgrundlage architekturentscheidend: Consumer Terms (Free/Pro/Max) verbieten ausdruecklich die Nutzung des OAuth-Tokens in anderen Tools wie dem Agent SDK (seit 5.4.2026 aktiv durchgesetzt, u.a. gegen 'OpenClaw'); nur Claude Code CLI selbst ist als offizielles Automatisierungswerkzeug ausgenommen. Fuer einen taeglich geplant laufenden Agenten ausserhalb von Claude Code braucht es also einen Commercial-API-Key. Datenschutzrechtlich kommt hinzu, dass Claude Fable 5.1 (das im Projekt als Top-Modell vorgesehene Modell) als 'Covered Model' zwingend 30 Tage Datenretention voraussetzt und ohne ausdrueckliche Anthropic-Freigabe NICHT unter Zero Data Retention laeuft - fuer sensible Lebenslaufdaten ist das entweder hinzunehmen oder fuer die sensibelsten Schritte auf ein ZDR-faehiges Modell auszuweichen. Beim E-Mail-Versand ist das technische Risiko bei ~10 Bewerbungen/Tag gering: Gmail erlaubt 500 Empfaenger/Tag (bzw. 100/Tag bei automatisiertem SMTP auf kostenlosen Konten), iCloud 1.000/Tag - beides weit ueber dem Bedarf. Rechtlich ist die Frage, ob individuelle, personalisierte Bewerbungen ueberhaupt 'Werbung' i.S.d. § 7 UWG sind, in der Rechercheliteratur nicht explizit behandelt; nach der Systematik des UWG (geschaeftliche Handlung zur Absatzfoerderung von Waren/Dienstleistungen im Wettbewerb) spricht viel dafuer, dass personalisierte Bewerbungsschreiben an eine konkret ausgeschriebene Stelle nicht unter § 7 UWG fallen - das ist aber eine eigene rechtliche Einordnung mit mittlerer Konfidenz, kein durch Rechtsprechung explizit bestaetigter Fall. Beim Inhalt der Bewerbung gilt eine harte Grenze: Taeuschung ueber einstellungsrelevante Tatsachen (erfundene Abschluesse, beschoenigte Erfahrung) begruendet ein Anfechtungsrecht des Arbeitgebers nach § 123 BGB (Wirkung ex tunc, auch nach Jahren) - der Agent darf Qualifikationen niemals ueber den tatsaechlichen Lebenslauf hinaus 'optimieren'. Beim AI Act ist die Rechtslage gerade in Bewegung: Der Digital Omnibus hat die Hochrisiko-Pflichten fuer Annex-III-Systeme (inkl. Personalauswahl, Nr. 4) von 2.8.2026 auf 2.12.2027 verschoben, betrifft aber primaer Arbeitgeber/ATS-Anbieter (Personio, SAP SuccessFactors, Workday) als Betreiber solcher Systeme, nicht den Bewerber. Der Bewerber selbst faellt nach Art. 2 Abs. 10 KI-VO unter die Ausnahme fuer 'ausschliesslich persoenliche, nicht berufliche Taetigkeit' und ist damit kein KI-VO-Betreiber. Eine gesetzliche Pflicht, KI-Nutzung im eigenen Anschreiben offenzulegen, liess sich in der Recherche nicht belegen - Art. 50 AI Act zielt nach den gefundenen Sekundaerquellen auf Inhalte zur Information der Oeffentlichkeit, nicht auf private Bewerbungen; eine einheitliche BPM-/DGFP-Position mit Offenlegungspflicht wurde nicht gefunden (43,2% der Bewerber nutzen laut softgarden-Umfrage 2025 bereits KI, 53% der HR-Verantwortlichen akzeptieren das laut Canva-Umfrage 2025). Insgesamt empfiehlt sich ein dreistufiger Compliance-Katalog (autonom / nur mit Freigabe / nie), der Scraping-Automatisierung und Taeuschung strikt ausschliesst, Versand und Unternehmensauswahl an eine Nutzerfreigabe bindet und nur die reine Text-/PDF-Generierung sowie Recherche ueber offizielle/erlaubte Kanaele autonom laufen laesst.",
+  "findings": [
+    {
+      "claim": "BGH I ZR 224/12 'Flugvermittlung im Internet' (30.04.2014): Screen Scraping frei zugänglicher Daten ist nicht per se wettbewerbswidrig",
+      "detail": "Der Betreiber eines Flugvermittlungsportals handelt nicht wettbewerbswidrig i.S.d. § 4 Nr. 10 UWG (a.F.), wenn er per automatisierter Abfrage (Screen Scraping) frei zugängliche Flugdaten von der Airline-Website übernimmt - auch wenn die AGB der Airline dies per Checkbox untersagen. Konsequenz für uns: Reines automatisiertes Auslesen öffentlicher Stellenanzeigen ist wettbewerbsrechtlich nicht per se rechtswidrig, aber die AGB-Verletzung bleibt zivilrechtlich relevant (siehe EuGH C-30/14).",
+      "sources": [
+        "https://www.bundesgerichtshof.de/SharedDocs/Pressemitteilungen/DE/2014/2014069.html",
+        "https://www.lto.de/recht/hintergruende/h/bgh-urteil-izr22412-screen-scraping-flugdaten-automatisiert-auslesen-ryanair-reiseportal"
+      ],
+      "confidence": "high",
+      "info_date": "2014"
+    },
+    {
+      "claim": "BGH I ZR 224/12: Zulässigkeit steht unter dem Vorbehalt, dass keine technischen Schutzmaßnahmen umgangen werden",
+      "detail": "Flugportale (übertragbar: Scraper allgemein) dürfen Daten nur abgreifen, wenn dabei keine technischen Schutzmaßnahmen (Zugangssperren, Rate-Limits, IP-Blocks) überwunden werden. Für unseren Agenten: keine Umgehung von Bot-Schutz/Captcha/Login-Schranken der Jobbörsen.",
+      "sources": [
+        "https://www.lto.de/recht/hintergruende/h/bgh-urteil-izr22412-screen-scraping-flugdaten-automatisiert-auslesen-ryanair-reiseportal"
+      ],
+      "confidence": "high",
+      "info_date": "2014"
+    },
+    {
+      "claim": "EuGH C-30/14 (Ryanair Ltd v. PR Aviation BV, 15.01.2015): AGB können Screen Scraping auch dann vertraglich verbieten, wenn kein Datenbankschutz besteht",
+      "detail": "Ist eine Datenbank weder urheberrechtlich (§§ 87a ff. UrhG-Pendant/Datenbankrichtlinie) noch durch das Sui-generis-Recht geschützt, kann der Betreiber trotzdem über seine AGB vertragliche Nutzungsbeschränkungen (inkl. Scraping-Verbot) wirksam durchsetzen. Für Jobbörsen ohne Datenbankschutz bleibt damit der AGB-Weg (Vertragsbruch) die zentrale Handhabe gegen Scraper.",
+      "sources": [
+        "https://www.kanzlei.biz/16-01-2015-eugh-c-30-14/",
+        "https://www.medialaws.eu/ecj-clarifies-database-directive-scope-in-screen-scraping-case/"
+      ],
+      "confidence": "high",
+      "info_date": "2015"
+    },
+    {
+      "claim": "hiQ Labs v. LinkedIn (Settlement Dezember 2022): 500.000 USD Urteil u.a. wegen Breach of Contract, CFAA-Verstoß, Trespass to Chattels; permanente Unterlassungsverfügung inkl. Löschpflicht",
+      "detail": "US-Fall, aber lehrreiche Präzedenz: Automatisiertes Scraping trotz öffentlich zugänglicher Profildaten und trotz zwischenzeitlichem 9th-Circuit-Sieg von hiQ (CFAA) endete mit Niederlage auf Breach-of-Contract-Basis (User Agreement) plus Sanktionen wegen Beweismittelvernichtung. hiQ musste Unterlassung akzeptieren und alle gescrapten Daten/Algorithmen löschen. Zeigt: Auch wenn Scraping selbst nicht per se illegal ist, ist die vertragliche Seite (ToS-Verstoß, ggf. Fake-Accounts) das eigentliche Risiko.",
+      "sources": [
+        "https://www.privacyworld.blog/2022/12/linkedins-data-scraping-battle-with-hiq-labs-ends-with-proposed-judgment/",
+        "https://www.morganlewis.com/blogs/sourcingatmorganlewis/2022/12/linkedin-v-hiq-landmark-data-scraping-suit-provides-guidance-to-data-scrapers-and-web-operators"
+      ],
+      "confidence": "high",
+      "info_date": "2022"
+    },
+    {
+      "claim": "LinkedIn User Agreement § 8.2 ('Dos and Don'ts') verbietet Scraping, Bots und automatisierte Kontaktaufnahme; weiterhin gültig 2025/2026",
+      "detail": "Verboten sind u.a. Software/Skripte/Crawler zum Kopieren von Profilen und Daten sowie Bots zum automatisierten Zugriff, Kontakteaufnahme oder Versenden/Umleiten von Nachrichten. Sanktion: Account-Sperre, Tool-Blockade. Für unseren Agenten: kein automatisierter LinkedIn-Zugriff, auch nicht für Recruiter-Recherche.",
+      "sources": [
+        "https://www.linkedin.com/help/linkedin/answer/a1341387"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "StepStone-Nutzungsbedingungen (Stand 27.04.2022) verbieten Scraping und automatisierte Bot-Zugriffe",
+      "detail": "StepStones AGB untersagen Scraping/vergleichbare Techniken zur Inhaltserfassung für Fremdzwecke sowie Bots/Skripte/Apps zur automatisierten Interaktion mit dem Dienst. Wortlaut wurde aus Sekundärquelle (Suchergebnis-Zusammenfassung) entnommen, nicht direkt aus dem AGB-Volltext zitiert.",
+      "sources": [
+        "https://www.stepstone.de/ueber-stepstone/nutzungsbedingungen-2022-03/"
+      ],
+      "confidence": "medium",
+      "info_date": "2022"
+    },
+    {
+      "claim": "Indeed Terms of Service: 'robots, spiders, scraper, or other automated means' zum Zugriff ohne schriftliche Erlaubnis explizit verboten; auch Automatisierung von 'Indeed Apply' untersagt",
+      "detail": "Verstöße können zu rechtlichen Schritten und Schadensersatzforderungen führen. Für unseren Agenten: keine automatisierte Nutzung von Indeed, weder zum Lesen von Anzeigen noch zum automatisierten Absenden von Bewerbungen über Indeed Apply.",
+      "sources": [
+        "https://www.indeed.com/legal"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Monster.com/Monster.de Terms of Use verbieten Crawling/Scraping/programmatischen Zugriff; robots.txt sperrt Scraping-Bots; Anti-Bot-Maßnahmen explizit auch gegen KI-gestützte Bewerbungstools erwähnt",
+      "detail": "US-Terms-Seite verifiziert (monster.com/inside/terms-of-use); die separate Monster.de-Fassung wurde nicht im Volltext gefunden, dürfte aber inhaltlich vergleichbar sein.",
+      "sources": [
+        "https://www.monster.com/inside/terms-of-use",
+        "https://hiring.monster.com/terms/termspop.aspx"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "XING-AGB: automatisierter Fetch-Zugriff auf www.xing.com/terms schlug im Recherche-Tooling fehl; Volltext der Scraping-Klausel konnte nicht verifiziert werden",
+      "detail": "Sekundärquellen bestätigen nur allgemein, dass große Jobbörsen/Netzwerke Scraping typischerweise in ihren AGB ausschließen. Für ein belastbares Zitat der XING-Klausel müsste ein Mensch die AGB-Seite manuell prüfen.",
+      "sources": [],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "DSGVO-Haushaltsausnahme (Art. 2 Abs. 2 lit. c DSGVO): Verarbeitung durch natürliche Personen zu ausschließlich persönlichen/familiären Zwecken fällt nicht unter die DSGVO",
+      "detail": "Begrenzt durch EuGH-Rechtsprechung (u.a. C-345/17, in der Linie von Lindqvist C-101/01): Sobald Daten einem unbegrenzten/quasi-unbegrenzten Personenkreis zugänglich gemacht werden, entfällt die Ausnahme. Für unser Projekt: Solange der KI-Agent ausschließlich für die private Jobsuche EINER Person arbeitet und Daten nicht veröffentlicht/an Dritte weitergibt, spricht viel für Anwendbarkeit der Ausnahme auf die Verarbeitung durch den Nutzer selbst.",
+      "sources": [
+        "https://www.dr-datenschutz.de/die-haushaltsausnahme-der-dsgvo/",
+        "https://www.datenschutzticker.de/tag/haushaltsausnahme-nach-art-2-abs-2-lit-c-dsgvo/",
+        "https://noyb.eu/sites/default/files/2021-07/Teilurteil_S47-72_sw_de.pdf"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Haushaltsausnahme entfällt vollständig bei Kommerzialisierung (SaaS für mehrere Nutzer)",
+      "detail": "Sobald das System für andere Nutzer als Dienstleistung betrieben wird, ist der Betreiber datenschutzrechtlich Verantwortlicher (nicht mehr privilegiert) und benötigt volle DSGVO-Compliance: Rechtsgrundlage (Art. 6 Abs. 1 lit. b oder f DSGVO für Bewerber-/Recruiterdaten), Auftragsverarbeitungsvertrag mit Anthropic, ggf. Verzeichnis von Verarbeitungstätigkeiten, Löschkonzept. Eigene Schlussfolgerung aus der Systematik von Art. 2 Abs. 2 lit. c und Art. 4 Nr. 7 DSGVO, keine Einzelquelle zu KI-Bewerbungsagenten gefunden.",
+      "sources": [
+        "https://aigner-business-solutions.com/blog/anwendbarkeit-der-datenschutzgrundverordnung-reichweite-und-grenzen-der-haushaltsausnahme/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "§ 7 UWG: E-Mail-Werbung ohne vorherige Einwilligung ist unzumutbare Belästigung (§ 7 Abs. 1, Abs. 2 Nr. 2 UWG); Ausnahme nur für Bestandskunden-Direktwerbung unter kumulativen Voraussetzungen",
+      "detail": "Normtext bestätigt. Konsequenzen bei Verstoß: Abmahnungen und Unterlassungsansprüche von Verbraucherschutzverbänden/Wettbewerbern.",
+      "sources": [
+        "https://dejure.org/gesetze/UWG/7.html",
+        "https://www.gesetze-im-internet.de/uwg_2004/__7.html"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Eigene rechtliche Einordnung: Individuelle, personalisierte Bewerbungen an einen konkreten Arbeitgeber zu einer konkret ausgeschriebenen Stelle dürften keine 'Werbung'/'geschäftliche Handlung' i.S.d. § 7 UWG sein",
+      "detail": "§ 7 UWG zielt systematisch auf Absatzförderung von Waren/Dienstleistungen im Wettbewerb (geschäftliche Handlung nach § 2 Abs. 1 Nr. 1 UWG); die Anbahnung eines Arbeitsverhältnisses ist keine solche Wettbewerbshandlung. Diese Einordnung wurde in der Recherche nicht durch eine explizite Quelle zu Bewerbungen bestätigt, ist aber eine naheliegende Anwendung der Norm. Trotzdem: Massenversand identischer Texte oder Versand an generische Postfächer ohne Bezug zu einer Stelle könnte als aufdringlich empfunden werden - daher Empfehlung zu personalisiertem, stellenbezogenem Versand unabhängig von der UWG-Frage.",
+      "sources": [
+        "https://dejure.org/gesetze/UWG/7.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "§ 11 AGG / Praxis: Foto, Geburtsdatum, Familienstand, Konfession, Kinderzahl sind keine Pflichtangaben im Lebenslauf und erhöhen das Diskriminierungsrisiko",
+      "detail": "Rechtlich nicht verpflichtend, viele Arbeitgeber wünschen sie dennoch. Empfehlung: Agent nimmt diese Angaben nur mit expliziter Freigabe des Nutzers auf, drängt nicht automatisch darauf.",
+      "sources": [
+        "https://karrierebibel.de/persoenliche-daten-im-lebenslauf/",
+        "https://zety.de/blog/lebenslauf-persoenliche-daten"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "AI Act Art. 50 Transparenzpflichten gelten ab 2. August 2026, primär für Interaktion mit natürlichen Personen und für KI-generierte Inhalte zur Information der Öffentlichkeit über Angelegenheiten von öffentlichem Interesse",
+      "detail": "Nach den gefundenen Sekundärquellen ist die Anwendung auf private Bewerbungen fraglich, da eine Bewerbung an einen einzelnen Arbeitgeber keine Information der Öffentlichkeit darstellt. Eine explizite Klarstellung zu Bewerbungsschreiben wurde nicht gefunden - offene Rechtsfrage, daher mittlere Konfidenz.",
+      "sources": [
+        "https://forum-institut.de/eu-ai-act-2-august-2026/ki-kennzeichnung-nach-artikel-50",
+        "https://ai-act-law.eu/de/artikel/50/",
+        "https://blog.academy.fraunhofer.de/blogbeitraege/transparenzpflicht/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Digital Omnibus (2026): Hochrisiko-Pflichten für Annex-III-Systeme (inkl. Beschäftigung/Recruiting, Nr. 4) von 2.8.2026 auf 2.12.2027 verschoben (16 Monate); Art. 50 Transparenzpflichten bleiben unverändert ab 2.8.2026",
+      "detail": "Betrifft primär Arbeitgeber/ATS-Anbieter (Personio, SAP SuccessFactors, Workday) als Betreiber von KI-Systemen zur Personalauswahl, nicht direkt unseren Bewerbungsagenten. Wichtig für die ATS-Optimierungs-Komponente unseres Projekts: Diese Systeme selbst werden erst ab Dez. 2027 vollumfänglich reguliert.",
+      "sources": [
+        "https://kpmg.com/at/de/insights/2026/07/digital-omnibus-on-ai.html",
+        "https://www.fgs.de/news-and-insights/blog/detail/eu-ai-act-was-ab-dem-2-august-2026-gilt-und-was-verschoben-wurde",
+        "https://consulting.tuv.com/aktuelles/ki-im-fokus/digital-omnibus-ki-verordnung-fristen"
+      ],
+      "confidence": "high",
+      "info_date": "2026-07"
+    },
+    {
+      "claim": "Art. 2 Abs. 10 KI-VO: Ausnahme für natürliche Personen, die KI-Systeme im Rahmen einer ausschließlich persönlichen, nicht beruflichen Tätigkeit nutzen (analog zur DSGVO-Haushaltsausnahme)",
+      "detail": "Ein Bewerber, der privat einen KI-Agenten für die eigene Jobsuche nutzt, fällt unter diese Ausnahme und ist selbst kein 'Betreiber' i.S.d. KI-VO. Der Arbeitgeber, der KI zur Bewerberauswahl/-bewertung einsetzt, bleibt jedoch möglicher Hochrisiko-Betreiber (Anhang III Nr. 4).",
+      "sources": [
+        "https://dejure.org/gesetze/KI-Verordnung/2.html",
+        "https://ai-act-law.eu/de/artikel/2/"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "§ 123 BGB: Arglistige Täuschung über einstellungsrelevante Tatsachen im Lebenslauf berechtigt zur Anfechtung des Arbeitsvertrags (Wirkung ex tunc nach § 142 BGB), auch nach Jahren der Beschäftigung",
+      "detail": "Einzelfallabwägung nach Art der Lüge und Position im Unternehmen. Harte Guardrail für unser Projekt: Der Agent darf Qualifikationen, Abschlüsse, Zeugnisse oder Berufserfahrung niemals über das hinaus 'optimieren', was der reale Lebenslauf des Nutzers hergibt.",
+      "sources": [
+        "https://www.anwalt24.de/fachartikel/arbeit-und-betrieb/46090",
+        "https://www.ra-poeppel.de/was-passiert-bei-luegen-im-lebenslauf/",
+        "https://kliemt.blog/2016/10/05/nur-schoenfaerberei-luege-im-lebenslauf-und-drastische-spaetfolgen/"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Fragerecht des Arbeitgebers: nur zulässig bei berechtigtem, billigenswertem, schutzwürdigem Interesse bezogen auf die Tätigkeit; bei unzulässigen (z.B. AGG-widrigen) Fragen besteht ein sanktionsloses 'Recht zur Lüge'",
+      "detail": "Zulässig sind Fragen zu fachlichen Fähigkeiten, Werdegang, Noten. Unzulässig u.a. Fragen zu Familienplanung/Schwangerschaft. Relevanz für unser Projekt: Der Agent sollte in Anschreiben/Formularen nur wahrheitsgemäße Angaben zu zulässigen Fragen generieren; bei unzulässigen Fragen liegt die Entscheidung über eine Falschantwort beim Nutzer, nicht automatisiert beim Agenten.",
+      "sources": [
+        "https://www.betriebsrat.de/betriebsratslexikon/br/fragerecht-des-arbeitgebers",
+        "https://www.haufe.de/personal/arbeitsrecht/fragerecht-des-arbeitgebers-wann-bewerber-luegen-duerfen_76_156530.html"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "EuGH C-423/15 (Kratzer, 28.07.2016) und BAG (u.a. 8 AZR 21/24): Scheinbewerbungen nur zur Erlangung einer AGG-Entschädigung sind rechtsmissbräuchlich (§ 242 BGB) und nicht durch die Antidiskriminierungsrichtlinien geschützt",
+      "detail": "Für unser Projekt nicht direkt einschlägig, da der Nutzer echtes Interesse an den Stellen hat. Warnhinweis: Sehr hohe automatisiert wirkende Bewerbungszahlen könnten im Einzelfall den (falschen) Eindruck einer nicht ernsthaften Bewerbung erwecken - spricht für die im Projekt ohnehin vorgesehene Begrenzung auf ca. 10 geprüfte, hochwertige Bewerbungen/Tag statt Massenversand.",
+      "sources": [
+        "https://www.hensche.de/Keine_Entschaedigung_fuer_Scheinbewerber_EuGH_C-423_15_Nils_Kratzer_28_07_2016.html",
+        "https://www.rechtsanwalts-kanzlei-wolfratshausen.de/scheinbewerbung-und-agg-hopping-rechtsmissbrauch-bei-entschaedigungsklagen-ein-blick-auf-die-bag-entscheidung-vom-19-09-2024-8-azr-21-24/"
+      ],
+      "confidence": "high",
+      "info_date": "2024"
+    },
+    {
+      "claim": "§ 2 Abs. 2 UrhG: Nur menschliche persönliche geistige Schöpfungen sind urheberrechtlich geschützt; rein KI-generierte Texte sind grundsätzlich gemeinfrei",
+      "detail": "Ausnahme: Wenn ein Mensch das KI-Ergebnis nachträglich eigenschöpferisch bearbeitet/prägt, kann Schutz entstehen. Für unser Projekt unproblematisch (kein fremdes Recht wird durch reine KI-Generierung der eigenen Bewerbung verletzt), aber auch kein eigener Urheberrechtsschutz für generierte Anschreiben/Lebensläufe.",
+      "sources": [
+        "https://www.urheberrecht.de/kuenstliche-intelligenz/",
+        "https://cms.law/de/deu/legal-updates/mithilfe-kuenstlicher-intelligenz-ploetzlich-urheber"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Stellenanzeigen können als Sprachwerke urheberrechtlich geschützt sein, wenn sie hinreichende Schöpfungshöhe/individuelle Gestaltung aufweisen",
+      "detail": "Wörtliche Übernahme (statt Paraphrasierung/Keyword-Extraktion) von Anzeigentexten durch den Agenten in Bewerbungsunterlagen kann Urheberrechte des Inserenten verletzen. Empfehlung: Agent nutzt Stellenanzeigen nur zur Informationsextraktion (Keywords, Anforderungen), nicht zum wörtlichen Kopieren.",
+      "sources": [
+        "https://www.urheberrecht.de/kuenstliche-intelligenz/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "§ 44b UrhG (TDM-Schranke): erlaubt automatisierte Analyse rechtmäßig zugänglicher Werke, aber nur soweit kein maschinenlesbarer Nutzungsvorbehalt besteht (§ 44b Abs. 3 UrhG)",
+      "detail": "Da die meisten Jobbörsen einen (AGB-basierten, teils auch robots.txt-gestützten) Nutzungsvorbehalt haben, hebt die TDM-Schranke die vertraglichen Scraping-Verbote in der Praxis NICHT auf - TDM kann urheberrechtlich zulässig sein, während der ToS-Verstoß als Vertragsbruch trotzdem fortbesteht und zivilrechtlich durchsetzbar bleibt.",
+      "sources": [
+        "https://dejure.org/gesetze/UrhG/44b.html",
+        "https://www.gesetze-im-internet.de/urhg/__44b.html",
+        "https://cms.law/de/deu/legal-updates/Text-und-Data-Mining-nach-dem-neuen-Urheberrecht"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "§ 202a StGB (Ausspähen von Daten): Strafbarkeit setzt Überwindung einer besonderen Zugangssicherung (Passwort, Verschlüsselung) mit nicht unerheblichem Aufwand voraus",
+      "detail": "Reines automatisiertes Auslesen öffentlich ohne Login zugänglicher Stellenanzeigen erfüllt den Tatbestand nicht. Strafrechtliches Risiko entsteht erst bei aktiver Umgehung von Login-Schranken, Captchas oder IP-Sperren (z.B. Proxy-Rotation zur Umgehung von Rate-Limits, Fake-Accounts wie im hiQ-Fall). Klare Guardrail für den Agenten: keine Login-Umgehung, keine Fake-Accounts, keine aktive Umgehung technischer Blockaden.",
+      "sources": [
+        "https://dejure.org/gesetze/StGB/202a.html",
+        "https://www.ferner-alsdorf.de/zugangssicherung-202a/"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Virtuelles Hausrecht: Screen Scraping selbst verletzt nach überwiegender Auffassung nicht das virtuelle Hausrecht, auch wenn AGB es ausschließen - der Betreiber muss sein Hausrecht durch technische Mittel durchsetzen",
+      "detail": "Bei fortgesetztem Zugriff nach ausdrücklichem/technischem Ausschluss verstärkt sich jedoch die Anspruchsgrundlage des Betreibers (Unterlassung). Praktische Konsequenz: Ein einmaliges Cease-and-Desist oder eine technische Sperre einer Jobbörse ist ernst zu nehmen und sollte respektiert werden, statt sie zu umgehen.",
+      "sources": [
+        "https://www.wbs.legal/it-und-internet-recht/wann-duerfen-netzwerke-foren-co-kommentare-loeschen-das-virtuelle-hausrecht-23464/",
+        "https://www.ferner-alsdorf.de/virtuelles-hausrecht-landgericht-hamburg-sieht-hausrecht-eines-webseitenbetreibers/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Anthropic Datenretention: API-Inputs/Outputs werden standardmäßig binnen 30 Tagen gelöscht; Zero Data Retention (ZDR) für qualifizierte Commercial-/Enterprise-Kunden auf Anfrage verfügbar",
+      "detail": "ZDR gilt aber ausdrücklich NICHT für Claude Fable 5.1, Claude Mythos 5.1, Claude Fable 5 und Claude Mythos 5 ('Covered Models') - diese erfordern zwingend 30 Tage Datenretention und sind ohne ausdrückliche Anthropic-Freigabe nicht ZDR-fähig. Anfragen an diese Modelle scheitern mit 400-Fehler, wenn die Organisation keine 30-Tage-Retention aktiviert hat. Bei Trust&Safety-Flags kann Anthropic Daten bis zu 2 Jahre aufbewahren, unabhängig vom ZDR/HIPAA-Arrangement.",
+      "sources": [
+        "https://platform.claude.com/docs/en/manage-claude/api-and-data-retention"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Anthropic Consumer Terms: OAuth-Tokens aus Claude Free/Pro/Max-Konten dürfen nicht in anderen Produkten/Tools (inkl. Agent SDK) verwendet werden; seit 5.4.2026 aktiv durchgesetzt (u.a. gegen 'OpenClaw')",
+      "detail": "Ausnahme: Claude Code CLI auf dem eigenen Rechner ist als offizielles, für Skripting/Automatisierung freigegebenes Anthropic-Produkt von diesem Verbot ausgenommen. Für einen taeglich zeitgesteuert laufenden Agenten ausserhalb von Claude Code (z.B. via Agent SDK mit einem Scheduler) ist daher ein Commercial-API-Key statt eines Consumer-Abos erforderlich. Quellenlage: Sekundärquellen (Fachpresse, ToS-Watchdog), kein direktes Zitat der Original-Terms gefunden.",
+      "sources": [
+        "https://www.theregister.com/2026/02/20/anthropic_clarifies_ban_third_party_claude_access/",
+        "https://terms.law/ToS-Watchdog/ai-services/anthropic/",
+        "https://marketingagent.blog/2026/04/04/anthropic-bans-third-party-ai-agents-from-claude-subscriptions/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-02"
+    },
+    {
+      "claim": "Anthropic Usage Policy verbietet u.a. 'deception at scale', Spam-Erzeugung/-Verbreitung sowie automatisierten Zugriff über nicht autorisierte Mittel",
+      "detail": "Durchsetzung über ein Safeguards-Team, Sanktionen reichen von Drosselung bis Kontosperrung. Für unser Projekt: Personalisierte, an echte Empfänger gerichtete Bewerbungen in geringer Zahl (~10/Tag) fallen erkennbar nicht unter 'Spam' oder 'Deception at scale' - das Kernrisiko liegt nicht in der inhaltlichen Nutzung von Claude, sondern in der Wahl eines nicht autorisierten Automatisierungswegs (siehe Consumer-Terms-Befund oben).",
+      "sources": [
+        "https://support.claude.com/en/articles/9528712-exceptions-to-our-usage-policy"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Gmail/Google-Sendelimits: persönliche Gmail-Konten 500 Empfänger/Tag (To+Cc+Bcc), max. 100 Empfänger/Mail; automatisierter SMTP-Versand bei kostenlosen Konten nur 100 Mails/Tag; 'Bulk Sender'-Pflichten (SPF+DKIM+DMARC, One-Click-Unsubscribe) erst ab ca. 5.000 Mails/Tag an persönliche Gmail-Adressen",
+      "detail": "Google Workspace Acceptable Use Policy verbietet zudem generell 'unsolicited bulk commercial email'. Für unser Projekt (ca. 10 personalisierte Bewerbungs-Mails/Tag über das eigene Gmail-Konto des Nutzers) sind die technischen Limits kein Thema; SPF/DKIM-Konfiguration wird trotzdem für Zustellbarkeit empfohlen.",
+      "sources": [
+        "https://support.google.com/a/answer/14229414?hl=en",
+        "https://workspace.google.com/terms/use_policy-20210218/",
+        "https://www.saleshandy.com/blog/gmail-mass-email-sending-limit-per-day/"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "iCloud Mail: Limit 1.000 Empfänger/Tag, max. 500 Empfänger pro Nachricht; unsolicited bulk email über iCloud-Server verboten, Dienst primär für persönliche Nutzung ausgelegt",
+      "detail": "Für unser Projekt ebenfalls unkritisch bei ~10 Mails/Tag, sofern der Versand über das reguläre Postfach des Nutzers (nicht als Massenversand-Tool) erfolgt.",
+      "sources": [
+        "https://support.apple.com/en-us/102198"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Bundesagentur für Arbeit bietet keine offizielle, dokumentierte API; die faktisch genutzte 'Jobsuche-API' ist eine von der Community reverse-engineerte Schnittstelle (bundesAPI-Projekt) mit generischem API-Key 'jobboerse-jobsuche' im Header X-API-Key",
+      "detail": "Endpunkte: rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs (Suche), .../pc/v4/jobdetails/{refnr} (Details), vermittlung/ag-darstellung-service/ct/v1/arbeitgeberlogo/{hash} (Logo). Keine dokumentierten Rate-Limits, keine offiziellen Nutzungsbedingungen oder Lizenzangaben im Repository. Rechtlich vermutlich der sicherste Datenzugang (staatliche, öffentliche Jobdaten, kein privates Unternehmen mit restriktiven AGB), aber technisch/vertraglich ungeklärt und jederzeit änderbar/abschaltbar durch die BA.",
+      "sources": [
+        "https://github.com/bundesAPI/jobsuche-api"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "KI-Nutzung im Bewerbungsprozess (Stand 2025): 43,2% der Bewerber nutzen laut softgarden-Umfrage (Mai-Juli 2025, n=6.929) bereits KI für Anschreiben (Verdreifachung seit 2023), davon 85,8% ChatGPT; 53% der deutschen HR-Verantwortlichen akzeptieren laut Canva-Umfrage 2025 KI-Einsatz für Lebenslaufinhalte",
+      "detail": "Keine einheitliche BPM-/DGFP-Position mit verpflichtender Offenlegungspflicht wurde in der Recherche gefunden. Gesellschaftliche Norm entwickelt sich Richtung Akzeptanz, ist aber uneinheitlich - Empfehlung: KI-Einsatz nicht aktiv bewerben, aber auf Nachfrage ehrlich beantworten (siehe Fragerecht-Befund).",
+      "sources": [
+        "https://www.ingenieur.de/karriere/bewerbung/ki-und-karriere-wie-kuenstliche-intelligenz-den-bewerbungsprozess-praegt/",
+        "https://www.wiwo.de/erfolg/beruf/chatgpt-mensch-oder-maschine-wer-schreibt-die-bessere-bewerbung/29696332.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "KI-gestützte Vorauswahl/Bewertung von Bewerbern durch Arbeitgeber gilt im AI Act als Hochrisiko-Anwendungsfall (Anhang III Nr. 4 Buchst. a)",
+      "detail": "Betrifft primär die ATS-Systeme der Arbeitgeber (Personio, SAP SuccessFactors, Workday) als Betreiber, nicht unseren Bewerbungsagenten direkt. Relevanz für unser Projekt: Die ATS-/Keyword-Optimierung unserer Bewerbungen zielt auf Systeme, die selbst (ab Dez. 2027) einer Hochrisiko-Regulierung unterliegen - das schafft mittelfristig mehr Dokumentations- und Transparenzdruck bei den Arbeitgebern, ändert aber unsere eigene rechtliche Position nicht.",
+      "sources": [
+        "https://www.anwalt.de/rechtstipps/ki-im-bewerbungsverfahren-ab-2026-was-ai-act-dsgvo-und-betrvg-verlangen-277758.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Der maschinenlesbare Nutzungsvorbehalt nach § 44b Abs. 3 UrhG muss strukturiert erfolgen (z.B. robots.txt-Direktiven), damit er den urheberrechtlichen TDM-Opt-out wirksam auslöst",
+      "detail": "Rein textuelle AGB-Klauseln allein lösen unter Umständen keinen wirksamen urheberrechtlichen TDM-Opt-out aus, wirken aber unabhängig davon vertraglich fort (ToS-Verstoß bleibt bestehen). Eigene Schlussfolgerung aus der Systematik von § 44b UrhG, keine explizite Quelle zu Jobbörsen-robots.txt gefunden.",
+      "sources": [
+        "https://dejure.org/gesetze/UrhG/44b.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    }
+  ],
+  "tools": [
+    {
+      "name": "LinkedIn",
+      "url": "https://www.linkedin.com/help/linkedin/answer/a1341387",
+      "category": "Jobquelle",
+      "access": "Scraping/Automatisierung laut § 8.2 User Agreement verboten; nur manueller Browserzugriff bzw. offizielle APIs (falls verfügbar, nicht recherchiert) zulässig",
+      "pricing": "Job-Postings kostenlos einsehbar, Premium-Abos kostenpflichtig (Preis nicht recherchiert)",
+      "verdict": "vermeiden für Automatisierung - Kontosperrung und zivilrechtliche Ansprüche drohen; nur manuelle Nutzung durch den Nutzer selbst empfehlenswert"
+    },
+    {
+      "name": "StepStone",
+      "url": "https://www.stepstone.de/ueber-stepstone/nutzungsbedingungen-2022-03/",
+      "category": "Jobquelle",
+      "access": "Scraping laut AGB (Stand 27.04.2022) verboten",
+      "pricing": "Stellenanzeigen für Bewerber kostenlos einsehbar",
+      "verdict": "vermeiden für Automatisierung"
+    },
+    {
+      "name": "Indeed",
+      "url": "https://www.indeed.com/legal",
+      "category": "Jobquelle",
+      "access": "'robots, spiders, scraper, or other automated means' ohne schriftliche Genehmigung verboten; Automatisierung von Indeed Apply außerhalb offizieller Partner-Tools untersagt",
+      "pricing": "kostenlos für Bewerber",
+      "verdict": "vermeiden für Automatisierung"
+    },
+    {
+      "name": "XING",
+      "url": "https://www.xing.com/terms",
+      "category": "Jobquelle",
+      "access": "AGB-Volltext in dieser Recherche nicht verifizierbar (Fetch blockiert); vermutlich analog zu anderen Jobbörsen Scraping-Verbot",
+      "pricing": "kostenlos/Premium (nicht recherchiert)",
+      "verdict": "vermeiden für Automatisierung, bis AGB manuell geprüft wurden"
+    },
+    {
+      "name": "Monster.de / Monster.com",
+      "url": "https://www.monster.com/inside/terms-of-use",
+      "category": "Jobquelle",
+      "access": "Crawling/Scraping/programmatischer Zugriff laut Terms of Use verboten; robots.txt sperrt Bots; Anti-Bot-Maßnahmen teils explizit gegen KI-Bewerbungstools",
+      "pricing": "kostenlos für Bewerber",
+      "verdict": "vermeiden für Automatisierung"
+    },
+    {
+      "name": "Bundesagentur für Arbeit Jobsuche-API (inoffiziell, bundesAPI-Projekt)",
+      "url": "https://github.com/bundesAPI/jobsuche-api",
+      "category": "API",
+      "access": "REST-API, Header X-API-Key: jobboerse-jobsuche; keine dokumentierten Rate-Limits; keine offizielle Lizenz/ToS im Repo",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen als primäre technische Jobquelle - staatliche, öffentliche Daten ohne restriktive private AGB, aber ohne offizielle Zusicherung der BA (Betriebsrisiko: Änderung/Abschaltung jederzeit möglich)"
+    },
+    {
+      "name": "Anthropic Claude API (Commercial Terms)",
+      "url": "https://platform.claude.com/docs/en/manage-claude/api-and-data-retention",
+      "category": "API",
+      "access": "API-Key, Commercial Terms of Service, keine Automatisierungsbeschränkung, AVV/DPA verfügbar, ZDR auf Anfrage (außer bei Covered Models wie Fable 5.1/Mythos 5.1)",
+      "pricing": "aktuelle Preisliste in dieser Recherche nicht verifiziert - siehe platform.claude.com für Stand 09/2026",
+      "verdict": "empfohlen als Vertragsgrundlage für den produktiv/geplant laufenden Agenten außerhalb von Claude Code"
+    },
+    {
+      "name": "Claude Code CLI",
+      "url": "https://code.claude.com/docs",
+      "category": "CLI",
+      "access": "läuft auch unter Consumer-Abo (Free/Pro/Max); von Anthropics Automatisierungsverbot für Consumer-OAuth-Tokens ausdrücklich ausgenommen",
+      "pricing": "Abo-Preise (Free/Pro/Max) in dieser Recherche nicht verifiziert",
+      "verdict": "empfohlen für lokalen Einzelnutzer-Betrieb ohne separaten Commercial-Vertrag, solange innerhalb von Claude Code selbst automatisiert wird"
+    },
+    {
+      "name": "Claude Agent SDK",
+      "url": "https://platform.claude.com/docs",
+      "category": "Bibliothek",
+      "access": "Nutzung mit Consumer-OAuth-Token (Free/Pro/Max) laut Consumer Terms untersagt; erfordert Commercial-API-Key für dauerhafte/geplante Automatisierung außerhalb von Claude Code",
+      "pricing": "abhängig vom zugrundeliegenden API-Key/Vertrag",
+      "verdict": "empfohlen NUR mit Commercial-API-Key; vermeiden mit Consumer-Login/OAuth-Token eines Free/Pro/Max-Abos"
+    },
+    {
+      "name": "Gmail (privates Google-Konto)",
+      "url": "https://support.google.com/a/answer/14229414",
+      "category": "SaaS",
+      "access": "IMAP/SMTP bzw. Gmail-API mit OAuth des Nutzerkontos; Standardlimit 500 Empfänger/Tag, autom. SMTP nur 100/Tag bei kostenlosem Konto",
+      "pricing": "kostenlos (privates Google-Konto)",
+      "verdict": "empfohlen für ~10 Bewerbungsmails/Tag über das eigene Postfach des Nutzers, mit SPF/DKIM-Konfiguration für Zustellbarkeit"
+    },
+    {
+      "name": "iCloud Mail",
+      "url": "https://support.apple.com/en-us/102198",
+      "category": "SaaS",
+      "access": "SMTP/IMAP mit Apple-ID; 1.000 Empfänger/Tag, 500 Empfänger/Mail, Bulk-Versand verboten",
+      "pricing": "kostenlos (Teil des Apple-Kontos)",
+      "verdict": "optional als Alternative zu Gmail, ebenfalls ausreichend für ~10 Mails/Tag"
+    }
+  ],
+  "recommendations": [
+    "AUTONOM (ohne Rückfrage): Recherche über offizielle/erlaubte Kanäle (BA-Jobsuche-API, RSS-Feeds, vom Nutzer selbst abonnierte Job-Alerts per E-Mail, manuell vom Nutzer freigegebene Firmenwebsites), Erstellung/Formatierung von PDF-Anschreiben und -Lebensläufen auf Basis der echten, vom Nutzer bestätigten Fakten, ATS-Keyword-Abgleich, interne Bewertung/Priorisierung von Stellen gegen das Nutzerprofil.",
+    "NUR MIT FREIGABE DES NUTZERS: jede E-Mail-Versendung an ein Unternehmen (auch Initiativbewerbungen), jede Recherche zu einer konkreten Ansprechperson/Recruiter-Kontaktaufnahme (Adress-/Personenrecherche mit potenziellem DSGVO-Bezug zu Dritten), Aufnahme optionaler AGG-sensibler Daten (Foto, Geburtsdatum, Familienstand) ins CV, Einsatz eines Modells/einer Verarbeitung, bei der die 30-Tage-Retention von Claude Fable 5.1 für sensible Lebenslaufdaten in Kauf genommen wird (Alternative: ZDR-fähiges Modell für diesen Schritt anbieten), Verwendung eines automatisierten Zugriffswegs auf eine Jobbörse, deren AGB dies untersagt (auch mit geringer Frequenz).",
+    "NIE (harte Guardrails, auch nicht mit Freigabe automatisiert generieren): Erfinden oder Beschönigen von Qualifikationen/Abschlüssen/Berufserfahrung über den realen Lebenslauf hinaus (§ 123 BGB-Risiko), automatisiertes Scraping von LinkedIn/StepStone/Indeed/XING/Monster unter Umgehung technischer Schutzmaßnahmen (Login, Captcha, Rate-Limits) - das berührt § 202a StGB, Fake-Accounts oder Identitätsverschleierung gegenüber Jobbörsen (hiQ-Präzedenz), Massenversand identischer/unpersonalisierter Bewerbungstexte, Nutzung eines Consumer-Claude-Abos (Free/Pro/Max) über das Agent SDK für dauerhaft geplante Automatisierung außerhalb von Claude Code (Verstoß gegen Consumer Terms), wörtliche Übernahme urheberrechtlich geschützter Stellenanzeigentexte in die eigenen Bewerbungsunterlagen.",
+    "Architektur: Für den täglich zeitgesteuerten Lauf (Scheduled Deployment) einen Anthropic-Commercial-API-Key mit AVV verwenden, nicht das persönliche Claude-Abo über das Agent SDK - Claude Code CLI selbst bleibt die einzige vertraglich abgesicherte Automatisierungs-Ausnahme für Consumer-Abos.",
+    "Jobbörsen-Zugang primär über die inoffizielle BA-Jobsuche-API (bundesAPI) und vom Nutzer selbst eingerichtete E-Mail-Job-Alerts/RSS-Feeds lösen; LinkedIn/StepStone/Indeed/XING/Monster nicht automatisiert anfragen, sondern dem Nutzer als manuell zu prüfende Quellen anzeigen oder - falls technisch gewünscht - nur mit expliziter Risikoaufklärung und geringer, menschlich getriggerter Frequenz nutzen.",
+    "Datenschutzkonzept jetzt schon so anlegen, als gelte volle DSGVO (Verzeichnis von Verarbeitungstätigkeiten, Löschfristen, AVV-Kette Nutzer-Anthropic), auch wenn aktuell wahrscheinlich die Haushaltsausnahme greift - das erspart eine Migration, falls das Projekt später für weitere Nutzer geöffnet wird.",
+    "Für sensible Verarbeitungsschritte (vollständiger Lebenslauf, Gehaltsvorstellungen, besondere Kategorien personenbezogener Daten) ein ZDR-fähiges Modell (Sonnet/Haiku ohne Covered-Model-Status) statt Claude Fable 5.1 einsetzen oder die 30-Tage-Retention gegenüber dem Nutzer aktiv offenlegen und dessen Einverständnis einholen.",
+    "Lebenslauf-Generator standardmäßig ohne Foto/Geburtsdatum/Familienstand/Konfession konfigurieren, mit Opt-in-Möglichkeit pro Bewerbung, falls Branche/Unternehmen es erwartet.",
+    "Kein automatisches Einfügen eines KI-Offenlegungshinweises im Anschreiben, da keine gesetzliche Pflicht ersichtlich ist - aber Nutzer klar informieren, dass er bei direkter Nachfrage im Gespräch wahrheitsgemäß antworten sollte (Fragerecht/Recht-zur-Lüge gilt nur bei unzulässigen Fragen).",
+    "SPF/DKIM für die genutzte Absenderadresse (Gmail/iCloud) konfigurieren, auch wenn das Volumen (~10 Mails/Tag) weit unter den Bulk-Sender-Schwellen liegt, um Zustellprobleme zu vermeiden.",
+    "Vor Produktivbetrieb eine anwaltliche Kurzprüfung (Fachanwalt für IT-Recht/Arbeitsrecht) zu zwei offenen Punkten einholen: (a) belastbare Einordnung von Bewerbungsmails unter § 7 UWG, (b) aktuelle XING-AGB im Volltext."
+  ],
+  "risks": [
+    "Kontosperrung/Unterlassungsansprüche bei automatisiertem Zugriff auf LinkedIn, StepStone, Indeed, XING oder Monster trotz geringer Frequenz (50-200 Anfragen/Tag) - AGB-Verstoß ist unabhängig vom Volumen ein Vertragsbruch, auch wenn das tatsächliche Klagerisiko gegen eine Einzelperson gering erscheint (bisherige Präzedenzfälle betrafen kommerzielle Scraper/Wettbewerber, nicht Privatnutzer).",
+    "Verstoß gegen Anthropic Consumer Terms, falls ein Free/Pro/Max-Abo-Token im Agent SDK für dauerhafte Automatisierung verwendet wird - Risiko der Account-Sperre des persönlichen Claude-Zugangs.",
+    "Unbeabsichtigter Verlust der DSGVO-Haushaltsausnahme, falls das Tool im Verlauf des Projekts (auch informell, z.B. für Freunde) für mehr als eine Person eingesetzt wird, ohne dass die DSGVO-Compliance nachgezogen wird.",
+    "30-Tage-Datenretention bei Claude Fable 5.1 (Covered Model) für sensible Lebenslauf-/Bewerberdaten ohne ZDR - bei einem Datenleck oder einer behördlichen Anfrage könnten diese Daten trotz Nutzerwunsch nach sofortiger Löschung bis zu 30 Tage bei Anthropic vorliegen (bzw. bis zu 2 Jahre bei Trust&Safety-Flag).",
+    "Rechtsunsicherheit bei der inoffiziellen BA-Jobsuche-API: Ohne offizielle Nutzungsbedingungen kann die Bundesagentur für Arbeit den Zugang jederzeit ändern, ratenbegrenzen oder sperren; keine Lizenzsicherheit für die Weiterverarbeitung der Daten.",
+    "§ 123 BGB-Anfechtungsrisiko für den Nutzer, falls der Agent (z.B. durch zu aggressive 'ATS-Optimierung') Formulierungen erzeugt, die faktisch über die reale Qualifikation hinausgehen - auch unbeabsichtigt, wenn Prompts zu stark auf Keyword-Maximierung statt Wahrheitstreue optimiert werden.",
+    "Reputationsrisiko (nicht rechtlich, aber praktisch): Sehr hohe, gleichförmig wirkende Bewerbungszahlen können bei Arbeitgebern den Eindruck automatisierter/nicht ernsthafter Bewerbungen erwecken, selbst wenn keine rechtliche AGG-Hopping-Problematik vorliegt.",
+    "Unklare Reichweite von Art. 50 AI Act auf KI-generierte Bewerbungstexte - sollte sich die Auslegung 2026/2027 verschärfen oder eine Behörde/Gerichtsentscheidung eine weitere Anwendung annehmen, könnte nachträglich eine Kennzeichnungspflicht entstehen."
+  ],
+  "open_questions_for_user": [
+    "Soll das System ausschließlich über das eigene Claude-Abo (Free/Pro/Max via Claude Code) laufen, oder soll ein separater Anthropic-Commercial-API-Key (mit AVV, ggf. ZDR) beschafft werden? Das entscheidet über den rechtlich sauberen Automatisierungsweg für den täglichen Scheduled-Lauf.",
+    "Ist es akzeptabel, dass Claude Fable 5.1 als Top-Modell für die sensibelsten Verarbeitungsschritte (vollständiger Lebenslauf, Gehaltsangaben) eine 30-tägige Datenretention bei Anthropic voraussetzt, oder soll für diese Schritte auf ein ZDR-fähiges Modell ausgewichen werden?",
+    "Ist der Nutzer bereit, LinkedIn/StepStone/Indeed/XING/Monster ausschließlich manuell (im Browser) zu bedienen, oder soll ein bewusstes Restrisiko eines ToS-Verstoßes (Account-Sperre, Unterlassungsschreiben) bei geringem Automatisierungsvolumen in Kauf genommen werden?",
+    "Ist eine spätere Kommerzialisierung/Mehrnutzer-Nutzung des Systems überhaupt geplant (auch informell, z.B. für Freunde/Familie)? Das würde die DSGVO-Haushaltsausnahme sofort beenden und volle Verantwortlicheneigenschaft auslösen - relevant für die Architekturentscheidung schon jetzt.",
+    "Sollen Foto, Geburtsdatum und Familienstand im Lebenslauf grundsätzlich weggelassen werden (AGG-Empfehlung), oder branchenabhängig flexibel gehandhabt werden?",
+    "Soll der Agent bei Rückfragen von Arbeitgebern zur KI-Nutzung eine vorformulierte, ehrliche Standardantwort bereithalten, oder überlässt der Nutzer das lieber der Situation im Gespräch?",
+    "Gibt es bereits ein bestehendes Anthropic-Vertragsverhältnis (Workspace/Organisation) des Nutzers, das für einen Commercial-API-Key mit AVV genutzt werden könnte, oder müsste das neu eingerichtet werden?"
+  ],
+  "search_log": [
+    "BGH I ZR 224/12 Flugvermittlung im Internet Screen Scraping Urteil Kernaussagen",
+    "LinkedIn User Agreement \"scrape\" \"automated\" prohibited 8.2 Dos and Don'ts 2025",
+    "hiQ Labs v. LinkedIn final outcome 2022 settlement scraping user agreement breach of contract",
+    "StepStone Nutzungsbedingungen automatisierte Zugriffe Crawler Scraping verboten",
+    "EuGH C-30/14 Ryanair PR Aviation Screen Scraping Datenbank Nutzungsbedingungen vertraglich",
+    "Indeed Terms of Service scraping crawling prohibited \"automated means\" job seekers",
+    "XING AGB Nutzungsbedingungen automatisierte Datenerhebung Crawler Scraping Verbot",
+    "Anthropic Data Processing Addendum zero data retention API data retention 30 days 2026",
+    "DSGVO Haushaltsausnahme Art. 2 Abs. 2 lit. c Reichweite persönliche familiäre Tätigkeit Grenzen Veröffentlichung EuGH Lindqvist",
+    "§ 7 UWG Initiativbewerbung E-Mail Werbung unzumutbare Belästigung Bewerbung Spam Rechtsprechung",
+    "AGG Lebenslauf Foto Geburtsdatum Familienstand Bewerbung Pflichtangaben Diskriminierung § 11 AGG",
+    "BPM DGFP Position KI Bewerbung Anschreiben ChatGPT offenlegen Umfrage 2025",
+    "AI Act Artikel 50 Transparenzpflicht KI-generierter Text Bewerbung Anschreiben offenlegen Bewerber",
+    "Digital Omnibus AI Act Verschiebung Hochrisiko Anhang III 2. August 2026 Dezember 2027 Stand 2026",
+    "iCloud Mail sending limits 1000 messages per day 500 recipients automated Apple terms",
+    "Anthropic Usage Policy prohibited uses deception spam automated bulk messaging 2026",
+    "Gmail sending limits per day personal account 500 automated sending Google Terms of Service bulk email",
+    "Lüge im Lebenslauf § 123 BGB Anfechtung Arbeitsvertrag fristlose Kündigung Fragerecht Arbeitgeber Rechtsprechung BAG",
+    "Urheberrecht KI-generierte Texte Schutz § 2 UrhG persönliche geistige Schöpfung Stellenanzeige Text urheberrechtlich geschützt",
+    "KI-Verordnung Art. 2 Abs. 10 natürliche Personen \"persönliche\" \"nicht berufliche Tätigkeit\" Ausnahme Anwendungsbereich Privatnutzer",
+    "Abruf: xing.com/terms (fehlgeschlagen)",
+    "Abruf: platform.claude.com/docs/en/manage-claude/api-and-data-retention",
+    "Abruf: github.com/bundesAPI/jobsuche-api",
+    "§ 44b UrhG Text und Data Mining Nutzungsvorbehalt Scraping Jobbörsen 2025",
+    "virtuelles Hausrecht BGH Ricardo Cyberport Scraping Ausschluss Website Betreiber",
+    "§ 202a StGB Ausspähen von Daten Screen Scraping Zugangssicherung Login Umgehung",
+    "Anthropic Consumer Terms of Service automatisierte Nutzung Claude.ai verboten Commercial Terms Unterschied 2026",
+    "Bundesagentur für Arbeit Jobsuche API offizielle Nutzungsbedingungen bund.dev Open Data",
+    "AGG-Hopping Scheinbewerber BAG Kratzer C-423/15 Rechtsmissbrauch Bewerbung ohne Einstellungsabsicht",
+    "Fragerecht Arbeitgeber unzulässige Fragen Vorstellungsgespräch Recht zur Lüge Übersicht 2025 2026",
+    "KI-Nutzung im Bewerbungsprozess offenlegen Pflicht Arbeitsrecht Anwalt 2026 Anschreiben ChatGPT",
+    "Monster.com Monster.de Terms of Use automated access scraping prohibited bots",
+    "Google Workspace Gmail acceptable use policy automated sending bulk email personal account terms 2026",
+    "XING Nutzungsbedingungen Bots Crawler automatisierte Datenerhebung verboten AGB"
+  ],
+  "verification_notes": [
+    "verify-B: Covered-Model-Status (30-Tage-Retention, kein ZDR ohne Freigabe, 400 invalid_request_error, bis 2 Jahre bei Trust&Safety-Flag) am 2026-09-08 auf platform.claude.com bestätigt. Covered Models sind Fable 5.1, Mythos 5.1, Fable 5 und Mythos 5; Opus 5, Sonnet 5 und Haiku 4.5 sind nicht betroffen – Opus 5 ist damit eine ZDR-fähige Top-Modell-Alternative.",
+    "verify-B KORREKTUR: 'API-Inputs/Outputs werden standardmäßig binnen 30 Tagen gelöscht' ist ungenau. Die Retention-Seite sagt: Konversationsinhalte werden standardmäßig nicht gespeichert; 30 Tage gelten für Covered Models sowie zustandsbehaftete Features (Files, Batches, Code-Execution-Container).",
+    "verify-B: bundesAPI-Jobsuche-API bestätigt (X-API-Key 'jobboerse-jobsuche', /pc/v6/jobs bzw. /pc/v4/jobs, /pc/v4/jobdetails/{base64(refnr)}, Logo-Endpunkt; keine Lizenz/Nutzungsbedingungen/Rate-Limits im Repo).",
+    "verify-B UNVERIFIZIERT (Domains gesperrt, WebSearch-Budget erschöpft): Digital-Omnibus-Fristen (2.12.2027 / Art. 50 ab 2.8.2026), Anthropic-Consumer-Terms-Durchsetzung seit 5.4.2026 ('OpenClaw'), Gmail-Sendelimits, BGH I ZR 224/12-Details, Art. 2 Abs. 10 KI-VO. Nicht widerlegt, aber vor Zitierung im Masterplan manuell prüfen."
+  ]
+}

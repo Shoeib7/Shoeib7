@@ -1,0 +1,796 @@
+{
+  "dimension": "Jobbörsen & Datenzugriff (Deutschland)",
+  "summary": "Für den deutschen Markt gibt es keine einzelne API, die alle relevanten Stellenanzeigen abdeckt. Die großen Publikumsbörsen (StepStone, Indeed, LinkedIn, XING/onlyfy, Monster.de, Kimeta, Glassdoor, Jobware, stellenanzeigen.de, meinestadt.de) bieten ausschließlich Schnittstellen für Arbeitgeber, um Anzeigen HINEIN zu schalten (JobFeed, XML-Import, ATS-Konnektoren wie d.vinci/GOhiring/Jobexport), aber keine offizielle, öffentlich zugängliche API zum Auslesen von Anzeigen für Dritte. Indeeds Publisher-API wurde 2023/2024 abgeschaltet; verbliebene Indeed-APIs sind reine Employer-APIs unter Partnervertrag. LinkedIn hat keine offene Jobsuche-API und verklagt aktiv Scraper (Proxycurl musste 2025 schließen); das hiQ-Urteil schützt zwar öffentliches Scraping vor dem CFAA, hebt aber weder LinkedINs Nutzungsbedingungen noch DSGVO-Risiken beim Speichern personenbezogener Daten (Ansprechpartnernamen) auf. Für all diese Börsen bleibt nur Scraping (rechtlich/vertraglich riskant, technisch instabil) oder bezahlte Drittanbieter-Aggregatoren (JSearch, Apify-Actors, Bright Data), die das Scraping-Risiko auf sich nehmen, aber Kosten und Qualitätsschwankungen mitbringen.\n\nDer mit Abstand verlässlichste kostenlose Kern ist die inoffizielle, aber stabile Community-API der Bundesagentur für Arbeit (bundesAPI/jobsuche-api, Header X-API-Key: jobboerse-jobsuche, Endpunkt /pc/v6/jobs), da die BA Deutschlands größte Stellendatenbank betreibt und Direktarbeitgeber-Anzeigen ohne Bezahlschranke enthält. Sie ist nicht offiziell dokumentiert, ohne SLA, mit gelegentlichen Breaking Changes (v4→v6-Schema, GitHub-Issues #69, #60, #61) - für ein Einzelprojekt aber die einzige Quelle mit direktem, kostenlosem und technisch sauberem API-Zugriff auf breite deutsche Stellenangebote. Zweiter Kernbaustein ist Google for Jobs: Da praktisch jede Karriereseite und jede große Börse ihre Anzeigen als schema.org/JobPosting auszeichnet (Pflicht für Google-Jobs-Sichtbarkeit), aggregiert Google selbst alle Quellen - zugänglich für Dritte nur über SERP-Scraper wie SerpAPI (ab 25 USD/Monat für 1.000 Suchen, Stand 2026) oder DataForSEO/SearchAPI.io als Alternativen. Bei ca. 10 Bewerbungen/Tag reicht das günstigste SerpAPI-Kontingent (250 kostenlose Suchen/Monat) für Testphase, danach 25 USD/Monat.\n\nDer dritte tragende Pfeiler sind die öffentlichen, unauthentifizierten JSON/XML-Feeds der ATS-Systeme, mit denen viele deutsche Mittelständler und Tech-Firmen ihre Karriereseiten betreiben: Personio (https://{firma}.jobs.personio.de/xml, kein Auth), Greenhouse (boards-api.greenhouse.io/v1/boards/{token}/jobs, kein Auth), Lever (api.lever.co/v0/postings/{site}?mode=json, kein Auth, EU-Instanz api.eu.lever.co), SmartRecruiters (api.smartrecruiters.com/v1/companies/{id}/postings), Recruitee ({firma}.recruitee.com/api/offers), Teamtailor (öffentlicher jobs.json-Feed pro Karriereseite) und Workday (undokumentierter POST-Endpunkt /wday/cxs/{tenant}/{site}/jobs, GET liefert 400). Diese sind technisch sauber und ToS-unbedenklich (bewusst öffentlich vom ATS-Anbieter bereitgestellt), erfordern aber pro Zielunternehmen die Kenntnis von Board-Token/Subdomain - sie sind also ideal für eine gepflegte Liste von Zielarbeitgebern (Direktansprache), nicht für eine marktweite Volltextsuche.\n\nAdzuna (offizielle Free-API, App-ID/Key, 12 Länder inkl. DE) und Arbeitnow (offen, kein Auth, Fokus englischsprachige Tech-Jobs in Deutschland) ergänzen als schmale, aber saubere API-Quellen. JSearch (RapidAPI) aggregiert LinkedIn/Indeed/ZipRecruiter/Glassdoor/Bayt indirekt (200 Requests gratis, danach 10-200+ USD/Monat), reicht das Scraping-Risiko aber nur an RapidAPI weiter. Jooble vergibt zwar kostenlose Keys, limitiert aber auf 500 Requests LEBENSLANG pro Key und verlangt für Deutschland einen separaten Key auf de.jooble.org - für tägliche Nutzung untauglich ohne kostenpflichtige Partnerschaft.\n\nFür Börsen ohne jede API (StepStone, XING/onlyfy, Monster.de, Kimeta, Glassdoor, Jobware, stellenanzeigen.de, meinestadt.de, Honeypot) bleibt nur Scraping via Apify-Actors (0,05-5 USD/1.000 Ergebnisse, je nach Actor) oder generische Tools wie python-jobspy (Open Source, deckt LinkedIn/Indeed/Glassdoor/Google/ZipRecruiter ab, aber Indeed/LinkedIn sind ToS-geschützt und LinkedIn blockt aggressiv nach ca. 10 Seiten pro IP), Firecrawl (1 Credit/Seite, Free 1.000 Credits/Monat) oder Jina Reader (r.jina.ai, kostenlos ohne Key bei niedrigem Ratenlimit) zur Markdown-Konvertierung für anschließende Extraktion durch Claude. Empfehlung für den Einzelentwickler: Bei nur ~10 Bewerbungen/Tag ist das Scraping-Volumen klein genug, dass rechtliches/technisches Risiko pro Quelle gezielt und sparsam eingegangen werden kann (z. B. gezieltes Firecrawl/Jina-Fetch einer einzelnen StepStone-Trefferseite statt Massen-Crawling) - eine Vollautomatisierung über alle 20+ Quellen lohnt sich technisch und rechtlich nicht.\n\nDeduplikation zwischen Börsen ist ein eigenständiges Problem: reines Fuzzy-Matching (Levenshtein/Jaro-Winkler) auf Titel+Firma+Ort übersieht laut Fachquellen ca. 30% der Duplikate, weil Firmennamen variieren (Rechtsformzusätze, Schreibvarianten) und Titel synonym formuliert werden. Empfohlen: Normalisierung (Rechtsformen wie GmbH/AG/Inc. entfernen, Kleinschreibung, Whitespace), harte IDs wo vorhanden (refnr der BA, Greenhouse/Lever job-id, absolute_url), dann Jaro-Winkler-Schwellenwert auf Titel + exakte Firma/PLZ-Kombination, optional Sentence-Embeddings für Titel-Synonyme. Die Unterscheidung Personalvermittler vs. Direktarbeitgeber ist aus dem Anzeigentext selbst NICHT zuverlässig algorithmisch lösbar: § 11 AÜG verpflichtet den Verleiher nur zur schriftlichen Information von Arbeitnehmer und Entleiher, nicht zu einer Kennzeichnung im öffentlichen Stelleninserat. Heuristiken (Firmenname stimmt nicht mit Anzeigen-Domain überein, Formulierungen wie 'für unseren Kunden', 'im Auftrag von', dieselbe Agentur postet strukturell gleiche Anzeigen für viele Branchen, BA-API-Flag zeitarbeit=true) liefern nur Indizien - im Zweifel sollte der Agent den Nutzer fragen statt zu klassifizieren, exakt wie in den Projektregeln gefordert.",
+  "findings": [
+    {
+      "claim": "Die Bundesagentur für Arbeit bietet keine offizielle API; die verbreitete Jobsuche-API ist ein Community-Projekt (bundesAPI/jobsuche-api).",
+      "detail": "Auth via Header X-API-Key mit dem öffentlichen, geteilten Wert 'jobboerse-jobsuche' (kein individueller Key nötig). Basis-URL https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/. Endpunkte: GET /pc/v6/jobs (Suche), /pc/v4/app/jobs (App-Variante), /pc/v4/jobdetails/{base64(refnr)} bzw. /pc/v3/jobdetails/{...} (Details), /ct/v1/arbeitgeberlogo/{kundennummerHash} (Logo, Server rest.arbeitsagentur.de/vermittlung/ag-darstellung-service). Kein dokumentiertes Rate Limit, keine Lizenzangabe. Für unser Projekt: einzige kostenlose, technisch saubere Quelle mit breiter Abdeckung deutscher Direktarbeitgeber-Anzeigen - sollte Kernquelle sein trotz 'unofficial'-Status.",
+      "sources": [
+        "https://github.com/bundesAPI/jobsuche-api",
+        "https://jobsuche.api.bund.dev/",
+        "https://raw.githubusercontent.com/bundesAPI/jobsuche-api/main/openapi.yaml"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Die BA-Jobsuche-API unterstützt granulare Filter, u.a. zur groben Unterscheidung von Zeitarbeit.",
+      "detail": "Query-Parameter: was (Titel-Volltext), wo (Ort), berufsfeld, umkreis (km), arbeitszeit (vz/tz/snw/ho/mj), page, size, veroeffentlichtseit (Tage seit Veröffentlichung, 0-100), angebotsart (1=Arbeit,2=Selbstständigkeit,4=Ausbildung/Duales Studium,34=Praktikum/Trainee), befristung (1=befristet,2=unbefristet), zeitarbeit (bool, Default true - inkludiert Zeitarbeitsfirmen), pav (private Arbeitsvermittler), behinderung, corona, arbeitgeber (Filter nach Arbeitgebername). Das Flag zeitarbeit erlaubt es, Zeitarbeitsfirmen-Anzeigen optional herauszufiltern - ist aber kein Ersatz für eine belastbare Personalvermittler-Erkennung bei anderen Quellen.",
+      "sources": [
+        "https://raw.githubusercontent.com/bundesAPI/jobsuche-api/main/openapi.yaml",
+        "https://github.com/bundesAPI/jobsuche-api/blob/main/README.md"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Die BA-API hat offene GitHub-Issues zu Schema-Brüchen und Zugriffsproblemen, die auf Instabilität hindeuten.",
+      "detail": "Issue #69 (offen, Aug 2026): Integration muss an aktuelle v6/v4-Response-Schemas angepasst werden. Issue #60 (offen, März 2025): '403 Forbidden'. Issue #59 (offen, Feb 2025): Jobsuche liefert keine Hashes mehr, wodurch Jobdetails nicht abrufbar sind. Issue #61 (offen, Juni 2025): '404 bei /pc/v4/jobs/{refnr}'. Issue #53 (geschlossen, Aug 2024): Auth-Endpoint gettoken_cc lieferte 500. Konsequenz: defensive Fehlerbehandlung und Monitoring nötig, kein produktionsreifes SLA erwarten.",
+      "sources": [
+        "https://github.com/bundesAPI/jobsuche-api/issues?q=is%3Aissue"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Indeeds öffentliche Publisher-API und der XML-Feed wurden 2023/2024 eingestellt; es existiert 2026 keine offene Such-API für Dritte.",
+      "detail": "Die verbliebenen Indeed-APIs (Indeed Apply, Sponsored Jobs) unter partners.indeed.com sind ausschließlich Employer-seitig (Jobs/Bewerbungen HINEIN schieben) und erfordern einen mehrmonatigen Partnervertrieb-Prozess; keine bietet einen Such-Endpunkt zum Auslesen. Für Leseabfragen bleiben nur Drittanbieter (RolesAPI, JobsPipe, Scrappa, Mantiks.io) oder Scraping (jobspy, Apify).",
+      "sources": [
+        "https://rolesapi.com/blog/does-indeed-have-an-api/",
+        "https://jobspipe.dev/sources/indeed"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "LinkedIn hat keine offene Jobsuche-API und verfolgt Scraper aktiv rechtlich; das hiQ-Urteil schützt nicht vor ToS-Durchsetzung oder DSGVO-Risiken.",
+      "detail": "LinkedIn verklagte Proxycurl 2025 wegen Scrapings mit Fake-Accounts; Proxycurl stellte den Betrieb am 4. Juli 2025 endgültig ein. Der Ninth-Circuit-Entscheid hiQ v. LinkedIn (bestätigt nach Supreme-Court-Remand) besagt nur, dass Scraping öffentlich zugänglicher Seiten nicht 'ohne Autorisierung' i.S.d. CFAA ist - er hebt weder LinkedIns Nutzungsbedingungen (die Scraping verbieten) noch Account-Sperrungen noch DSGVO-Pflichten beim Speichern personenbezogener Daten (Name, Titel, Arbeitgeber von Ansprechpartnern) auf. Fazit: unauthentifiziertes Public-Scraping ist strafrechtlich risikoärmer als früher angenommen, bleibt aber vertrags- und datenschutzrechtlich riskant.",
+      "sources": [
+        "https://www.eff.org/cases/hiq-v-linkedin",
+        "https://iapp.org/news/a/data-scraping-and-the-implications-of-the-latest-linkedin-hiq-court-ruling",
+        "https://nubela.co/blog/is-scraping-linkedin-legal-in-2026/"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "StepStone bietet keine öffentliche Lese-API für Dritte; JobFeed ist ein Employer-Einspielkanal, keine Such-API.",
+      "detail": "JobFeed überträgt automatisiert die eigenen Stellenanzeigen des Kunden in die StepStone-Datenbank (Einbahnstraße Arbeitgeber→StepStone). StepStone kooperiert mit ATS-Anbietern (Greenhouse, JazzHR, Jobadder, Lever) über 'StepStone Connect' für nahtlose Bewerbungen, aber auch das ist keine Lese-API für Suchende/Dritte. Die Nutzungsbedingungen (Stand 27.04.2022) verbieten Bots/Scripts/automatisierte Werkzeuge ausdrücklich.",
+      "sources": [
+        "https://api.stepstone.com/wp-content/uploads/2019/07/2019-01_Info_JobFeed_DE.pdf",
+        "https://api.stepstone.com/article-categories/integrations/",
+        "https://www.stepstone.de/ueber-stepstone/nutzungsbedingungen-2022-03/"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "XING Jobs/onlyfy bieten keine öffentliche API zum Auslesen von Stellenanzeigen; onlyfy ist ein Employer-Tool zum Schalten/Sourcing.",
+      "detail": "onlyfy (ehem. XING E-Recruiting/Prescreen) dient Arbeitgebern zum Veröffentlichen von Anzeigen auf XING + Partnernetzwerk und zu Active Sourcing unter über 21 Mio. XING-Profilen. Keine Entwicklerdokumentation für Dritt-Lesezugriff gefunden. XING selbst hat laut mehreren Quellen 'keine gute und freie API'; Scraping ist technisch via Drittanbieter (Apify, Bright Data, Octoparse) möglich, verstößt aber gegen die XING-Nutzungsbedingungen.",
+      "sources": [
+        "https://onlyfy.com/de/",
+        "https://raven51.de/xing-startet-onlyfy-stellenanzeigen-und-active-sourcing-kombinieren/",
+        "https://apify.com/epctex/xing-scraper"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Monster.de bietet nur eine weltweit einheitliche XML-Einspiel-Schnittstelle für Arbeitgeber, keine Such-API für Dritte.",
+      "detail": "Die Monster-Schnittstelle ist bereits in vielen Bewerbermanagement-/Schaltungstools (z. B. über jobexport.de) integriert, dient aber dem automatisierten Veröffentlichen eigener Anzeigen, nicht dem Auslesen des Gesamtbestands. Für Lesezugriff bleiben nur Scraper (Apify Monster-Scraper, teils als 'DEPRECATED' markiert).",
+      "sources": [
+        "https://arbeitgeber.monster.de/produkte/personal-plattform-integration.aspx",
+        "https://apify.com/mscraper/monster-job-search-scraper/api/python"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Glassdoor bietet keine öffentliche API und ist durch aggressive Cloudflare-/Bot-Abwehr geschützt; für DE-Stellensuche ohnehin geringer Mehrwert.",
+      "detail": "Glassdoor gated Gehaltsdaten hinter Login, rendert Inhalte clientseitig via React, nutzt Cloudflare, CAPTCHAs und IP-Rate-Limiting; naive Scraping-Versuche scheitern schnell. Workarounds (curl_cffi gegen TLS-Fingerprinting, undokumentierte /bff/-Endpunkte) existieren, verstoßen aber gegen die Nutzungsbedingungen. Für den deutschen Markt ist Glassdoors Stellenangebot-Abdeckung ohnehin sekundär (Fokus Reviews/Gehälter).",
+      "sources": [
+        "https://scrapeops.io/websites/glassdoor/",
+        "https://alterlab.io/blog/how-to-scrape-glassdoor-complete-guide-for-2026"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "stellenanzeigen.de, Jobware und meinestadt.de bieten ausschließlich Einspiel-Schnittstellen für Arbeitgeber (XML/API über z. B. d.vinci, Jobexport, GOhiring), keine öffentliche Such-API für Dritte.",
+      "detail": "Jobware ist eines von ca. 40 Portalen mit technisch vorbereiteter API-Anbindung für Bewerbermanagementsysteme wie d.vinci - Richtung ist Anzeige-Einspielung, Kosten/Technik werden individuell mit dem Portal verhandelt. meinestadt.de bietet ein XML-Interface zur Übertragung eigener Anzeigen in die lokale Datenbank (ca. 11.000 Städte/Gemeinden). Für keine der drei Plattformen wurde eine dokumentierte Lese-API gefunden.",
+      "sources": [
+        "https://www.dvinci.de/standard-schnittstelle/",
+        "https://www.jobexport.de/",
+        "https://www.meinestadt.de/unternehmen/b2b/stellenmarkt/downloads"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Personio-Karriereseiten liefern einen öffentlichen, unauthentifizierten XML-Feed pro Firma - ideal für gezielte Direktarbeitgeber-Beobachtung.",
+      "detail": "URL-Muster: https://{firma}.jobs.personio.de/xml?language=de (Default Deutsch) bzw. ?language=en/fr/es/nl/it/pt. Kein Key/Login nötig. Feld-Filter u.a. subcompany, department, recruitingCategory, office, employmentType. Einschränkung: man muss die Personio-Subdomain jeder Zielfirma bereits kennen (kein zentraler Katalog aller Personio-Kunden über diese API auffindbar).",
+      "sources": [
+        "https://support.personio.de/hc/en-us/articles/207576365-Integrate-jobs-from-Personio-into-your-website-via-XML",
+        "https://developer.personio.de/v1.0/reference/get_xml"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Greenhouse Job Board API ist vollständig öffentlich, unauthentifiziert und gut dokumentiert.",
+      "detail": "Endpunkt: GET boards-api.greenhouse.io/v1/boards/{board_token}/jobs, liefert JSON mit id, title, location.name, absolute_url, updated_at, departments, offices, optional content (HTML-Beschreibung via content=true) und metadata. Filter: department_id, office_id. Kein API-Key, kein Signup nötig. Der board_token muss aus der Karriereseiten-URL des jeweiligen Unternehmens ermittelt werden (z. B. boards.greenhouse.io/{token}).",
+      "sources": [
+        "https://developers.greenhouse.io/job-board.html",
+        "https://support.greenhouse.io/hc/en-us/articles/10568627186203-Greenhouse-API-overview"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Lever Postings API ist öffentlich lesbar ohne Auth, mit EU-Instanz für Datenlokalität.",
+      "detail": "Global: https://api.lever.co/v0/postings/{site}?mode=json; EU: https://api.eu.lever.co/v0/postings/{site}. Filter: team, department, location, commitment, level, skip, limit, group. Einzelposting: GET /v0/postings/{site}/{postingId}. Response-Felder: id, text, categories, country, opening, description, descriptionPlain, lists, hostedUrl, applyUrl, workplaceType, salaryRange. Rate Limit dokumentiert nur für den POST-Bewerbungsendpunkt (429 ab >2 req/s), nicht für GET-Suche. CORS nur von Firmendomains erlaubt (relevant nur für Browser-Zugriff, nicht Server-zu-Server).",
+      "sources": [
+        "https://github.com/lever/postings-api",
+        "https://hire.lever.co/developer/documentation"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Workday-Karriereseiten (myworkdayjobs.com) haben einen undokumentierten, aber öffentlich nutzbaren JSON-Endpunkt, der zwingend per POST (nicht GET) angesprochen werden muss.",
+      "detail": "Muster: POST https://{tenant}.wd5.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs mit JSON-Body {appliedFacets, limit, offset, searchText}. Ein einfacher GET liefert HTTP 400, was viele fälschlich zu Selenium/Browser-Automatisierung greifen lässt. Paginierung ist auf 20 Ergebnisse pro Seite hart limitiert; größere limit-Werte liefern ein leeres jobPostings-Array. Detailseiten via GET /wday/cxs/{tenant}/{site}/job/{externalPath}. Kein offizieller API-Key/Auth - 'öffentlich, aber unofficial', kann sich jederzeit ändern.",
+      "sources": [
+        "https://dev.to/udaninn/workday-job-boards-have-a-json-api-too-its-just-better-hidden-23fl",
+        "https://github.com/Francis1998/agentic-career-search/blob/main/docs/guides/WORKDAY_SOURCE_GUIDE.md"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Teamtailor-Karriereseiten liefern einen öffentlichen JSON-Feed ohne Auth; die offizielle API (api.teamtailor.com) ist dagegen für Kunden mit X-Api-Key gedacht.",
+      "detail": "Jede Teamtailor-Karriereseite serviert einen JSON-Feed mit Titel, Firma, Standorten, Remote/Hybrid-Signal, Beschäftigungsart, Beschreibung, Apply-URL, Veröffentlichungsdatum - ohne Pagination-Handling nötig laut Quelle. Die offizielle API folgt der JSON:API-Spezifikation (docs.teamtailor.com, Endpunkte unter api.teamtailor.com/v1/) mit X-Api-Key-Auth - das ist aber primär für den Kunden selbst zur Verwaltung (Bewerber, Departments, Webhooks), nicht für externe Marktsuche gedacht. Zusätzlich generiert Teamtailor 3x täglich einen XML-Feed für Jobbörsen-Partner mit aktivierter Integration.",
+      "sources": [
+        "https://docs.teamtailor.com/",
+        "https://partner.teamtailor.com/job_boards/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "SmartRecruiters Posting API ist öffentlich für Kunden, die dies aktiviert haben, mit reichen Suchparametern.",
+      "detail": "Endpunkt: https://api.smartrecruiters.com/v1/companies/{companyIdentifier}/postings. Unterstützt API-Key und OAuth2-Client-Credentials, wobei Kunden mit aktivierter öffentlicher Freigabe auch ohne Auth zugreifbar sind. Query-Parameter: q, limit, offset, country, region, city, department, custom_field, language. Detailabruf via /postings/{postingId}.",
+      "sources": [
+        "https://developers.smartrecruiters.com/docs/posting-api",
+        "https://developers.smartrecruiters.com/reference/v1listpostings-1"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Recruitee Careers Site API ist vollständig öffentlich ohne Token/Signup mit reichhaltigen Feldern pro Angebot.",
+      "detail": "Endpunkt: GET https://{firma}.recruitee.com/api/offers (bzw. /api/offers/). 56 Felder pro Angebot inkl. Department, Location, Remote/Hybrid, Employment Type, volle Beschreibung als HTML, Requirements, Apply-URL, Salary-Objekt.",
+      "sources": [
+        "https://docs.recruitee.com/reference/intro-to-careers-site-api",
+        "https://jobspipe.dev/blog/recruitee-api-jobs"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Adzuna bietet eine offizielle, kostenlose Such-API mit Deutschland-Abdeckung, aber unklaren konkreten Rate Limits.",
+      "detail": "Registrierung auf developer.adzuna.com liefert App-ID + App-Key kostenlos. 12 unterstützte Länder inkl. 'de' (Deutschland, EUR) und 'at' (Österreich). Funktionen (z. B. via MCP-Wrapper): search_jobs, get_categories, get_salary_histogram, get_top_companies, get_geodata, get_salary_history. Konkrete Zahlen zu Requests/Tag oder /Monat wurden in keiner Quelle genannt - für die Kapazitätsplanung sollte man die aktuellen Adzuna-Docs direkt prüfen.",
+      "sources": [
+        "https://developer.adzuna.com/",
+        "https://github.com/folathecoder/adzuna-job-search-mcp"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Arbeitnow API ist kostenlos, ohne Auth, mit CORS, aber inhaltlich auf englischsprachige Tech-/Remote-Jobs mit Deutschlandbezug fokussiert - kein breiter Ersatz für die BA-API.",
+      "detail": "Endpunkt: https://arbeitnow.com/api/job-board-api. Positioniert sich als Plattform für Software-, Data-, Product- und Tech-Jobs mit Kategorien für Visa-Sponsoring, Relocation, Remote und 4-Tage-Woche. Gute Ergänzung für internationale/englischsprachige Kandidatenprofile, aber begrenzte Breite für klassische deutsche Rollen (z. B. Verwaltung, Handwerk, Gesundheitswesen).",
+      "sources": [
+        "https://arbeitnow.com/api/job-board-api",
+        "https://www.arbeitnow.com/blog/job-board-api"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "JSearch (RapidAPI) aggregiert ca. fünf Quellen (LinkedIn, Indeed, ZipRecruiter, Glassdoor, Bayt) hinter einer einheitlichen API, mit knappem Free-Tier.",
+      "detail": "Free-Tier: 200 Requests-Cap. Bezahlte Tarife ca. 10-200 USD/Monat je nach Volumen, mit ca. 30% Aufschlag gegenüber direktem Zugriff (RapidAPI-Marge). Explizite Deutschland-Abdeckung wurde in keiner Quelle bestätigt, ist aber über die Upstream-Quellen (die alle in DE aktiv sind) wahrscheinlich mitenthalten. Da JSearch selbst LinkedIn/Indeed scraped, wird das ToS-Risiko nur auf den Anbieter verlagert, nicht eliminiert.",
+      "sources": [
+        "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch/pricing",
+        "https://jobspipe.dev/blog/best-jobs-api-2026"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Jooble vergibt kostenlose API-Keys, aber mit einem lebenslangen Limit von 500 Requests pro Key und länderspezifischen Keys.",
+      "detail": "Freie REST-API: Antrag über Formular (Name, Position, E-Mail, Firmenwebsite, Telefon). Für Deutschland-Daten ist ein separater Key auf de.jooble.org/api/about nötig - jeder Länder-Key ist nur für dieses Länderportal gültig. 500 Requests lebenslang (nicht monatlich) macht den Free-Tier für tägliches automatisiertes Scannen praktisch unbrauchbar; für produktiven Einsatz wäre eine kostenpflichtige Jooble-Partnerschaft nötig (Konditionen nicht recherchiert).",
+      "sources": [
+        "https://help.jooble.org/en/support/solutions/articles/60000922689-how-to-connect-to-the-jooble-rest-api-after-receiving-the-key",
+        "https://jooble.org/api/about"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Google for Jobs selbst hat keine öffentliche Lese-API; Zugriff nur indirekt über SERP-Scraping-Dienste wie SerpAPI, DataForSEO oder SearchAPI.io.",
+      "detail": "SerpAPI Google Jobs API: 250 kostenlose Suchen/Monat, danach ab 25 USD/Monat für 1.000 Suchen, bis 275 USD/Monat für 30.000 Suchen (Stand 2026). Da schema.org/JobPosting-Markup Voraussetzung für die Aufnahme in Google for Jobs ist und praktisch alle großen Börsen sowie viele Karriereseiten dieses Markup nutzen, ist Google for Jobs faktisch ein Meta-Index aller anderen Quellen inkl. StepStone, Indeed und Firmenseiten - ein SerpAPI-Abo kann daher andere Einzel-Scraper teilweise ersetzen.",
+      "sources": [
+        "https://serpapi.com/google-jobs-api",
+        "https://serpapi.com/pricing",
+        "https://developers.google.com/search/docs/appearance/structured-data/job-posting"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "python-jobspy ist die populärste Open-Source-Bibliothek für Multi-Board-Scraping, deckt aber gerade die ToS-sensibelsten Quellen ab (LinkedIn, Indeed, Glassdoor).",
+      "detail": "MIT-Lizenz, Version 1.1.82 (veröffentlicht 28. Juli 2025), Python ≥3.10, pip install python-jobspy. Unterstützte Boards: LinkedIn, Indeed, Glassdoor, Google Jobs, ZipRecruiter, Bayt, Naukri, BDJobs. country_indeed-Parameter deckt 70+ Länder inkl. Deutschland ab (nur für Indeed/Glassdoor relevant). Laut Doku 'Indeed the best scraper currently with no rate limiting', LinkedIn dagegen 'most restrictive, rate-limits around the 10th page with one IP - proxies are a must'. Offene GitHub-Issues (Aug 2026) zeigen leere Beschreibungsfelder bei LinkedIn und fehlende direct-URLs - Wartungslücken sind erkennbar.",
+      "sources": [
+        "https://github.com/speedyapply/JobSpy",
+        "https://pypi.org/project/python-jobspy/",
+        "https://github.com/speedyapply/JobSpy/issues"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Apify bietet für praktisch jede große deutsche Börse mindestens einen Pay-per-Result-Actor, mit stark streuenden Preisen zwischen ca. 0,05 und 5 USD pro 1.000 Ergebnissen.",
+      "detail": "Beispiele: StepStone-Scraper ab ca. 0,30-1 USD/1.000 Ergebnisse (ein Actor sogar 0,00450 USD/Ergebnis + 0,01 USD Start-Event); Indeed-Scraper (Misceres) ca. 0,05 USD/1.000, andere Indeed-Actors bis 5 USD/1.000 oder 0,003 USD/Event; LinkedIn-Jobs-Scraper (Bebity, u.a.) jetzt Pay-per-Event statt vormals 29,99 USD/Monat Abo, Spanne 0,25-5 USD/1.000 über verschiedene Anbieter. Apify selbst beschreibt 2026 ein generelles Pay-per-Event-Preismodell. Qualität/Wartung variiert stark zwischen Actors - vor Produktivsetzung Stichproben und Reviews prüfen.",
+      "sources": [
+        "https://apify.com/jupri/stepstone-scraper/resources/resources/scraping_with_apify",
+        "https://apify.com/misceres/indeed-scraper",
+        "https://apify.com/bebity/linkedin-jobs-scraper"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Firecrawl ist ein bezahlbares Generic-Scraping-Werkzeug mit LLM-tauglicher Markdown-Ausgabe, gut geeignet um einzelne Karriereseiten ohne strukturierten Feed zu erfassen.",
+      "detail": "Preisstufen 2026: Free (0 USD, 1.000 Credits/Monat), Hobby (16 USD/Monat jährlich abgerechnet, 5.000 Credits), Standard (83 USD/Monat, 100.000 Credits), Growth (333 USD/Monat, 500.000 Credits), Scale (599 USD/Monat, 1.000.000 Credits). Scrape/Crawl/Map/Monitor kosten je 1 Credit/Seite, Stealth-Modus (gegen Cloudflare etc.) 5 Credits/Seite, LLM-Extract mit Schema 5 Credits/Seite. Bei 10 Bewerbungen/Tag mit vielleicht 30-50 Seitenabrufen/Tag reicht der Free-Tier für den Anfang.",
+      "sources": [
+        "https://scrapegraphai.com/blog/firecrawl-pricing",
+        "https://affinco.com/firecrawl-pricing/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Jina Reader (r.jina.ai) bietet einen kostenlosen, keyless Zugriff mit niedrigem Rate Limit und ist ideal als günstige Markdown-Konvertierungsschicht vor der Claude-Extraktion.",
+      "detail": "Ohne API-Key: ca. 20 Requests/Minute, kostenlos. Mit Key: 10 Mio. Gratis-Tokens beim Signup (geteilt über Reader/Embeddings/Reranker), danach ca. 0,02-0,05 USD pro 1 Mio. Output-Tokens (kein Fixpreis-Abo, reines Pay-as-you-go). Rate Limits mit Key: 500 RPM (Standard), 5.000 RPM (Premium).",
+      "sources": [
+        "https://jina.ai/reader/",
+        "https://www.xpay.sh/saas-pricing/jina-reader/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Crawl4AI ist eine kostenlose, selbst gehostete Open-Source-Alternative zu Firecrawl mit Playwright-Browser-Steuerung und MCP-Anbindung.",
+      "detail": "Apache-2.0-Lizenz, Version 0.9.3 (Sicherheitsrelease). Funktionen: HTML→Markdown mit BM25-Rauschfilterung, LLM-gestützte strukturierte Extraktion, CSS/XPath-Schema-Extraktion (JsonCssExtractionStrategy), Undetected-Chrome-Modus gegen Bot-Erkennung, Docker+FastAPI-Deployment mit JWT-Auth, MCP-Integration. Für einen Einzelentwickler bedeutet 'kostenlos' zusätzlichen Betriebsaufwand (Hosting, Updates, IP-Reputation) gegenüber einem bezahlten SaaS wie Firecrawl.",
+      "sources": [
+        "https://github.com/unclecode/crawl4ai"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Bright Data bietet sowohl generische Scraper-APIs als auch eine vorgefertigte Jobs-Scraper-API mit kostenlosem Startkontingent, ist aber insgesamt das teurere Enterprise-Angebot.",
+      "detail": "Web Scraper API: 1,50 USD/1.000 Records Pay-as-you-go, sinkt auf 1,00 USD/1.000 im 1.999-USD/Monat-Scale-Tier; Subscription-Einstieg ab 0,75 USD/1.000. Dedizierte 'Jobs Scraper API' mit 5.000 Records/Monat gratis. Vorgefertigte Datasets (inkl. Jobpostings) ab 2,50 USD/1.000 Records mit 250-USD-Mindestbestellung. Laut unabhängigem Scrape.do-Benchmark 98,44% Erfolgsquote (höchste von 11 getesteten Anbietern) - für punktuelle, schwer zugängliche Ziele (z. B. Glassdoor) eine Notlösung, für den Alltag bei 10 Bewerbungen/Tag meist überdimensioniert.",
+      "sources": [
+        "https://brightdata.com/products/web-scraper/jobs-scraper",
+        "https://www.vendr.com/marketplace/bright-data"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Reines Fuzzy-String-Matching (Levenshtein/Jaro-Winkler) auf Titel+Firma übersieht laut Fachquellen ca. 30% der echten Duplikate zwischen Jobbörsen.",
+      "detail": "Ursache: Firmennamen variieren durch Rechtsformzusätze/Schreibweisen (z. B. 'Tesla' vs. 'Tesla, Inc.' vs. Personaldienstleister-Alias 'Ursus'), Jobtitel werden synonym formuliert ('VP of Marketing' vs. 'Vice President, Marketing'). Empfohlene Kombination: (1) Firmennamen-Normalisierung (Rechtsformen entfernen, Kleinschreibung), (2) exakte/robuste IDs nutzen wo vorhanden (BA-refnr, Greenhouse/Lever-Job-ID, absolute_url-Domain+Pfad), (3) Jaro-Winkler-Schwellenwert für Titel kombiniert mit exakter Firma+PLZ, (4) optional Sentence-Embeddings/Semantic Matching für Titel-Synonyme bei hochwertigen 10 Bewerbungen/Tag lohnt sich der Zusatzaufwand.",
+      "sources": [
+        "https://medium.com/@williamflaiz/why-fuzzy-matching-isnt-enough-and-what-actually-finds-your-hidden-duplicates-7ddfdc5c26de",
+        "https://ar5iv.labs.arxiv.org/html/2201.04687"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Die Unterscheidung Personalvermittler vs. Direktarbeitgeber ist rechtlich nicht an eine Kennzeichnungspflicht im öffentlichen Stelleninserat geknüpft und daher nur heuristisch aus dem Anzeigentext ableitbar.",
+      "detail": "§ 11 AÜG verpflichtet den Verleiher (Zeitarbeitsfirma) nur zur SCHRIFTLICHEN Information von Arbeitnehmer und Entleiher VOR dem Einsatz, nicht zu einer Kennzeichnung der Stellenanzeige selbst. § 1 Abs. 1 AÜG verlangt zwar, dass der Arbeitnehmerüberlassungs-VERTRAG als solcher bezeichnet wird - das betrifft aber den Vertrag zwischen Verleiher und Entleiher, nicht die öffentliche Anzeige. Verstöße gegen die Kennzeichnungspflicht können zur Begründung eines Arbeitsverhältnisses mit dem Entleiher führen sowie Bußgelder bis 30.000 EUR nach sich ziehen - das schützt aber nicht davor, dass eine Anzeige im Netz keine klare Aussage über Vermittler-Status macht. Praktikable Heuristiken: Firmenname der Anzeige ≠ Domain/Impressum, Formulierungen wie 'für unseren Kunden'/'im Auftrag von', dieselbe Absenderfirma postet strukturell identische Anzeigen über völlig verschiedene Branchen hinweg, BA-API-Flag zeitarbeit. Bei Unsicherheit soll der Agent gemäß Projektvorgabe nachfragen statt zu klassifizieren.",
+      "sources": [
+        "https://www.gesetze-im-internet.de/a_g/__11.html",
+        "https://www.randstad.de/unternehmen/zeitarbeit/arbeitnehmerueberlassungsgesetz/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Web-Scraping ist in Deutschland nicht per se verboten, aber ein Zusammenspiel aus Urheberrecht (§ 44b UrhG TDM-Schranke), Datenbankherstellerrecht (§ 87b UrhG) und Vertragsrecht (Nutzungsbedingungen) begrenzt es projektspezifisch.",
+      "detail": "§ 44b UrhG erlaubt Vervielfältigungen rechtmäßig zugänglicher Werke für Text- und Data-Mining, ABER nur wenn der Rechteinhaber sich die Nutzung nicht maschinenlesbar vorbehalten hat (z. B. via robots.txt/ToS-Opt-out) - die Vervielfältigungen sind zu löschen, sobald sie fürs TDM nicht mehr nötig sind. Ein direkter Volltext-Abruf von § 44b UrhG über gesetze-im-internet.de war in dieser Session durch den Egress-Proxy blockiert (EGRESS_BLOCKED) und konnte nicht verifiziert werden - der Wortlaut sollte vor produktivem Einsatz direkt bei einer erreichbaren Quelle geprüft werden. Unabhängig von § 44b bleibt eine vertragliche Untersagung (Nutzungsbedingungen) wirksam, selbst wenn keine Datenbank betroffen ist. Für personenbezogene Daten (Ansprechpartner-Namen in Anzeigen) gilt zusätzlich die DSGVO unabhängig von der öffentlichen Zugänglichkeit.",
+      "sources": [
+        "https://dejure.org/gesetze/UrhG/44b.html",
+        "https://cms.law/de/deu/legal-updates/Text-und-Data-Mining-nach-dem-neuen-Urheberrecht"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Ein BGH-Urteil vom November 2024 erleichtert DSGVO-Schadensersatzklagen bei Scraping-Vorfällen bereits durch bloßen 'Kontrollverlust' über personenbezogene Daten - relevant, falls unser Agent Kontaktdaten von Ansprechpartnern speichert.",
+      "detail": "Der BGH entschied, dass der bloße Verlust der Kontrolle über personenbezogene Daten einen Schaden nach Art. 82 DSGVO begründen kann, auch ohne konkret nachgewiesenen finanziellen oder psychischen Schaden. Praktisch bedeutet das ein erhöhtes Klagerisiko für jeden, der personenbezogene Daten (z. B. Namen von HR-Ansprechpartnern aus Stellenanzeigen) sammelt und speichert - unser Projekt sollte solche Daten nur zweckgebunden (Bewerbung an diese eine Stelle) und mit Löschkonzept speichern, nicht als dauerhaft wachsende Kontaktdatenbank.",
+      "sources": [
+        "https://www.noerr.com/de/insights/bgh-urteil-zum-immateriellen-schadensersatz-der-dsgvo-wegen-scraping",
+        "https://www.mondaq.com/germany/data-protection/1548658/bgh-urteil-zum-scraping-erh%C3%B6ht-die-risiken-von-rechtsstreitigkeiten-im-zusammenhang-mit-der-dsgvo"
+      ],
+      "confidence": "medium",
+      "info_date": "2024/2025"
+    },
+    {
+      "claim": "Cloudflare blockiert seit dem 1. Juli 2025 standardmäßig bekannte AI-Crawler für alle neuen Cloudflare-Domains und bietet seit Ende September 2025 granulare 'Content Signals'-Steuerung inkl. 'Pay per Crawl'.",
+      "detail": "Website-Betreiber können nun gezielt einzelne AI-Bots erlauben/blockieren und für Crawling-Zugriff bezahlen lassen. Relevant, weil viele Jobbörsen/Karriereseiten (u. a. potenziell StepStone, Glassdoor) hinter Cloudflare liegen - ein Blockieren generischer AI-Crawler bedeutet nicht automatisch ein Blockieren von Claude-Agent-Zugriffen per WebFetch, kann aber die Erfolgsquote von Firecrawl/Crawl4AI auf solchen Domains senken (Stealth-Modus/Enhanced Mode nötig, höhere Kosten).",
+      "sources": [
+        "https://blog.cloudflare.com/control-content-use-for-ai-training/",
+        "https://www.cloudflare.com/press/press-releases/2025/cloudflare-just-changed-how-ai-crawlers-scrape-the-internet-at-large/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Google Cloud Talent Solution (Job Search API v4) ist weiterhin aktiv und nicht abgekündigt, aber sie ist eine Matching-/Such-Engine für EIGENE, selbst eingespeiste Jobdaten des Kunden - kein Zugriffsweg auf fremde Stellenanzeigen dritter Börsen.",
+      "detail": "Frühere Versionen (v3, v3p1beta1, v4beta1) wurden zum 13. Oktober 2021 abgekündigt, aktuelle Version ist v4. Für unser Projekt irrelevant als Datenquelle, da man dort nur eigene, bereits erworbene Jobdaten strukturiert durchsuchbar macht - kein Ersatz für Adzuna/SerpAPI/BA-API als externe Datenquelle.",
+      "sources": [
+        "https://docs.cloud.google.com/talent-solution/job-search/v3/docs/basics",
+        "https://cloud.google.com/talent-solution/docs/release-notes"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Playwright MCP ist ein offizieller, kostenloser MCP-Server für Browser-Automatisierung via Accessibility-Snapshots statt Screenshots - sinnvoll als Fallback für JS-lastige Karriereseiten ohne bekannten Feed/API.",
+      "detail": "Installation: npx @playwright/mcp@latest. Kern-Tools: browser_navigate, browser_snapshot, browser_click, browser_type, browser_fill_form. Konfigurierbar: --headless, --storage-state (Cookies/LocalStorage laden), --proxy-server, --user-data-dir, --isolated. Apache-2.0-Lizenz. Für unser Projekt geeignet als letzte Eskalationsstufe (z. B. eine einzelne Firmen-Karriereseite mit Formular statt Feed), nicht für Massen-Scanning wegen Zeit-/Ressourcenaufwand pro Seite.",
+      "sources": [
+        "https://github.com/microsoft/playwright-mcp"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Bundesagentur für Arbeit Jobsuche API (bundesAPI/jobsuche-api)",
+      "url": "https://github.com/bundesAPI/jobsuche-api",
+      "category": "API",
+      "access": "REST GET, Header X-API-Key: jobboerse-jobsuche (öffentlicher Fixwert, kein individueller Key). Kein dokumentiertes Rate Limit.",
+      "pricing": "kostenlos, kein Auth-Antrag nötig (Stand 2026)",
+      "verdict": "empfohlen - Kernquelle: größte deutsche Stellendatenbank, kostenlos, direkte Arbeitgeber-Anzeigen; aber unofficial/instabil, defensives Error-Handling nötig"
+    },
+    {
+      "name": "jobsuche.api.bund.dev (Doku-Portal)",
+      "url": "https://jobsuche.api.bund.dev/",
+      "category": "API",
+      "access": "Dokumentationsportal für obige API",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen - als Referenzdokumentation für obige API nutzen"
+    },
+    {
+      "name": "de-jobsuche (PyPI-Paket)",
+      "url": "https://pypi.org/project/de-jobsuche/",
+      "category": "Bibliothek",
+      "access": "Python-Wrapper um Arbeitsagentur-API, OAuth2 Client-Credentials, TLS-Validierung laut Doku bewusst deaktiviert nötig (ungültiges Zertifikat)",
+      "pricing": "kostenlos, MIT/Apache-2.0, Version 0.1.0 (Feb 2022, wirkt unstet gepflegt)",
+      "verdict": "optional - eher als Referenzimplementierung lesen, für Produktivbetrieb eigenen schlanken Client gegen die v6-API schreiben statt dieses ältere Paket zu verwenden"
+    },
+    {
+      "name": "StepStone JobFeed / Kooperationspartner",
+      "url": "https://api.stepstone.com/article-categories/integrations/",
+      "category": "Jobquelle",
+      "access": "Nur Employer-seitiger Einspielkanal (Anzeigen HINEIN), keine Lese-API für Dritte; Nutzungsbedingungen verbieten Bots/Scripts ausdrücklich",
+      "pricing": "k.A. (Employer-Produkt)",
+      "verdict": "vermeiden für direkten API-Zugriff - falls nötig nur über Google-for-Jobs-Aggregation oder punktuellen Apify-Actor mit Vorsicht"
+    },
+    {
+      "name": "Apify StepStone-Scraper (diverse Actors)",
+      "url": "https://apify.com/jupri/stepstone-scraper",
+      "category": "SaaS",
+      "access": "Pay-per-Result Scraping-Actor, kein offizieller StepStone-Support, ToS-Verstoß des Zielsystems möglich",
+      "pricing": "ca. 0,30-1 USD/1.000 Ergebnisse je nach Actor (2026)",
+      "verdict": "optional - pragmatischer Fallback bei kleinem Volumen (10 Bewerbungen/Tag), rechtliches Graubereichsrisiko bewusst eingehen"
+    },
+    {
+      "name": "Indeed (offizielle APIs)",
+      "url": "https://rolesapi.com/blog/does-indeed-have-an-api/",
+      "category": "Jobquelle",
+      "access": "Publisher-API 2023/24 eingestellt; verbliebene APIs (Apply, Sponsored Jobs) nur Employer-seitig unter Partnervertrag, kein Such-Endpunkt",
+      "pricing": "k.A. (kein öffentlicher Lesezugriff)",
+      "verdict": "vermeiden direkt - auf Drittanbieter/Scraper/Google-for-Jobs ausweichen"
+    },
+    {
+      "name": "Apify Indeed-Scraper (Misceres u.a.)",
+      "url": "https://apify.com/misceres/indeed-scraper",
+      "category": "SaaS",
+      "access": "Pay-per-Result Scraping, 60+ Felder/Job",
+      "pricing": "ca. 0,05-5 USD/1.000 Jobs je nach Actor (2026)",
+      "verdict": "optional - günstige Fallback-Option für Indeed-Inhalte bei geringem Volumen"
+    },
+    {
+      "name": "python-jobspy",
+      "url": "https://github.com/speedyapply/JobSpy",
+      "category": "Bibliothek",
+      "access": "Open-Source-Scraping (pip install python-jobspy) gegen LinkedIn/Indeed/Glassdoor/Google/ZipRecruiter/Bayt/Naukri/BDJobs; Proxies für LinkedIn nahezu Pflicht",
+      "pricing": "kostenlos, MIT-Lizenz, Version 1.1.82 (Jul 2025)",
+      "verdict": "optional - gut zum Prototyping/geringem Volumen, aber ToS-Risiko bei LinkedIn/Indeed/Glassdoor liegt beim Nutzer; nicht als alleinige Produktionsbasis"
+    },
+    {
+      "name": "LinkedIn Jobs (offiziell)",
+      "url": "https://www.linkedin.com",
+      "category": "Jobquelle",
+      "access": "Keine offene Jobsuche-API; nur Talent-/Recruiter-Produkte für zahlende Enterprise-Kunden. Guest-Endpunkte liefern öffentliche Daten ohne Login, aber ToS verbietet automatisierten Zugriff; LinkedIn verklagt Scraper aktiv (Proxycurl-Fall 2025)",
+      "pricing": "k.A.",
+      "verdict": "vermeiden bzw. nur sehr sparsam/indirekt (z. B. via JSearch-Aggregation) - höchstes rechtliches und Account-Risiko unter allen Quellen"
+    },
+    {
+      "name": "XING Jobs / onlyfy",
+      "url": "https://onlyfy.com/de/",
+      "category": "Jobquelle",
+      "access": "Keine dokumentierte Lese-API; onlyfy ist Employer-Tool zum Schalten+Active Sourcing. Scraping via Drittanbieter technisch möglich, ToS-widrig",
+      "pricing": "k.A.",
+      "verdict": "vermeiden - kein sauberer Zugriffsweg gefunden"
+    },
+    {
+      "name": "Monster.de",
+      "url": "https://arbeitgeber.monster.de/produkte/personal-plattform-integration.aspx",
+      "category": "Jobquelle",
+      "access": "Nur XML-Einspiel-Schnittstelle für Arbeitgeber, keine Lese-API",
+      "pricing": "k.A.",
+      "verdict": "vermeiden - allenfalls über veraltete/teils deprecated Apify-Scraper zugänglich"
+    },
+    {
+      "name": "Kimeta.de",
+      "url": "https://www.kimeta.de/",
+      "category": "Jobquelle",
+      "access": "Selbst ein Meta-Aggregator anderer Quellen; nur Einspiel-Schnittstellen (XML/CSV) für Arbeitgeber gefunden, keine Lese-API",
+      "pricing": "k.A.",
+      "verdict": "vermeiden - würde nur Duplikate zu unseren anderen Quellen erzeugen und hat keinen dokumentierten Lesezugriff"
+    },
+    {
+      "name": "Glassdoor",
+      "url": "https://www.glassdoor.com",
+      "category": "Jobquelle",
+      "access": "Keine öffentliche API, starke Cloudflare-/Bot-Abwehr, ToS verbietet automatisierten Zugriff",
+      "pricing": "k.A.",
+      "verdict": "vermeiden - hoher Aufwand/Risiko bei geringem Zusatznutzen für DE-Stellensuche"
+    },
+    {
+      "name": "Stellenanzeigen.de",
+      "url": "https://www.stellenanzeigen.de",
+      "category": "Jobquelle",
+      "access": "Keine öffentliche Lese-API gefunden; nur ATS-Konnektoren für Arbeitgeber-Einspielung",
+      "pricing": "k.A.",
+      "verdict": "vermeiden - kein Zugriffsweg identifiziert"
+    },
+    {
+      "name": "Jobware.de",
+      "url": "https://www.jobware.de",
+      "category": "Jobquelle",
+      "access": "API-Schnittstellen nur Richtung Einspielung über ATS-Partner (d.vinci u.a.), individuell verhandelt",
+      "pricing": "k.A.",
+      "verdict": "vermeiden - kein Lese-API-Zugriff für Dritte dokumentiert"
+    },
+    {
+      "name": "meinestadt.de",
+      "url": "https://www.meinestadt.de/unternehmen/b2b/stellenmarkt/downloads",
+      "category": "Jobquelle",
+      "access": "XML-Interface nur zur Einspielung eigener Anzeigen; regionale Abdeckung (~11.000 Städte)",
+      "pricing": "k.A.",
+      "verdict": "vermeiden - niedrige Priorität, kein Lesezugriff gefunden"
+    },
+    {
+      "name": "Honeypot.io",
+      "url": "https://www.honeypot.io/",
+      "category": "Jobquelle",
+      "access": "Reverse-Job-Platform (Unternehmen bewerben sich bei Kandidat), keine API dokumentiert",
+      "pricing": "k.A.",
+      "verdict": "optional - eher als Kandidatenprofil-Kanal nutzen, nicht als Scan-Quelle"
+    },
+    {
+      "name": "JOIN (join.com)",
+      "url": "https://join.com",
+      "category": "Jobquelle",
+      "access": "Keine offizielle Public API; inoffiziell über __NEXT_DATA__-Firmen-ID + interne Listings-API pro Firma erreichbar",
+      "pricing": "k.A.",
+      "verdict": "optional - nur für gezielt bekannte Zielarbeitgeber sinnvoll, nicht marktweit"
+    },
+    {
+      "name": "Softgarden Karriereseiten (Frontend API v3)",
+      "url": "https://dev.softgarden.de/career-websites-api/jobs-api/",
+      "category": "API",
+      "access": "ClientID muss vom jeweiligen Arbeitgeber im softgarden-Adminbereich erzeugt werden - kein offener Zugriff auf fremde Firmen ohne deren Mitwirkung",
+      "pricing": "k.A.",
+      "verdict": "vermeiden für Breitensuche - nur nutzbar, wenn Zielarbeitgeber selbst kooperiert"
+    },
+    {
+      "name": "Personio Karriereseiten XML-Feed",
+      "url": "https://support.personio.de/hc/en-us/articles/207576365-Integrate-jobs-from-Personio-into-your-website-via-XML",
+      "category": "Feed",
+      "access": "GET https://{firma}.jobs.personio.de/xml?language=de|en, kein Auth",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen für gezielte Direktarbeitgeber-Beobachtung, sofern Personio-Subdomain der Firma bekannt ist"
+    },
+    {
+      "name": "Greenhouse Job Board API",
+      "url": "https://developers.greenhouse.io/job-board.html",
+      "category": "API",
+      "access": "GET boards-api.greenhouse.io/v1/boards/{board_token}/jobs, kein Auth, JSON",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen - sauber, stabil, gut dokumentiert, viele (auch dt.) Tech-Arbeitgeber nutzen Greenhouse"
+    },
+    {
+      "name": "Lever Postings API",
+      "url": "https://github.com/lever/postings-api",
+      "category": "API",
+      "access": "GET api.lever.co/v0/postings/{site}?mode=json (EU: api.eu.lever.co), kein Auth für Lesen",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen - analog Greenhouse, EU-Instanz vorhanden"
+    },
+    {
+      "name": "SmartRecruiters Posting API",
+      "url": "https://developers.smartrecruiters.com/docs/posting-api",
+      "category": "API",
+      "access": "GET api.smartrecruiters.com/v1/companies/{id}/postings, API-Key/OAuth2 oder öffentlich falls Kunde aktiviert",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen - gut dokumentiert, reiche Filterparameter"
+    },
+    {
+      "name": "Recruitee Careers Site API",
+      "url": "https://docs.recruitee.com/reference/intro-to-careers-site-api",
+      "category": "API",
+      "access": "GET {firma}.recruitee.com/api/offers, kein Auth",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen - 56 Felder/Angebot, sehr ergiebig"
+    },
+    {
+      "name": "Workday CXS-Endpunkt",
+      "url": "https://dev.to/udaninn/workday-job-boards-have-a-json-api-too-its-just-better-hidden-23fl",
+      "category": "API",
+      "access": "POST {tenant}.wdX.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs mit JSON-Body, kein offizieller Auth, undokumentiert/inoffiziell",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen mit Vorbehalt - sehr verbreitet bei Großunternehmen, aber technisch fragil (kann sich ändern), Pagination hart auf 20 begrenzt"
+    },
+    {
+      "name": "Teamtailor öffentlicher Jobs-Feed",
+      "url": "https://docs.teamtailor.com/",
+      "category": "Feed",
+      "access": "Öffentlicher JSON-Feed pro Karriereseite ohne Auth; offizielle API (api.teamtailor.com/v1) mit X-Api-Key ist kundenseitig gedacht",
+      "pricing": "kostenlos (öffentlicher Feed)",
+      "verdict": "empfohlen für einzelne Zielarbeitgeber mit Teamtailor-Karriereseite"
+    },
+    {
+      "name": "Google for Jobs (schema.org JobPosting) via SerpAPI",
+      "url": "https://serpapi.com/google-jobs-api",
+      "category": "API",
+      "access": "SerpAPI parst Google-SERP-Jobergebnisse in JSON; kein offizielles Google-API-Äquivalent",
+      "pricing": "Free 250 Suchen/Monat; ab 25 USD/Monat für 1.000 Suchen, bis 275 USD/Monat für 30.000 (2026)",
+      "verdict": "empfohlen als Kernquelle - faktisch Meta-Index über viele andere Quellen hinweg (StepStone, Indeed, Firmenseiten), moderate Kosten bei 10 Bewerbungen/Tag"
+    },
+    {
+      "name": "DataForSEO Google Jobs SERP API",
+      "url": "https://dataforseo.com/pricing/serp/google-jobs-serp-api",
+      "category": "API",
+      "access": "Alternative zu SerpAPI für Google-Jobs-SERP-Daten, Pay-as-you-go",
+      "pricing": "k.A. genauer Betrag (in Suchergebnissen nur als Angebot erwähnt, nicht recherchiert)",
+      "verdict": "optional - als Preis-/Feature-Alternative zu SerpAPI prüfen, nicht im Detail recherchiert"
+    },
+    {
+      "name": "Adzuna API",
+      "url": "https://developer.adzuna.com/",
+      "category": "API",
+      "access": "REST, App-ID + App-Key (kostenlose Registrierung), 12 Länder inkl. DE/AT",
+      "pricing": "kostenloser Tarif, konkrete Rate Limits nicht öffentlich benannt (vor Produktivsetzung direkt bei Adzuna prüfen)",
+      "verdict": "empfohlen als Ergänzungsquelle - offiziell, sauber, aber Abdeckungstiefe für DE ungeprüft"
+    },
+    {
+      "name": "Adzuna Job Search MCP Server",
+      "url": "https://github.com/folathecoder/adzuna-job-search-mcp",
+      "category": "MCP-Server",
+      "access": "Python-MCP-Server, Tools: search_jobs, get_categories, get_salary_histogram, get_top_companies, get_geodata, get_salary_history",
+      "pricing": "kostenlos (nutzt Adzuna-Free-Tier)",
+      "verdict": "optional - direkte Adzuna-REST-Nutzung ohne MCP-Overhead ist für ein produktives Backend meist einfacher"
+    },
+    {
+      "name": "Arbeitnow API",
+      "url": "https://arbeitnow.com/api/job-board-api",
+      "category": "API",
+      "access": "REST GET, kein Auth, CORS aktiviert",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen als Nischenquelle für englischsprachige Tech-/Remote-Jobs mit DE-Bezug, kein Ersatz für Breitenabdeckung"
+    },
+    {
+      "name": "JSearch (RapidAPI)",
+      "url": "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch/pricing",
+      "category": "API",
+      "access": "RapidAPI-Key, aggregiert LinkedIn/Indeed/ZipRecruiter/Glassdoor/Bayt",
+      "pricing": "Free 200 Requests-Cap; danach ca. 10-200+ USD/Monat je Tier (2026), ca. 30% Aufschlag ggü. Direktzugriff",
+      "verdict": "optional - brauchbarer Cross-Check-Aggregator, aber Kosten/Nutzen bei Kleinvolumen prüfen; DE-Abdeckung unbestätigt"
+    },
+    {
+      "name": "Jooble REST API",
+      "url": "https://jooble.org/api/about",
+      "category": "API",
+      "access": "Kostenloser Key per Antragsformular; separater Key je Länderportal (de.jooble.org für DE)",
+      "pricing": "Free Tier: 500 Requests LEBENSLANG pro Key (nicht monatlich) - für Tagesbetrieb ungeeignet ohne kostenpflichtige Partnerschaft",
+      "verdict": "vermeiden im Free-Tier für Produktivbetrieb - allenfalls für einmalige Tests"
+    },
+    {
+      "name": "Firecrawl",
+      "url": "https://www.firecrawl.dev",
+      "category": "SaaS",
+      "access": "API (Scrape/Crawl/Map/Extract), Cloudflare-Umgehung via Stealth-Modus (5 Credits/Seite statt 1)",
+      "pricing": "Free 1.000 Credits/Monat; Hobby 16 USD/Monat (5.000 Credits); Standard 83 USD/Monat (100.000 Credits) - Preise 2026, jährliche Abrechnung",
+      "verdict": "empfohlen als generisches Fallback-Werkzeug für Karriereseiten ohne strukturierten Feed"
+    },
+    {
+      "name": "Jina Reader (r.jina.ai)",
+      "url": "https://jina.ai/reader/",
+      "category": "API",
+      "access": "GET r.jina.ai/{url}, ohne Key ca. 20 req/min gratis; mit Key 10 Mio. Gratis-Tokens, danach Pay-as-you-go",
+      "pricing": "kostenlos in Grundnutzung; danach ca. 0,02-0,05 USD/1 Mio. Output-Tokens",
+      "verdict": "empfohlen als günstige HTML→Markdown-Vorstufe vor Claude-Extraktion"
+    },
+    {
+      "name": "Crawl4AI",
+      "url": "https://github.com/unclecode/crawl4ai",
+      "category": "Bibliothek",
+      "access": "Self-hosted Python/Docker, Playwright-Browser, MCP-Support, Apache-2.0",
+      "pricing": "kostenlos (Betriebskosten für Hosting/Wartung selbst tragen)",
+      "verdict": "optional - gute kostenlose Alternative zu Firecrawl, aber höherer Betriebsaufwand für Einzelentwickler"
+    },
+    {
+      "name": "Bright Data Web Scraper API / Jobs Scraper API",
+      "url": "https://brightdata.com/products/web-scraper/jobs-scraper",
+      "category": "SaaS",
+      "access": "API-Zugriff auf vorgefertigte oder generische Scraper, hohe Erfolgsquote laut Benchmark (98,44%)",
+      "pricing": "Web Scraper API 0,75-1,50 USD/1.000 Records je Tier; Jobs Scraper API 5.000 Records/Monat gratis; Datasets ab 2,50 USD/1.000 (250 USD Mindestbestellung)",
+      "verdict": "optional - Enterprise-Niveau, für 10 Bewerbungen/Tag meist überdimensioniert, als letzte Eskalationsstufe für schwer zugängliche Ziele (z. B. Glassdoor) denkbar"
+    },
+    {
+      "name": "ScraperAPI",
+      "url": "https://www.scraperapi.com/pricing/",
+      "category": "SaaS",
+      "access": "Proxy-/Rendering-API gegen Bot-Abwehr, generisches Fetch-Tool",
+      "pricing": "Free 1.000 Credits; 7-Tage-Trial 5.000 Credits; Hobby 49 USD/Monat (100.000 Credits); Startup 149 USD/Monat (1 Mio. Credits) - 2026",
+      "verdict": "optional - Alternative zu Firecrawl/Bright Data, im Vergleich zu Firecrawl teurer im Einstieg"
+    },
+    {
+      "name": "python-jobspy Alternativen (ts-jobspy, JSpy)",
+      "url": "https://github.com/alpharomercoma/ts-jobspy",
+      "category": "Bibliothek",
+      "access": "TypeScript-Port bzw. Fork von JobSpy mit gleicher Sitelogik",
+      "pricing": "kostenlos, Community-Forks",
+      "verdict": "optional - nur relevant falls TypeScript-Stack bevorzugt wird; Pflegestand unklarer als Original"
+    },
+    {
+      "name": "Playwright MCP",
+      "url": "https://github.com/microsoft/playwright-mcp",
+      "category": "MCP-Server",
+      "access": "npx @playwright/mcp@latest, Accessibility-Snapshots statt Screenshots, Apache-2.0",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen als Eskalationsstufe für einzelne JS-lastige Karriereseiten ohne bekannten Feed - nicht für Massen-Scanning"
+    },
+    {
+      "name": "ScrapeGraphAI",
+      "url": "https://github.com/ScrapeGraphAI/Scrapegraph-ai",
+      "category": "Bibliothek",
+      "access": "LLM-gestützte Scraping-Pipelines (SmartScraperGraph, SearchGraph), MIT-Lizenz",
+      "pricing": "Bibliothek kostenlos; gehostete Cloud-API nutzt 'Pay-as-you-go Credits' ohne öffentlich genannte Preise",
+      "verdict": "optional - unterstützt laut Doku kein natives Anthropic/Claude (nur OpenAI/Groq/Azure/Gemini/MiniMax/Ollama), daher für unseren Claude-zentrierten Stack weniger passend als Firecrawl+Claude-Extraktion"
+    },
+    {
+      "name": "Google for Jobs / schema.org JobPosting (Zielformat)",
+      "url": "https://developers.google.com/search/docs/appearance/structured-data/job-posting",
+      "category": "Datenquelle",
+      "access": "Kein Lese-API; JSON-LD-Markup-Standard, den Karriereseiten selbst veröffentlichen",
+      "pricing": "kostenlos (Referenzstandard)",
+      "verdict": "empfohlen als Parsing-Ziel - wo eine Firmen-Karriereseite eigenes JobPosting-JSON-LD einbettet, lässt sich das mit Firecrawl/Jina + einfachem JSON-LD-Parser direkt und zuverlässig auslesen, ganz ohne Such-API"
+    },
+    {
+      "name": "Google Cloud Talent Solution (Job Search API v4)",
+      "url": "https://docs.cloud.google.com/talent-solution/job-search/v3/docs/basics",
+      "category": "API",
+      "access": "Matching-Engine NUR für selbst eingespeiste eigene Jobdaten des Kunden, kein Zugriff auf fremde Anzeigen Dritter",
+      "pricing": "nutzungsabhängig (nicht im Detail recherchiert)",
+      "verdict": "vermeiden als Datenquelle - falscher Anwendungsfall für unser Projekt (kein externer Datenzugriff)"
+    }
+  ],
+  "recommendations": [
+    "Kernstack für die tägliche Suche: (1) Bundesagentur-für-Arbeit-API (X-API-Key: jobboerse-jobsuche) als breiteste kostenlose DE-Quelle, (2) Google for Jobs via SerpAPI (oder DataForSEO als Alternative prüfen) als Meta-Index über StepStone/Indeed/Firmenseiten hinweg, (3) direkte ATS-Feeds (Personio-XML, Greenhouse-, Lever-, SmartRecruiters-, Recruitee-JSON, Workday-CXS, Teamtailor-Feed) für eine gepflegte Liste von 30-100 Wunscharbeitgebern des Kandidaten, (4) Adzuna-API und Arbeitnow-API als schmale, saubere Ergänzungen. Für 10 hochwertige Bewerbungen/Tag ist dieser Mix ausreichend, ohne in Scraping-Grauzonen bei StepStone/Indeed/LinkedIn/XING investieren zu müssen.",
+    "StepStone, Indeed, LinkedIn, XING/onlyfy, Monster.de, Glassdoor, Kimeta, Jobware, stellenanzeigen.de, meinestadt.de NICHT direkt scrapen. Deren Traffic wird ohnehin größtenteils über Google for Jobs sichtbar (schema.org-Pflicht für Google-Jobs-Sichtbarkeit) - der SerpAPI-Umweg liefert denselben Inhalt mit weit geringerem rechtlichem/technischem Risiko als direktes Scraping dieser ToS-geschützten Plattformen.",
+    "Für eine gezielte Watchlist von Wunscharbeitgebern (die der Nutzer selbst pflegt oder die der Agent aus Bewerbungen/Interessen lernt) lohnt sich ein modularer 'ATS-Detector': Firmen-Karriereseite abrufen, prüfen ob personio.de/xml, boards-api.greenhouse.io, api.lever.co, recruitee.com/api/offers, api.smartrecruiters.com oder wday/cxs im HTML/Netzwerk-Traffic auftaucht, dann den passenden Adapter nutzen. Das deckt laut Recherche einen erheblichen Teil deutscher Tech-/Mittelstands-Arbeitgeber ab.",
+    "Deduplikation: Kanonische ID zuerst (BA-refnr, Greenhouse/Lever-Job-ID, absolute_url), sonst normalisierte Firma (Rechtsform entfernen) + normalisierter Titel (Jaro-Winkler-Schwelle) + PLZ/Ort. Bei Unsicherheit lieber als 'mögliches Duplikat' markieren und dem Nutzer in der Prüf-Checkliste zeigen, statt automatisch zu verwerfen - Qualität vor Quantität.",
+    "Personalvermittler/Zeitarbeit-Erkennung: BA-API-Flag zeitarbeit nutzen wo verfügbar; sonst Heuristik-Score aus (a) Anzeigen-Domain ≠ genannter Firmenname, (b) Formulierungen 'für unseren Kunden'/'im Auftrag von', (c) Absenderfirma bekannt als Personaldienstleister (Pflegeliste). Bei mittlerer/niedriger Konfidenz den Nutzer aktiv fragen ('Ist das eine Vermittleranzeige oder Direktstelle?') statt zu raten - passend zur Projektregel 'bei Unklarheit nachfragen statt raten'.",
+    "Rechtliches Risiko-Tiering festlegen: Grün (Personio/Greenhouse/Lever/SmartRecruiters/Recruitee/Teamtailor/Workday-Feeds, BA-API, Adzuna, Arbeitnow, SerpAPI) ohne Einschränkung nutzen. Gelb (Apify-Actors auf StepStone/Indeed, JobSpy) nur bei geringem Volumen (unser Fall: ~10/Tag) und mit Wissen des Nutzers einsetzen. Rot (direktes LinkedIn-Scraping, Glassdoor-Bypass) vermeiden - Kosten/Risiko-Verhältnis passt nicht zu einem Einzelprojekt ohne Rechtsabteilung.",
+    "Personenbezogene Daten aus Anzeigen (Namen von HR-Ansprechpartnern) nur zweckgebunden für die konkrete Bewerbung speichern und nach Abschluss/Absage zeitnah löschen oder anonymisieren (BGH-Urteil 2024 erhöht Schadensersatzrisiko bei Kontrollverlust über solche Daten) - ein Löschkonzept sollte von Anfang an Teil der Datenhaltung sein, nicht nachträglich ergänzt werden."
+  ],
+  "risks": [
+    "Die einzige breite, kostenlose DE-API (BA-Jobsuche) ist unofficial und ohne SLA; Schema-Änderungen (v4→v6) oder temporäre Ausfälle (403, defekte Auth) sind laut GitHub-Issues bereits vorgekommen und können den Agenten ohne Vorwarnung stören.",
+    "SerpAPI/Google-for-Jobs-Abhängigkeit: Google kann seine SERP-Struktur jederzeit ändern, wodurch SerpAPI-Parsing brechen kann; zudem ist SerpAPI selbst ein inoffizieller Zugriffsweg auf Google-Daten (Scraping des SERP durch SerpAPI), keine von Google autorisierte API.",
+    "Scraping-Fallbacks (Apify, JobSpy, Firecrawl Stealth-Modus) können ToS der Zielseiten verletzen; im schlimmsten Fall IP-Sperren, Account-Sperren (falls mit Login gearbeitet würde) oder - unwahrscheinlich bei diesem Kleinvolumen, aber nicht auszuschließen - zivilrechtliche Ansprüche des Seitenbetreibers.",
+    "DSGVO-Risiko beim Sammeln/Speichern personenbezogener Daten aus Stellenanzeigen (Ansprechpartner-Namen, teils Fotos) - verschärft durch das BGH-Urteil von November 2024, das schon bloßen Kontrollverlust als Schaden genügen lässt.",
+    "ATS-ID-Reverse-Engineering (z. B. JOIN.com __NEXT_DATA__-Parsing, Workday-CXS-POST-Muster) ist nicht offiziell dokumentiert und kann bei einem Frontend-Redesign des jeweiligen ATS-Anbieters ohne Vorankündigung brechen.",
+    "Cloudflares verschärfte AI-Bot-Blockierung seit Juli/September 2025 kann die Erfolgsquote von WebFetch/Firecrawl/Crawl4AI auf betroffenen Domains senken und zwingt ggf. zu teureren Stealth-/Enhanced-Modi.",
+    "Fehlklassifikation Personalvermittler vs. Direktarbeitgeber kann zu unpassenden, nicht wirklich vom Zielunternehmen stammenden Bewerbungen führen und die vom Nutzer gewünschte 'Qualität vor Quantität' unterlaufen, wenn nicht aktiv beim Nutzer nachgefragt wird."
+  ],
+  "open_questions_for_user": [
+    "Soll der Agent bei StepStone/Indeed/LinkedIn/XING überhaupt Scraping-Fallbacks (Apify/JobSpy) nutzen dürfen, oder ausschließlich die ToS-unbedenklichen Quellen (BA-API, ATS-Feeds, Adzuna, Arbeitnow, SerpAPI)? Das ist eine Risikoentscheidung, die nur der Nutzer treffen kann.",
+    "Gibt es eine Liste von Wunscharbeitgebern (Firmen), auf die sich die direkten ATS-Feed-Integrationen (Personio/Greenhouse/Lever/etc.) konzentrieren sollen, oder soll die Suche vollständig breit/branchenoffen laufen?",
+    "Welches Budget pro Monat ist für kostenpflichtige Datenquellen akzeptabel (SerpAPI ab 25 USD/Monat, Firecrawl ab 16 USD/Monat, ggf. Apify-Actors nach Verbrauch)? Das bestimmt, wie viele Quellen parallel realistisch betrieben werden können.",
+    "Soll der Agent personenbezogene Daten aus Stellenanzeigen (Ansprechpartner) dauerhaft in einer Datenbank vorhalten (für Wiedervorlage/Historie) oder nach Abschluss jeder Bewerbung aktiv löschen? Das hat direkte DSGVO-Konsequenzen.",
+    "Ist der Kandidat mit gelegentlichen Fehlklassifikationen (z. B. eine Zeitarbeitsanzeige wird für eine Direktstelle gehalten) einverstanden, wenn der Agent im Zweifel nachfragt, oder soll lieber konservativ jede unsichere Anzeige komplett übersprungen werden?"
+  ],
+  "search_log": [
+    "Adzuna API pricing Germany job search API rate limits 2026",
+    "Bundesagentur für Arbeit Jobsuche API bund.dev X-API-Key jobsuche.api.bund.dev",
+    "JSearch RapidAPI pricing plans 2026 Germany coverage",
+    "Arbeitnow API job board API free Germany",
+    "Jooble API partner access job search API Germany",
+    "StepStone API Stellenanzeigen Zugriff Entwickler Partner API",
+    "LinkedIn Jobs API access restrictions scraping hiQ lawsuit ban 2025",
+    "Indeed Publisher API discontinued job search API alternative 2025",
+    "Personio Karriereseite XML Feed jobs.personio.de/xml Stellenanzeigen öffentlich",
+    "Greenhouse job board API boards-api.greenhouse.io public JSON endpoint",
+    "Lever postings API api.lever.co/v0/postings public JSON",
+    "Teamtailor public jobs API career site JSON feed",
+    "SmartRecruiters Posting API api.smartrecruiters.com/v1/companies postings public",
+    "Recruitee careers site API careers.recruitee.com offers.json public",
+    "Workday career site jobs endpoint wd5.myworkdayjobs.com wday/cxs JSON scraping",
+    "softgarden Karriereseite Jobs API Feed XML scraping",
+    "XING Jobs onlyfy API Stellenanzeigen abrufen Scraping Nutzungsbedingungen",
+    "Kimeta Jobsuchmaschine API Partner Stellenanzeigen Deutschland",
+    "Monster.de API job search scraping Germany 2025",
+    "Glassdoor jobs scraping API Germany Cloudflare blocked 2025",
+    "meinestadt.de Jobs Stellenmarkt Schnittstelle Feed",
+    "stellenanzeigen.de API Schnittstelle Jobware API Stellen abrufen",
+    "Honeypot.io developer jobs Germany platform API scraping",
+    "join.com jobs public API careers page JSON scraper",
+    "Apify StepStone scraper actor pricing per 1000 results",
+    "python-jobspy JobSpy GitHub Indeed LinkedIn Glassdoor Google scrape supported sites Germany 2026",
+    "SerpAPI Google Jobs API pricing 2026 gl=de hl=de",
+    "Apify LinkedIn jobs scraper bebity pricing per 1000 jobs",
+    "Apify Indeed scraper misceres pricing pay per result 2026",
+    "Firecrawl pricing 2026 credits per month scrape crawl",
+    "Bright Data Web Scraper API job postings dataset pricing Indeed LinkedIn 2026",
+    "Jina Reader r.jina.ai pricing rate limits free 2026",
+    "job posting deduplication across job boards algorithm fuzzy matching title company location hash (Budget erschöpft in Vorgängersession)",
+    "Personalvermittler erkennen Stellenanzeige Arbeitnehmerüberlassung Kennzeichnungspflicht § 11 AÜG Anzeige Zeitarbeit Direktvermittlung (Budget erschöpft in Vorgängersession)",
+    "LinkedIn jobs guest API seeMoreJobPostings scraping without login 2026 rate limit 429 (Budget erschöpft in Vorgängersession)",
+    "StepStone Nutzungsbedingungen automatisierte Abfrage Crawler verboten Datenbankschutz",
+    "Crawl4AI vs ScrapeGraphAI vs Firecrawl comparison 2026 (Budget erschöpft in Vorgängersession)",
+    "Indeed Nutzungsbedingungen Scraping verboten robots.txt Cloudflare Blockierung 2025",
+    "Google for Jobs schema.org JobPosting structured data Indexing API requirements",
+    "Web Scraping Deutschland Rechtslage 2025 § 44b UrhG Text und Data Mining Datenbankherstellerrecht § 87b Stellenanzeigen",
+    "Personalvermittler Arbeitnehmerüberlassung § 11 AÜG Kennzeichnungspflicht Stellenanzeige erkennen Zeitarbeit (diese Session)",
+    "job posting deduplication fuzzy matching title company location algorithm (diese Session)",
+    "Monster.de offizielle API Partner Schnittstelle Stellenanzeigen Entwickler (diese Session)",
+    "Kimeta jobs-mit-api Schnittstelle Jobangebote XML CSV Feed einreichen (diese Session)",
+    "onlyfy XING Talent Manager API Stellenanzeigen Schnittstelle Entwickler (diese Session)",
+    "Jobware API Schnittstelle Stellenanzeigen abrufen Entwickler Partner (diese Session)",
+    "robots.txt stepstone.de indeed.de disallow Googlebot GPTBot 2026 (diese Session)",
+    "LinkedIn Jobs guest search public no login scraping blocked 2026 legal risk (diese Session)",
+    "Google Cloud Talent Solution deprecated shut down 2025 2026 job search API alternative (diese Session)",
+    "ScraperAPI pricing 2026 plans free trial requests (diese Session)",
+    "Apify legal scraping DSGVO personenbezogene Daten Stellenanzeigen Deutschland Bright Data Urteil (diese Session)"
+  ],
+  "verification_notes": [
+    "[verify-A 2026-09-08] BA-Jobsuche-API (X-API-Key jobboerse-jobsuche, /pc/v6/jobs, Filter zeitarbeit/angebotsart/pav) durch openapi.yaml/README bestätigt; Live-Erreichbarkeit nicht getestet (Egress-Sperre).",
+    "[verify-A] Indeed Publisher-API wurde 2023 (nicht 2023/2024) abgeschaltet; Ersatz nur iframe-Widget und NDA-Enterprise-Partnerschaft.",
+    "[verify-A] Lever Postings API inkl. EU-Instanz und 429-Regel (>2 POST/s) durch offizielles README bestätigt.",
+    "[verify-A] Workday-CXS-Endpunkt (POST, Seitengröße 20) nur durch Community-Repo belegt, keine offizielle Doku - Confidence auf 'medium' senken.",
+    "[verify-A] Jooble 500 Requests lebenslang/Key bestätigt; API ist POST-only.",
+    "[verify-A] SerpAPI-Preise bestätigt; ergänzend 75 USD/5.000 und 150 USD/15.000 Suchen/Monat.",
+    "[verify-A] python-jobspy 1.1.82 (28.7.2025) bestätigt - seither kein Release (Wartungsrisiko). Crawl4AI 0.9.3 (31.8.2026) bestätigt.",
+    "[verify-A] Greenhouse/Personio-XML/Recruitee/SmartRecruiters-Endpunkte und Teamtailor-JSON-Feed in dieser Session NICHT verifizierbar (Egress-Sperre). Teamtailor-Aussage widerspricht ats.json Finding 21 - vor Nutzung live testen.",
+    "[verify-A] Verdächtig: apify.com/jupri/.../resources/resources/... (doppelter Pfad), dev.to-Workday-Artikel nicht erreichbar."
+  ]
+}

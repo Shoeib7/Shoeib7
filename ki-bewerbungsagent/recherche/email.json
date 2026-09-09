@@ -1,0 +1,535 @@
+{
+  "dimension": "E-Mail-Anbindung, Versand & Antworten",
+  "summary": "Für den Versand aus dem eigenen Konto des Nutzers (iCloud, evtl. Gmail/Outlook) gibt es drei technisch unterschiedliche Wege: (1) klassisches SMTP/IMAP mit App-spezifischem Passwort, (2) OAuth-APIs (Gmail API, Microsoft Graph), (3) Managed-MCP-Server/SaaS-Konnektoren (Composio, Pipedream, Zapier MCP). Für iCloud Mail (icloud.com/me.com) bleibt nur Weg 1: Apple bietet keine öffentliche Sende-API, sondern ausschließlich SMTP (smtp.mail.me.com:587, STARTTLS) und IMAP (imap.mail.me.com:993, SSL/TLS) mit einem App-spezifischen Passwort (erfordert aktivierte Zwei-Faktor-Authentifizierung, generiert unter appleid.apple.com). Apple dokumentiert offiziell ein Tageslimit von 1000 gesendeten Nachrichten und 1000 adressierten Empfängern/Tag sowie max. 500 Empfänger pro Nachricht und 20 MB pro Nachricht (bis 5 GB mit Mail Drop) – das reicht für 10 Bewerbungen/Tag bei weitem, ein wichtiges Detail: App-spezifische Passwörter werden bei jeder Apple-ID-Passwortänderung automatisch und ohne Vorwarnung widerrufen, das Sende-Setup muss also robust gegen Reauth sein. Apples iCloud-Nutzungsbedingungen verbieten explizit unaufgeforderte/kommerzielle Massen-E-Mails; personalisierte 1:1-Bewerbungen (max. 10/Tag) fallen davon nicht darunter, sofern sie individuell adressiert sind und keine Massen-Werbemail-Charakteristik zeigen. iCloud+ erlaubt zusätzlich bis zu 5 eigene Domains (z.B. bewerbung@vorname-nachname.de) unter Beibehaltung derselben SMTP/IMAP-Endpunkte – das steigert die Seriosität, ohne die Architektur zu ändern.\n\nFür Gmail wäre die technisch sauberste Lösung nicht klassisches SMTP, sondern die Gmail API mit Scope gmail.compose (Sensitive-Tier, keine volle CASA-Sicherheitsprüfung nötig) im OAuth-Testing-Modus: Solange die App unter 100 Testnutzern bleibt (hier: 1 Nutzer, der Kandidat selbst), ist KEINE Google-Verifizierung nötig – Tokens laufen aber alle 7 Tage ab und müssen reautorisiert werden, was für einen täglichen Cron-Agenten ein Betriebsrisiko ist (Redirect zur Konsole nötig, kein vollautomatischer Refresh in Testing-Mode über 7 Tage hinaus ohne Re-Consent bei bestimmten Konfigurationen). Alternative: 'Internal' User Type nur mit Google-Workspace-Konto (Firmendomain) verfügbar – für ein privates @gmail.com-Konto nicht nutzbar. Sendelimit Gmail API: 500 E-Mails/Tag (Consumer) bzw. 2000/Tag (Workspace), 500 Empfänger/Nachricht, 100 Quota-Units pro send-Call bei 250 Units/Nutzer/Sek. – für 10 Bewerbungen/Tag irrelevant. Empfehlung: Drafts-API (users.drafts.create) statt direktem Send nutzen – der Agent legt den Entwurf im echten Gmail-Konto an, der Mensch prüft und klickt in der Gmail-App auf Senden. Das erfüllt sowohl 'Qualität vor Quantität' als auch Googles Missbrauchsschutz, da kein automatisierter Versand über OAuth-Send-Scope stattfindet.\n\nMicrosoft Graph (Mail.Send, delegiert) funktioniert analog für Outlook.com/Microsoft 365 – Microsoft-365-Personal-Konten erlauben laut Recherche bis 10.000 Empfänger/24h-Rollfenster (max. 500/Nachricht, ~30 Nachrichten/Minute), kostenlose Outlook.com-Konten nur ca. 300 Empfänger/Tag. Auch hier gibt es eine Drafts-API (createMessage ohne send, oder messages/{id}/send erst nach Freigabe).\n\nFür Seriosität/Zustellbarkeit ist eine eigene Domain (z.B. über Fastmail Individual 6 $/Monat mit bis 100 Domains, mailbox.org Standard ab 3 €/Monat, oder iCloud+ Custom Domain kostenlos ab iCloud+-Abo) empfehlenswert, aber NICHT zwingend für ein MVP mit 10 Bewerbungen/Tag – das bestehende private iCloud/Gmail-Konto des Kandidaten wirkt bei personalisierten Einzel-Bewerbungen ausreichend seriös, sofern SPF/DKIM/DMARC (bei Apple/Google/Microsoft ohnehin serverseitig gesetzt) intakt sind und keine Tracking-Pixel, keine Massen-Templates, keine Lesebestätigung und Anhänge ≤3-5 MB (idealerweise 1 kombiniertes PDF: Anschreiben+Lebenslauf+Zeugnisse) verwendet werden. Deutsche Studien empfehlen Versand Di-Do 6-10 Uhr (alternativ 14-16 Uhr), da die Mehrheit der Bewerbungen erst gegen 11 Uhr eintrifft – ein Jitter von ±20-40 Minuten und ein Tageslimit von 10-15 verhindert botartige Regelmäßigkeit.\n\nFür Antwortverarbeitung ist IMAP IDLE (Push statt Poll) über die Python-Bibliothek imap_tools (mailbox.idle.wait(timeout=60)) der pragmatischste Weg – funktioniert mit iCloud, Gmail und Outlook gleichermaßen über Standard-IMAP, unabhängig vom Sende-Weg. Threading wird über Message-ID/In-Reply-To/References (RFC 2822, per email.utils.make_msgid) sauber nachverfolgt; ICS-Einladungen werden über MIME-Typ text/calendar erkannt und mit der icalendar-Bibliothek geparst. LLM-Klassifikation (Absage/Einladung/Autoresponder/Rückfrage) ist Custom-Logik – es gibt keine fertige Bibliothek dafür, das ist Kern-Claude-Agent-Aufgabe mit Structured-Output-Prompting.\n\nSicherheitsempfehlung: App-spezifische Passwörter/OAuth-Tokens niemals in Klartext-Dateien, sondern in macOS Keychain (security add-generic-password) oder 1Password-CLI (op read mit Service-Account-Token) speichern; geheime Werte nur zur Laufzeit per Subprocess/ENV injizieren. MVP-Empfehlung: 'Draft-Modus' als Default (App-Passwort/OAuth nur mit IMAP-Append in den Entwürfe-Ordner bzw. Gmail-Drafts-API, niemals automatischer Send), v1 nach Vertrauensaufbau: Freigabe-Gate (Mensch bestätigt einzeln oder Batch) mit Sendeprotokoll (Zeitstempel, Empfänger, Betreff-Hash, Status) in einer lokalen SQLite/JSON-Log-Datei, kein direkter Automatikversand ohne Blick des Nutzers.",
+  "findings": [
+    {
+      "claim": "iCloud Mail SMTP-Server ist smtp.mail.me.com Port 587 mit STARTTLS, IMAP-Server ist imap.mail.me.com Port 993 mit SSL/TLS, Authentifizierung nur über App-spezifisches Passwort (kein normales Apple-ID-Passwort, kein OAuth).",
+      "detail": "POP3 wird von iCloud nicht unterstützt, nur IMAP. Voraussetzung für App-spezifisches Passwort ist aktivierte Zwei-Faktor-Authentifizierung; Erstellung unter appleid.apple.com > Sign-In and Security > App-Specific Passwords.",
+      "sources": [
+        "https://mailmeteor.com/smtp/icloud-smtp-settings",
+        "https://smtpedia.com/icloud-mail-email-settings/"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "iCloud Mail begrenzt offiziell auf 1000 gesendete Nachrichten/Tag und 1000 adressierte Empfänger/Tag, max. 500 Empfänger pro Nachricht.",
+      "detail": "Für 10 Bewerbungen/Tag völlig ausreichend, keine Sonderfreischaltung nötig. Nachrichtengröße max. 20 MB Standard (bis 5 GB mit Mail Drop, aber Mail Drop wird von klassischen SMTP/IMAP-Bewerbungs-Workflows nicht genutzt).",
+      "sources": [
+        "https://support.apple.com/en-us/102198"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Apple revoziert alle App-spezifischen Passwörter automatisch und ohne Vorwarnung bei jeder Apple-ID-Passwortänderung.",
+      "detail": "Konsequenz für unser System: Der Agent muss bei Auth-Fehlern (535/Login failed) den Nutzer aktiv zur Neu-Generierung auffordern statt endlos zu retryen; kein stiller Dauerbetrieb garantiert.",
+      "sources": [
+        "https://www.sysinfotools.com/how-to/generate-app-password-in-icloud.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Apples iCloud-Nutzungsbedingungen verbieten unaufgeforderte/kommerzielle Massen-E-Mails ('unsolicited or unauthorized email messages, advertising, ... bulk commercial advertising').",
+      "detail": "Individuelle, personalisierte 1:1-Bewerbungen an konkrete Ansprechpartner (max. ~10/Tag) fallen nicht unter 'bulk' im Sinne der Klausel; bei ähnlichem Textbaustein für viele Empfänger könnte Missbrauchserkennung dennoch anschlagen. Kein API-Zugriff für Bulk-Sender vorgesehen — nur Postmaster-Bulk-Anforderungen (reverse DNS, Unsubscribe-Link etc.) gelten für echte Massenversender, nicht für uns.",
+      "sources": [
+        "https://www.apple.com/legal/internet-services/icloud/",
+        "https://support.apple.com/en-us/102322"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Apple erlaubt Rate-Limits/Soft-Blocks bei Bulk-Sendern (Tausende E-Mails/Tag); bei niedrigem Volumen (persönliche Korrespondenz) gilt iCloud-SMTP als zuverlässig.",
+      "detail": "10 Bewerbungen/Tag liegt weit unterhalb jeder Missbrauchsschwelle.",
+      "sources": [
+        "https://www.paubox.com/blog/fraudsters-impersonate-apple-icloud-to-send-fake-storage-alerts"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "iCloud+ Custom Email Domain erlaubt bis zu 5 aktive eigene Domains, gleiche SMTP/IMAP-Endpunkte bleiben bestehen, DNS-Propagation kann mehrere Stunden dauern.",
+      "detail": "Setup über icloud.com/icloudplus, Domain-Besitz + DNS-Zugriff nötig, Zwei-Faktor-Auth erforderlich. Erhöht Seriosität (eigener Domainname statt @icloud.com) ohne Wechsel der Sende-Technik.",
+      "sources": [
+        "https://support.apple.com/en-us/102540",
+        "https://support.apple.com/guide/icloud/set-up-a-custom-email-domain-mm0e4339d289/icloud"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Gmail-API-Sendequote: 500 E-Mails/Tag für kostenlose Gmail-Konten, 2000/Tag für Google-Workspace-Konten; zusätzlich max. 500 Empfänger pro Nachricht.",
+      "detail": "API-Quota separat: 1 Mrd. Quota-Units/Tag global, 250 Units/Nutzer/Sekunde, messages.send kostet 100 Units (~60 Sends/Minute max. pro Nutzer). Für 10 Bewerbungen/Tag irrelevant, Limit greift nie.",
+      "sources": [
+        "https://www.unipile.com/gmail-api-limits/",
+        "https://developers.google.com/workspace/gmail/api/reference/quota"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Gmail-API-Scope gmail.send ist 'Sensitive', gmail.compose und gmail.modify sind 'Restricted'; die restriktivste angeforderte Scope-Klasse bestimmt die Verifizierungsstufe der gesamten App.",
+      "detail": "Sensitive-Scopes brauchen Markenverifizierung, aber keine CASA-Sicherheitsprüfung; Restricted-Scopes brauchen zusätzlich eine CASA-Sicherheitsprüfung (kostenpflichtig, aufwändig) für öffentliche Apps. Bei reiner Eigennutzung (Testing-Modus, <100 Nutzer) entfällt beides.",
+      "sources": [
+        "https://www.unipile.com/gmail-api-scopes-guide/",
+        "https://developers.google.com/workspace/gmail/api/auth/scopes"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Im Google-Cloud-OAuth-Testing-Modus (Publishing Status 'Testing') sind bis 100 Testnutzer ohne Verifizierung erlaubt; Access-Tokens für Testnutzer laufen nach 7 Tagen ab und erfordern Re-Autorisierung.",
+      "detail": "Für einen Einzelnutzer (Kandidat selbst als Testnutzer) ist keine Google-Verifizierung nötig. Wichtige betriebliche Konsequenz: Alle 7 Tage muss der Refresh-Token erneuert werden (Browser-Consent-Flow), das lässt sich nicht vollautomatisch für Monate am Stück betreiben ohne Re-Consent-Schritt – Publishing auf 'In Production' würde das Problem lösen, erfordert aber bei Sensitive/Restricted Scopes eine Verifizierung, die für 1 Nutzer meist unnötigen Aufwand bedeutet.",
+      "sources": [
+        "https://support.google.com/cloud/answer/15549945?hl=en",
+        "https://support.google.com/cloud/answer/13464323?hl=en"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Google-Workspace-Konten (Firmendomain) können 'Internal' User Type wählen: keine Verifizierung, kein 100-Nutzer-Cap, kein Unverified-Warning – aber nur mit zahlender Workspace-Domain, nicht mit privatem @gmail.com.",
+      "detail": "Für den Kandidaten mit privatem Gmail-Konto nicht nutzbar, außer er kauft eine eigene Google-Workspace-Domain (ab 8,40 $/Monat/Nutzer, Stand 2025).",
+      "sources": [
+        "https://ssojet.com/ciam-qna/google-oauth-consent-screen-issues-verification-requirements"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Gmail Drafts-API (users.drafts.create) legt Entwürfe direkt im Gmail-Konto an; der Mensch sendet manuell per Klick in Gmail.",
+      "detail": "Google-Python-Samples-Repo (googleworkspace/python-samples) bietet fertige create_draft.py und create_draft_with_attachment.py Beispiele; Workflow: MIME-Message (RFC 2822) bauen, Base64url-kodieren, service.users().drafts().create(userId='me', body=...).execute(). Empfohlener MVP-Weg für Gmail: Draft statt Send.",
+      "sources": [
+        "https://github.com/googleworkspace/python-samples/blob/main/gmail/snippet/send%20mail/create_draft.py",
+        "https://developers.google.com/workspace/gmail/api/guides/drafts"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Google hat 'Less Secure Apps'/reines Passwort-Login für Drittanbieter-IMAP/SMTP/POP schrittweise abgeschafft; volle Durchsetzung erfolgte zwischen März und Mai 2025 (Workspace: 1. Mai 2025).",
+      "detail": "Klassisches smtplib-Login mit Gmail-Passwort funktioniert nicht mehr zuverlässig. App-Passwörter (separate Funktion, nicht 'Less Secure Apps') funktionieren weiterhin für Nutzer ohne 2FA-Sonderfälle, aber Google empfiehlt für neue Integrationen klar OAuth 2.0 / die Gmail API statt SMTP-Passwort-Login.",
+      "sources": [
+        "https://www.getmailbird.com/gmail-oauth-authentication-changes-user-guide/",
+        "https://workspaceupdates.googleblog.com/2023/09/winding-down-google-sync-and-less-secure-apps-support.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "GongRzhe/Gmail-MCP-Server (npm-Paket @gongrzhe/server-gmail-autoauth-mcp) ist ein MCP-Server für Gmail mit Auto-Authentifizierung, unterstützt Senden mit Anhang, Lesen, Suchen, Labels; das Original-Repo ist seit August 2025 unmaintained mit 72+ offenen PRs, ein aktiv gepflegter Fork existiert bei ArtyMcLabin/Gmail-MCP-Server.",
+      "detail": "OAuth-Credentials werden in ~/.gmail-mcp/ gespeichert. Reifegrad: funktional, aber Wartungsstatus des Original-Repos ist ein Risiko für Produktivbetrieb; Fork prüfen vor Einsatz.",
+      "sources": [
+        "https://github.com/GongRzhe/Gmail-MCP-Server",
+        "https://github.com/ArtyMcLabin/Gmail-MCP-Server"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Google bietet seit 2025/2026 einen offiziellen, von Google gehosteten Gmail-MCP-Server (Developer Preview Program) mit Lese- und begrenzten Schreibrechten (Entwürfe erstellen, Labels setzen), der bestehende Google-Berechtigungen erbt.",
+      "detail": "Der offizielle MCP-Server unterstützt laut Dokumentation explizit 'create draft emails' als Schreibaktion — kein direkter Send über den offiziellen MCP-Server dokumentiert, passt zum empfohlenen Draft-First-Ansatz.",
+      "sources": [
+        "https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server",
+        "https://developers.google.com/workspace/gmail/api/reference/mcp"
+      ],
+      "confidence": "low",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Microsoft Graph Mail.Send (delegiert) sendet im Namen des angemeldeten Nutzers aus dessen eigenem Postfach; Zustellung unterliegt weiterhin Exchange-Online-Limits/Throttling.",
+      "detail": "Globales Graph-Throttling: 130.000 Requests/10s pro App über alle Tenants; Mail-Throttling ist pro App-ID+Mailbox-Kombination separat; Exchange begrenzt Bulk-Mailing auf ca. 2000 Sends/24h pro Mailbox.",
+      "sources": [
+        "https://learn.microsoft.com/en-us/graph/throttling-limits"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Microsoft 365 Personal/Family erlaubt laut Community-Quellen bis 10.000 Empfänger/rollierende 24h (max. 500/Nachricht, ~30 Nachrichten/Minute per SMTP AUTH); kostenlose Outlook.com-Konten liegen bei nur ca. 300 Empfängern/Tag.",
+      "detail": "Für 10 Bewerbungen/Tag reicht auch das kostenlose Outlook.com-Limit bei weitem. Sendelimits sind rollierende 24h-Fenster, kein Kalendertag.",
+      "sources": [
+        "https://www.usecarly.com/blog/outlook-sending-limit/",
+        "https://www.beanstalkconsulting.co/blogs/office-365-sending-limits-guide"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Fastmail Individual-Plan kostet 6 $/Monat (5 $/Monat bei Jahreszahlung) mit 50 GB Speicher und Unterstützung für bis zu 100 eigene Domains.",
+      "detail": "Guter Kompromiss aus Preis und Seriosität für eine eigene professionelle Bewerbungsdomain (z.B. vorname.nachname@eigene-domain.de), volles IMAP/SMTP mit App-Passwort ähnlich iCloud.",
+      "sources": [
+        "https://tekpon.com/software/fastmail/pricing/",
+        "https://www.fastmail.help/hc/en-us/articles/8033939068815-2024-pricing-and-plan-updates"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "mailbox.org (Deutschland, GDPR-konform, werbefrei) bietet Standard-Plan mit Custom-Domain-Support ab ca. 3 €/Monat (30 €/Jahr), inkl. 50 Domain-Aliase.",
+      "detail": "Deutscher Anbieter, für einen deutschen Bewerbungskontext ggf. das seriösere/vertrauenswürdigere Signal als US-Anbieter (Datenschutz-Narrativ), Preis niedriger als Fastmail.",
+      "sources": [
+        "https://mailbox.org/en/news/new-price-plans-available-mailboxorg/"
+      ],
+      "confidence": "medium",
+      "info_date": "2024/2025"
+    },
+    {
+      "claim": "Proton Mail Mail-Plus-Plan mit Custom Domain kostet ca. 47 $/Jahr (Individual), Unlimited-Plan 119 $/Jahr; alle bezahlten Pläne unterstützen Custom Domains.",
+      "detail": "Proton bietet ebenfalls Bridge-App für IMAP/SMTP-Zugriff (nicht direkt über Standard-Port ohne Proton Bridge); zusätzlicher Client-Baustein nötig, macht die Integration komplexer als Fastmail/mailbox.org/iCloud.",
+      "sources": [
+        "https://proton.me/mail/pricing",
+        "https://proton.me/support/custom-domain"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Google Workspace Business Starter kostet 8,40 $/Nutzer/Monat (7,00 $ bei Jahreszahlung, Stand Anfang 2025 nach Preiserhöhung durch Gemini-Bundling).",
+      "detail": "Nur relevant, falls eine eigene Domain via Google Workspace statt Fastmail/mailbox.org gewählt wird; für einen Einzelnutzer meist teurer als die Alternativen ohne Zusatznutzen.",
+      "sources": [
+        "https://www.getmailbird.com/google-workspace-pricing-small-business-guide/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Tracking-Pixel (Open-/Click-Tracking) in Cold-E-Mails wird von modernen Spamfiltern zunehmend negativ bewertet und sollte für Bewerbungs-E-Mails komplett vermieden werden.",
+      "detail": "Passt exakt zur Vorgabe 'keine Lesebestätigung' im Auftrag — auch technisch keine Tracking-Pixel/Link-Tracking einbauen, da dies (a) unseriös wirkt und (b) Zustellbarkeit senkt.",
+      "sources": [
+        "https://instantly.ai/blog/email-tracking-and-deliverability-why-tracking-pixels-can-hurt-your-inbox-placement/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Empfohlene Anhangsgröße für Bewerbungen: ideal 1-3 MB, akzeptabel bis 5-6 MB; alle Dokumente (Anschreiben, Lebenslauf, Zeugnisse) in EINER kombinierten PDF-Datei, Reihenfolge: Anschreiben, Lebenslauf, Zeugnisse.",
+      "detail": "Deckt sich mit der Vorgabe 'Anhang ≤ 3-5 MB'; PDF-Kompression von gescannten Zeugnissen ist wichtig, um unter dem Limit zu bleiben.",
+      "sources": [
+        "https://www.stratag.de/bewerbung-dateigroesse",
+        "https://www.bewerbungsanschreiben.info/achtung-datenflut-ueber-die-richtige-dateigroesse-von-bewerbungsanlagen/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Beste Sendezeit für Bewerbungs-E-Mails in Deutschland laut mehreren Ratgeberquellen: Dienstag bis Donnerstag zwischen 6-10 Uhr (alternativ 14-16 Uhr); die meisten Bewerbungen werden gegen 11 Uhr verschickt, ein früherer Versand verschafft einen Sichtbarkeitsvorteil.",
+      "detail": "Kein wissenschaftlicher Peer-Review-Beleg, sondern HR-Ratgeberkonsens (Stepstone, arwa.de u.a.) — als Heuristik für den Scheduler nutzen (z.B. Versandfenster Di-Do 7:00-9:30 Uhr mit Jitter), nicht als belastbare Studie zitieren.",
+      "sources": [
+        "https://arwa.de/de/blog/wann-sollte-man-eine-bewerbung-abschicken",
+        "https://arbeits-abc.de/verschickt-eure-bewerbung-um-diese-uhrzeit/"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "SPF, DKIM und DMARC sind die drei DNS-Records, die Mailbox-Provider zur Authentifizierung nutzen; bei Versand über bestehende Konten (iCloud/Gmail/Outlook) sind diese bereits serverseitig korrekt konfiguriert, bei einer eigenen Domain müssen sie selbst gesetzt werden.",
+      "detail": "Bei Nutzung des bestehenden privaten Kontos (kein eigener Mailserver) entfällt dieser komplette Konfigurationsaufwand – ein wichtiges Argument für den MVP, KEINE eigene Domain/eigenen Mailserver aufzusetzen, sondern das bestehende iCloud/Gmail-Konto zu nutzen.",
+      "sources": [
+        "https://woodpecker.co/blog/spf-dkim/",
+        "https://getreplies.ai/blog/set-up-spf-dkim-dmarc-new-outbound-domain/"
+      ],
+      "confidence": "high",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "imap_tools (PyPI/GitHub: ikvk/imap_tools) unterstützt IMAP IDLE (mailbox.idle.wait(timeout=60)) nativ ohne externe Abhängigkeiten, Python 3.8+, funktioniert mit jedem IMAP-Server inkl. iCloud, Gmail, Outlook.",
+      "detail": "Empfohlene Bibliothek für Push-basiertes Antwort-Polling statt aktivem Poll-Loop; deutlich ressourcenschonender als Intervall-Polling.",
+      "sources": [
+        "https://github.com/ikvk/imap_tools",
+        "https://github.com/ikvk/imap_tools/blob/master/examples/idle.py"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "E-Mail-Threading basiert auf den Headern Message-ID, In-Reply-To und References (RFC 2822); In-Reply-To zeigt auf die direkte Elternnachricht, References trägt die volle Thread-Historie.",
+      "detail": "Python: email.utils.make_msgid() zur Erzeugung eindeutiger IDs; beim Versand sollte der Agent die Message-ID der Originalstelle/-anzeige (falls vorhanden) referenzieren, um Antworten korrekt zuzuordnen, sofern die Bewerbung als Antwort auf eine erhaltene Ausschreibungs-Mail geht (selten) oder um eigene Nachfassmails zu threaden.",
+      "sources": [
+        "https://lobstermail.ai/blog/email-threading-explained-how-in-reply-to-and-references-headers-keep-conversations-together"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "ICS-Kalendereinladungen (Interview-Termine) erscheinen im MIME-Typ text/calendar, oft mit Parameter method=REQUEST; das Python-Paket icalendar (RFC-5545-konform) parst SUMMARY, DTSTART, DTEND, LOCATION.",
+      "detail": "Für die Klassifikation 'Einladung mit Termin' zusätzlich zur reinen Text-Klassifikation nützlich — der Agent kann Termin direkt strukturiert extrahieren statt per LLM aus Freitext zu raten.",
+      "sources": [
+        "https://pypi.org/project/icalendar",
+        "https://doughellmann.com/posts/working-with-imap-and-icalendar/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "yagmail ist ein vereinfachter Gmail-spezifischer SMTP-Wrapper (basiert auf smtplib) mit eingebautem asynchronem Client; aiosmtplib ist eine generische, providerunabhängige async-SMTP-Bibliothek für beliebige Server (inkl. iCloud, Outlook).",
+      "detail": "Für unser Multi-Provider-Ziel (iCloud primär, evtl. Gmail/Outlook) ist aiosmtplib oder das Standard-smtplib/imaplib-Duo die flexiblere Wahl gegenüber dem Gmail-only yagmail.",
+      "sources": [
+        "https://github.com/kootenpv/yagmail",
+        "https://aiosmtplib.readthedocs.io/en/latest/usage.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Nodemailer (Senden) und ImapFlow (Empfangen, von EmailEngine/Postalsys) sind die etablierten Node.js-Pendants zu smtplib/imaplib; beide sind Promise-basiert und provider-agnostisch.",
+      "detail": "Relevant nur, falls der Agent-Stack in Node.js statt Python implementiert wird; funktional äquivalent zu den Python-Bibliotheken.",
+      "sources": [
+        "https://github.com/nodemailer/nodemailer",
+        "https://github.com/postalsys/imapflow"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "1Password CLI (op read mit Secret-Reference-URIs op://vault/item/field, oder op run mit 1Password-Environments) und Service-Account-Tokens (OP_SERVICE_ACCOUNT_TOKEN) ermöglichen automatisierten, sicheren Zugriff auf App-Passwörter/OAuth-Client-Secrets ohne Klartext-Speicherung in Dateien.",
+      "detail": "Best Practice für unser System: App-spezifisches iCloud-Passwort und Gmail-OAuth-Refresh-Token in 1Password (oder macOS-Keychain via security add-generic-password/find-generic-password) ablegen, zur Laufzeit per Subprocess-Call injizieren, niemals in .env-Klartext oder Git committen.",
+      "sources": [
+        "https://developer.1password.com/docs/cli/secrets-scripts",
+        "https://ss64.com/mac/security-password.html"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Composio bietet 'Agent Mail' (dedizierte E-Mail-Postfächer für Agenten) sowie vorgefertigte Gmail-/Outlook-Trigger; Pipedream betreibt einen gehosteten MCP-Server mit über 10.000 Tools/3.000 Apps, kostenlos für Personal-Use, wurde im November 2025 von Workday zur Übernahme angekündigt; Zapier MCP verbindet Claude/ChatGPT/Cursor mit über 9.000 Apps inkl. Gmail/Slack.",
+      "detail": "Für einen Einzelnutzer mit einem privaten E-Mail-Konto ist der direkte Weg (Gmail-API/Graph-API/SMTP-IMAP) einfacher, transparenter und ohne Drittanbieter-Datenfluss als diese breiten SaaS-Konnektoren — Composio/Pipedream/Zapier MCP eignen sich eher für Skalierung auf viele Nutzer/viele Apps, nicht für das MVP-Ziel 'für eine Person funktionieren'.",
+      "sources": [
+        "https://composio.dev/toolkits/agent_mail",
+        "https://peliqan.io/blog/composio-pipedream-peliqan-mcp/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Personalisierung ist die wichtigste Anti-Spam-Maßnahme: identische Templates/Textbausteine für viele Empfänger werden von modernen Spamfiltern erkannt und abgewertet, individuell formulierte, konkrete Inhalte wirken vertrauenswürdiger.",
+      "detail": "Deckt sich direkt mit der Produktphilosophie 'nicht generisch klingende Anschreiben' — technisch UND aus Zustellbarkeitssicht ist Generizität ein Risiko, nicht nur ein Qualitätsproblem.",
+      "sources": [
+        "https://www.mailpool.ai/blog/cold-emailing-in-2025-18-sending-best-practices-to-beat-spam-filters-and-reach-the-inbox"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Neue Sende-Domains sollten laut Cold-Email-Best-Practices über 2-4 Wochen langsam 'aufgewärmt' werden (10-20 E-Mails/Tag steigernd), bevor höheres Volumen gesendet wird; Google/Yahoo/Microsoft verlangen seit 5. Mai 2025 für Massenversender Beschwerdequote unter 0,3% und Bounce-Rate unter 2%.",
+      "detail": "Für unser Szenario (bestehendes, bereits 'warmes' privates E-Mail-Konto, kein neuer Massenversender) nicht direkt relevant — Warm-up betrifft primär neue Domains/Massenversand, nicht ein seit Jahren genutztes persönliches Konto mit 10 E-Mails/Tag. Falls jedoch eine neue eigene Domain gewählt wird, gilt der Warm-up-Hinweis.",
+      "sources": [
+        "https://www.warmforge.ai/blog/cold-email-deliverability-guide-2025",
+        "https://www.topdigitize.com/the-ultimate-guide-to-cold-Email-deliverability-in-2025"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    }
+  ],
+  "tools": [
+    {
+      "name": "iCloud Mail (SMTP/IMAP + App-spezifisches Passwort)",
+      "url": "https://support.apple.com/en-us/102198",
+      "category": "API",
+      "access": "SMTP smtp.mail.me.com:587 (STARTTLS) + IMAP imap.mail.me.com:993 (SSL/TLS); Auth über App-spezifisches Passwort (2FA erforderlich); kein OAuth, keine offizielle Mail-API",
+      "pricing": "Kostenlos im Rahmen des bestehenden Apple-ID-Kontos; iCloud+ für Custom Domain ab 0,99 €/Monat (50GB-Tarif, Stand 2025)",
+      "verdict": "empfohlen — einziger Weg für iCloud, direkt nutzbar mit vorhandenem Konto des Nutzers, ausreichende Limits (1000/Tag)"
+    },
+    {
+      "name": "Gmail API (Drafts + Send)",
+      "url": "https://developers.google.com/workspace/gmail/api/guides/drafts",
+      "category": "API",
+      "access": "OAuth 2.0, Scopes gmail.compose (Draft+Send, Sensitive-Tier) oder gmail.send (nur Senden, Sensitive-Tier); Testing-Modus ohne Verifizierung bis 100 Nutzer, Token-Ablauf 7 Tage im Testing-Modus",
+      "pricing": "Kostenlos (Google-Cloud-Projekt gratis anlegbar); Sendequote 500/Tag Consumer, 2000/Tag Workspace",
+      "verdict": "empfohlen für Draft-Erstellung (users.drafts.create) — Mensch sendet manuell, umgeht Verifizierungspflicht komplett"
+    },
+    {
+      "name": "Microsoft Graph API (Mail.Send / createMessage)",
+      "url": "https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0",
+      "category": "API",
+      "access": "OAuth 2.0 (Delegated Mail.Send / Mail.ReadWrite), Azure-App-Registrierung nötig; Throttling pro App-ID+Mailbox",
+      "pricing": "Kostenlos mit Microsoft-365-Personal- oder Outlook.com-Konto; App-Registrierung in Azure AD kostenlos",
+      "verdict": "optional — nur relevant falls Nutzer Outlook/Microsoft-365 statt iCloud/Gmail nutzt; komplexeres Setup (Azure-App-Registrierung) als Gmail/iCloud"
+    },
+    {
+      "name": "GongRzhe/Gmail-MCP-Server",
+      "url": "https://github.com/GongRzhe/Gmail-MCP-Server",
+      "category": "MCP-Server",
+      "access": "npm-Paket @gongrzhe/server-gmail-autoauth-mcp, OAuth-Auto-Auth, Credentials lokal in ~/.gmail-mcp/",
+      "pricing": "Kostenlos, Open Source",
+      "verdict": "optional — funktional, aber Original seit 08/2025 unmaintained (72+ offene PRs); wenn genutzt, aktiven Fork ArtyMcLabin/Gmail-MCP-Server bevorzugen und Send-Funktion deaktivieren/nicht nutzen (nur Draft/Read)"
+    },
+    {
+      "name": "Google offizieller Gmail-MCP-Server (Developer Preview)",
+      "url": "https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server",
+      "category": "MCP-Server",
+      "access": "Remote MCP, erbt bestehende Google-Account-Berechtigungen, Teil des Google Workspace Developer Preview Program",
+      "pricing": "Kostenlos (Preview-Programm, Verfügbarkeit ggf. eingeschränkt)",
+      "verdict": "optional — vielversprechend als offizielle, gewartete Alternative zu Community-MCP-Servern, aber Preview-Status (Reife/Verfügbarkeit für Einzelentwickler unklar) prüfen vor Produktiveinsatz"
+    },
+    {
+      "name": "imap_tools (ikvk/imap_tools)",
+      "url": "https://github.com/ikvk/imap_tools",
+      "category": "Bibliothek",
+      "access": "PyPI-Paket, reines Python 3.8+, keine externen Abhängigkeiten, unterstützt IMAP IDLE",
+      "pricing": "Kostenlos, Open Source (Apache-2.0)",
+      "verdict": "empfohlen — beste Python-Bibliothek für Antwort-Polling/IDLE, providerunabhängig (iCloud/Gmail/Outlook)"
+    },
+    {
+      "name": "aiosmtplib",
+      "url": "https://aiosmtplib.readthedocs.io/en/latest/usage.html",
+      "category": "Bibliothek",
+      "access": "PyPI-Paket, async SMTP, STARTTLS-Auto-Upgrade, arbeitet mit email.message.EmailMessage",
+      "pricing": "Kostenlos, Open Source",
+      "verdict": "empfohlen für Sende-Client (Draft-per-IMAP-Append bzw. SMTP-Send nach Freigabe), providerunabhängig"
+    },
+    {
+      "name": "yagmail",
+      "url": "https://github.com/kootenpv/yagmail",
+      "category": "Bibliothek",
+      "access": "PyPI-Paket, Gmail-spezifisch, Wrapper um smtplib",
+      "pricing": "Kostenlos, Open Source",
+      "verdict": "vermeiden — auf Gmail beschränkt, für unseren Multi-Provider-Ansatz (primär iCloud) ungeeignet, aiosmtplib/smtplib direkt vorziehen"
+    },
+    {
+      "name": "icalendar (PyPI)",
+      "url": "https://pypi.org/project/icalendar",
+      "category": "Bibliothek",
+      "access": "PyPI-Paket, RFC-5545-konformer ICS-Parser/Generator",
+      "pricing": "Kostenlos, Open Source",
+      "verdict": "empfohlen für strukturierte Terminerkennung bei Interview-Einladungen mit ICS-Anhang"
+    },
+    {
+      "name": "1Password CLI (op)",
+      "url": "https://developer.1password.com/docs/cli/secrets-scripts",
+      "category": "CLI",
+      "access": "Secret-Reference-URIs (op://vault/item/field), Service-Account-Token für unbeaufsichtigte Automatisierung",
+      "pricing": "1Password-Abo erforderlich (ca. 2,99-7,99 $/Monat je nach Plan, Stand 2025); CLI selbst kostenlos im Abo enthalten",
+      "verdict": "empfohlen falls Nutzer bereits 1Password hat; sonst macOS-Keychain (kostenlos, systemeigen) als Alternative"
+    },
+    {
+      "name": "macOS Keychain (security CLI)",
+      "url": "https://ss64.com/mac/security-password.html",
+      "category": "CLI",
+      "access": "Systemeigenes macOS-Tool, add-generic-password/find-generic-password, lokal verschlüsselt gespeichert",
+      "pricing": "Kostenlos, in macOS enthalten",
+      "verdict": "empfohlen als einfachster/kostenloser Weg zur sicheren Speicherung von App-Passwort/Tokens auf einem macOS-Entwicklungsrechner"
+    },
+    {
+      "name": "Composio (Agent Mail)",
+      "url": "https://composio.dev/toolkits/agent_mail",
+      "category": "SaaS",
+      "access": "Managed OAuth, vorgefertigte Gmail/Outlook-Trigger und -Tools, API-Key-basiert",
+      "pricing": "Free Tier vorhanden, kostenpflichtige Pläne für höheres Volumen (genaue Preise nicht in Suchergebnissen belegt)",
+      "verdict": "vermeiden für MVP — zusätzlicher Drittanbieter-Datenfluss über Nutzer-E-Mail-Zugangsdaten, für 1 Person unnötige Komplexität/Abhängigkeit gegenüber direkter Gmail-API/SMTP-Anbindung"
+    },
+    {
+      "name": "Pipedream (gehosteter MCP-Server)",
+      "url": "https://nango.dev/blog/best-tools-to-trigger-ai-agents-from-email/",
+      "category": "SaaS",
+      "access": "mcp.pipedream.com, über 10.000 Tools/3.000 Apps, Managed OAuth",
+      "pricing": "Kostenlos für Personal Use (Stand 2025/2026), Übernahme durch Workday im November 2025 angekündigt (Zukunft des Produkts unsicher)",
+      "verdict": "vermeiden für MVP — gleiche Begründung wie Composio, zusätzlich Übernahme-Unsicherheit"
+    },
+    {
+      "name": "Zapier MCP",
+      "url": "https://zapier.com/mcp",
+      "category": "SaaS",
+      "access": "MCP-Zugriff auf 9.000+ Apps inkl. Gmail, verbindet Claude/ChatGPT/Cursor",
+      "pricing": "Zapier-Abo erforderlich für höheres Volumen, Free Tier stark limitiert (Task-basiert, genaue Zahlen nicht in Suchergebnissen)",
+      "verdict": "vermeiden für MVP — für einen einzelnen Nutzer mit einem E-Mail-Konto unnötiger Overhead gegenüber direktem SMTP/API-Zugriff"
+    },
+    {
+      "name": "Fastmail",
+      "url": "https://www.fastmail.help/hc/en-us/articles/8033939068815-2024-pricing-and-plan-updates",
+      "category": "SaaS",
+      "access": "IMAP/SMTP mit App-Passwort, JMAP-API verfügbar, Custom-Domain-Support",
+      "pricing": "Individual-Plan 6 $/Monat (5 $/Monat jährlich), bis 100 Custom Domains, 50GB Speicher",
+      "verdict": "optional — gute Wahl für eigene Bewerbungsdomain, falls Seriosität/Trennung vom privaten Konto gewünscht ist; für MVP nicht zwingend nötig"
+    },
+    {
+      "name": "mailbox.org",
+      "url": "https://mailbox.org/en/news/new-price-plans-available-mailboxorg/",
+      "category": "SaaS",
+      "access": "IMAP/SMTP, Custom-Domain-Support ab Standard-Plan",
+      "pricing": "Standard-Plan ca. 3 €/Monat (30 €/Jahr), Light-Plan 1 €/Monat ohne Custom-Domain",
+      "verdict": "optional — deutscher, GDPR-fokussierter Anbieter, günstigste Custom-Domain-Option, passt gut zum deutschen Arbeitsmarktkontext"
+    },
+    {
+      "name": "Proton Mail",
+      "url": "https://proton.me/mail/pricing",
+      "category": "SaaS",
+      "access": "IMAP/SMTP nur über zusätzliche Proton-Bridge-App (kein direkter Standard-IMAP/SMTP-Zugriff), Custom-Domain-Support ab Mail-Plus",
+      "pricing": "Mail Plus mit Custom Domain ca. 47 $/Jahr, Unlimited 119 $/Jahr",
+      "verdict": "vermeiden für dieses Projekt — zusätzliche Bridge-App-Komplexität ohne klaren Zusatznutzen gegenüber Fastmail/mailbox.org/iCloud+"
+    }
+  ],
+  "recommendations": [
+    "MVP: Kein automatischer Versand. Der Agent legt fertige, formatierte E-Mails als Entwurf an — bei iCloud per IMAP-APPEND in den 'Entwürfe'-Ordner (funktioniert providerunabhängig über Standard-IMAP), bei Gmail per Drafts-API (users.drafts.create). Der Nutzer öffnet die eigene Mail-App/Webmail und klickt selbst auf Senden — das erfüllt sowohl 'sieht nicht nach Bot aus' als auch 'Freigabe-Gate' ohne zusätzliche Versand-Logik im MVP.",
+    "Primäres Konto für den Start: bestehendes iCloud-Konto des Nutzers (smtp.mail.me.com/imap.mail.me.com + App-spezifisches Passwort), da bereits vorhanden, ausreichende Limits (1000/Tag) und kein OAuth-Verifizierungsproblem wie bei Google.",
+    "v1 (nach Vertrauensaufbau): Direkter SMTP-Versand über aiosmtplib mit App-spezifischem Passwort (iCloud) bzw. IMAP-APPEND-in-Sent-Ordner nach dem Senden, gesteuert durch ein explizites Freigabe-Gate (CLI-Prompt oder kurze Review-UI) pro Batch der 10 Tages-Bewerbungen — niemals stiller Vollautomatik-Versand.",
+    "Für Gmail: Drafts-API mit gmail.compose-Scope im OAuth-Testing-Modus (1 Testnutzer = der Kandidat selbst) nutzen, KEINE Produktions-Verifizierung beantragen (unnötiger Aufwand für 1 Nutzer). Token-Ablauf nach 7 Tagen im Testing-Modus einplanen: wöchentlicher Reauth-Reminder für den Nutzer statt Fehlerabbruch.",
+    "Sendeprotokoll: SQLite oder JSON-Log mit Zeitstempel, Empfänger-Domain (nicht volle Adresse aus Datenschutzgründen im Log ok, da eigenes System), Betreff, Status (Draft/Gesendet/Fehler), verwendetes Konto — für Nachvollziehbarkeit und um Tageslimits (10-15) selbst zu überwachen, unabhängig von Provider-Limits.",
+    "Anhänge: IMMER ein kombiniertes PDF (Anschreiben + Lebenslauf + ggf. Zeugnisse), Zielgröße 1-3 MB, hart begrenzt auf 5 MB; PDF-Kompression bei gescannten Zeugnis-Anhängen einbauen.",
+    "Betreffzeile standardisieren nach Vorgabe 'Bewerbung als [Position] — [Referenz/Kennung falls vorhanden]'; kein Marketing-Ton, keine Emojis, keine Massen-Signalwörter.",
+    "Kein Tracking-Pixel, kein Link-Tracking, keine Lesebestätigung anfordern — sowohl aus Seriositätsgründen als auch weil dies Zustellbarkeit senkt.",
+    "Versandfenster mit Jitter: Kernfenster Di-Do 7:00-9:30 Uhr (plus optional 14:00-16:00 Uhr), pro E-Mail zufälliger Versatz von ±15-40 Minuten, damit kein exaktes Cron-Muster (z.B. immer :00 Minute) erkennbar wird — technisch über send_later/Scheduler mit Zufallsversatz umsetzen, nicht als exakten Cron-Job.",
+    "Geheimnisverwaltung: App-spezifisches iCloud-Passwort und Gmail-OAuth-Refresh-Token NIE in Klartext-.env oder Git; macOS-Keychain (kostenlos, lokal) als Minimallösung, 1Password-CLI mit Service-Account-Token falls Nutzer bereits 1Password-Abo hat.",
+    "Eigene Domain (Fastmail ~6 $/Monat oder mailbox.org ~3 €/Monat oder iCloud+ Custom Domain) ist ein sinnvolles Upgrade für Seriosität (z.B. bewerbung@vorname-nachname.de statt @icloud.com), aber NICHT MVP-kritisch — erst nach Validierung des Kern-Workflows einführen.",
+    "Von Composio/Pipedream/Zapier MCP für den E-Mail-Versand absehen: Für 1 Nutzer/1 E-Mail-Konto ist der direkte SMTP/IMAP- bzw. Gmail-API-Weg schlanker, transparenter und ohne zusätzlichen Drittanbieter-Zugriff auf die E-Mail-Zugangsdaten des Nutzers.",
+    "Antwortverarbeitung: imap_tools mit IDLE (mailbox.idle.wait) für Push-basiertes Polling einsetzen statt festem Intervall-Poll-Loop; LLM-Klassifikation (Absage/Einladung/Autoresponder/Rückfrage) als eigener Claude-Prompt-Schritt mit Structured Output (z.B. JSON-Schema {kategorie, konfidenz, vorgeschlagene_aktion}); ICS-Anhänge separat mit icalendar-Bibliothek strukturiert parsen statt nur per LLM-Freitext zu interpretieren."
+  ],
+  "risks": [
+    "App-spezifisches iCloud-Passwort wird bei jeder Apple-ID-Passwortänderung automatisch und ohne Vorwarnung ungültig — der Agent muss Auth-Fehler erkennen und den Nutzer aktiv zur Neu-Generierung auffordern, sonst bricht der Versand-/Poll-Betrieb still ab.",
+    "Gmail-OAuth im Testing-Modus: Access-/Refresh-Token-Handling über 7-Tage-Ablauf hinweg ist für einen täglichen Vollautomatik-Cronjob ein wiederkehrender manueller Reauth-Schritt — nicht 'set and forget', muss im Betriebsmodell eingeplant werden (z.B. wöchentlicher Reminder).",
+    "Bei zu ähnlichen Textbausteinen über viele Bewerbungen hinweg (auch wenn 'personalisiert' gemeint) können Spamfilter/Apples Massen-Erkennung anschlagen, selbst bei nur 10 E-Mails/Tag — echte inhaltliche Varianz (nicht nur Namens-Platzhalter) ist technisch UND für Zustellbarkeit notwendig.",
+    "Automatischer Vollversand ohne Freigabe-Gate widerspricht sowohl dem expliziten Leitsatz 'Qualität vor Quantität' als auch guter Praxis — ein Bug im Bewertungs-/Recherche-Schritt (z.B. falsche Firmenadresse) würde sonst ungeprüft versendet.",
+    "GongRzhe/Gmail-MCP-Server (Original) ist seit August 2025 unmaintained — Sicherheitslücken oder Breaking Changes der Gmail-API würden nicht mehr gepatcht; nur der aktive Fork oder eigene Direktintegration nutzen.",
+    "Composio/Pipedream/Zapier MCP verlangen OAuth-Zugriff auf das komplette Postfach über einen Drittanbieter — bei einem Übernahme-Ereignis (z.B. Pipedream/Workday) oder Anbieterwechsel ist die Kontrolle über sensible Bewerbungsdaten und E-Mail-Zugangsdaten nicht mehr vollständig beim Nutzer.",
+    "Rechtlich/AGB-seitig ist bei iCloud die Grenze zwischen 'individueller Bewerbung' und 'automatisiertem Massenversand' nicht scharf definiert — bei Skalierung über 1 Person/10 Bewerbungen hinaus müsste dies neu geprüft werden (im Auftrag aber explizit nicht das Ziel: 'zuerst für eine Person')."
+  ],
+  "open_questions_for_user": [
+    "Welches E-Mail-Konto soll primär für den Versand genutzt werden — das bestehende @icloud.com-Konto, ein vorhandenes Gmail-Konto, oder soll eine neue eigene Domain (z.B. vorname.nachname@eigene-domain.de) angeschafft werden?",
+    "Ist eine Zwei-Faktor-Authentifizierung auf der Apple-ID bereits aktiviert (Voraussetzung für App-spezifisches Passwort)?",
+    "Soll der MVP-Start als reiner 'Entwurf-Modus' (Nutzer klickt selbst auf Senden) erfolgen, oder ist von Anfang an ein automatisierter Versand nach expliziter täglicher Freigabe gewünscht?",
+    "Falls Gmail genutzt wird: Ist der Nutzer bereit, alle 7 Tage im OAuth-Testing-Modus eine Browser-Reautorisierung durchzuführen, oder soll stattdessen eine eigene Google-Cloud-Verifizierung (Aufwand: Datenschutzerklärung, Demo-Video, Wartezeit) beantragt werden?",
+    "Soll für die Speicherung der Zugangsdaten macOS-Keychain (kostenlos, lokal) oder 1Password-CLI (falls bereits 1Password-Abo vorhanden) verwendet werden?",
+    "Auf welchem Betriebssystem/welcher Umgebung läuft der Agent dauerhaft (macOS lokal, Cloud-VM, Claude Managed Agent mit Scheduled Deployment) — das bestimmt, ob macOS-Keychain überhaupt verfügbar ist oder eine plattformunabhängige Secret-Lösung (1Password-CLI/Vault) nötig ist."
+  ],
+  "search_log": [
+    "iCloud Mail SMTP IMAP app-specific password smtp.mail.me.com 587 imap.mail.me.com 993 settings 2025",
+    "iCloud Mail sending limit per day recipients per message Apple support",
+    "Apple iCloud Mail terms of service automated bulk email spam policy",
+    "iCloud+ custom domain email setup 2025 how to",
+    "Gmail API sending limits quota 500 per day consumer 2000 Workspace 2025",
+    "Gmail API scopes gmail.send gmail.compose gmail.modify OAuth verification sensitive scopes",
+    "Gmail API drafts.create python create draft example",
+    "gongrzhe server-gmail-autoauth-mcp github",
+    "Google Workspace MCP server gmail 2025",
+    "Microsoft Graph API Mail.Send permission application delegated throttling limits",
+    "Fastmail pricing 2025 custom domain plan",
+    "Google Workspace Business Starter pricing 2025 monthly per user",
+    "email deliverability spammy signals tracking pixel large attachments cold outreach best practices 2025",
+    "SPF DKIM DMARC setup guide new domain warm up sending reputation",
+    "imap-tools python library IMAP IDLE polling github",
+    "email threading In-Reply-To References header python parse conversation",
+    "detect ICS calendar invite email attachment python icalendar parse",
+    "yagmail aiosmtplib python send email library comparison",
+    "mailbox.org pricing 2025 custom domain",
+    "Proton Mail custom domain pricing 2025 plans",
+    "1Password CLI store secret op read app password automation script",
+    "LLM classify email reply job application rejection interview invitation autoresponder",
+    "Nodemailer ImapFlow send email node.js library 2025",
+    "Zapier MCP Composio Pipedream email send tool AI agent",
+    "beste Sendezeit Bewerbung E-Mail Uhrzeit Studie 2025 wann bewerben",
+    "macOS Keychain store password command line security add-generic-password python",
+    "Gmail app password required less secure apps deprecated 2024 2025 OAuth only",
+    "Bewerbung Anhang Dateigröße empfohlen MB PDF Lebenslauf Anschreiben E-Mail",
+    "Outlook.com Microsoft 365 personal SMTP sending limit per day",
+    "Google OAuth consent screen testing mode 100 users verification not required own app single user",
+    "iCloud Mail app-specific password automated script rate limit blocked account suspicious activity"
+  ],
+  "verification_notes": [
+    "[verify-C] Bestätigt: iCloud-Limits 1000 Nachrichten/Tag, 1000 Empfänger/Tag, 500 Empfänger/Nachricht (Apple 102198 über Sekundärquellen); OAuth Testing-Modus: 100 Testnutzer, Refresh-Token läuft nach 7 Tagen ab (External + Testing), 'Internal' nur mit Workspace.",
+    "[verify-C] KORREKTUR (interner Widerspruch): Das Finding ist richtig – gmail.send ist 'Sensitive', gmail.compose/gmail.modify/gmail.readonly sind 'Restricted'. Summary, Tools-Eintrag 'Gmail API (Drafts + Send)' und Empfehlung 4 nennen gmail.compose fälschlich als 'Sensitive-Tier'. Konsequenz: users.drafts.create braucht gmail.compose oder gmail.modify (beide Restricted); im Testing-Modus mit 1 Nutzer unproblematisch, aber eine Veröffentlichung 'In Production' würde eine CASA-Sicherheitsprüfung erfordern. gmail.send allein kann keine Entwürfe anlegen.",
+    "[verify-C] GongRzhe/Gmail-MCP-Server: Repo ist seit 3.3.2026 archiviert (read-only); aktuell 32 offene PRs (nicht 72+). Fork ArtyMcLabin/Gmail-MCP-Server nicht geprüft. Empfehlung 'nicht produktiv nutzen' bleibt.",
+    "[verify-C] Nicht geprüft: Fastmail/mailbox.org/Proton-Preise, Microsoft-365-Sendelimits, Sendezeit-Ratgeber, offizieller Google-Gmail-MCP-Server (confidence 'low' beibehalten)."
+  ]
+}

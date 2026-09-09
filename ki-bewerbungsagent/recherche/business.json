@@ -1,0 +1,492 @@
+{
+  "dimension": "Kosten & Geschäftsmodell (sekundär)",
+  "summary": "Betriebskosten für den Einzelnutzer-Fall sind unkritisch: Bei 10 geprüften Bewerbungen/Tag dominieren Modell-Tokens die Kosten, nicht Infrastruktur oder Datenquellen. Eigene Architektur-Schätzung (kein externes Benchmark für 'Token pro KI-Bewerbungs-Pipeline' auffindbar, da WebSearch in dieser Session budgeterschöpft und die meisten Domains am Egress-Proxy blockiert waren – siehe Suchprotokoll): Recherche-Phase (Firmen-/Ansprechpartnerrecherche, Stellenanalyse) ca. 15-20 Web-Search-Aufrufe plus 40.000-90.000 akkumulierte Input-Tokens (Suchergebnisse, abgerufene Seiten, Zwischenschritte) und 8.000-15.000 Output-Tokens (Thinking); Schreib-Phase (Anschreiben + angepasster Lebenslauf, 1-2 Kritikschleifen) 15.000-25.000 Input- und 20.000-40.000 Output-Tokens; ATS-Check zusätzlich 5.000-10.000/2.000-5.000. Gerundet: ca. 90.000 Input-Tokens/Bewerbung (ca. 50% davon über den Tag cachebar, da Kandidatenprofil/Lebenslauf-Rohdaten/Styleguide/System-Prompt stabil bleiben), ca. 45.000 Output-Tokens, ca. 18 Web-Suchen. Bei bestätigten Anthropic-Listenpreisen (Stand Sept. 2026, direkt von platform.claude.com abgerufen: Fable 5.1 $10/$50 pro MTok, Opus 5 $5/$25, Sonnet 5 $2/$10 dauerhaft, Haiku 4.5 $1/$5; Cache-Read 0,1x Input-Preis, bei Fable 5.1/Mythos 5.1 nur 0,025x; Cache-Write 1,25x [5min]/2x [1h]; Web-Suche $10/1.000 zzgl. normaler Tokenkosten; Batch-API 50% Rabatt auf Tokenpreise, gilt NICHT für Web-Suche und NICHT für Managed Agents) ergibt sich pro Bewerbung: Sonnet 5 ca. $0,73 (≈0,68€), Opus 5 ca. $1,55 (≈1,44€), Fable 5.1 ca. $2,89 (≈2,69€), Haiku 4.5 ca. $0,45 (≈0,42€). Hochgerechnet auf 10 Bewerbungen/Tag (22 Arbeitstage/Monat): Sonnet 5 ≈150-200€/Monat, Opus 5 ≈300-350€/Monat, Fable 5.1 ≈550-600€/Monat, Haiku 4.5 ≈90-100€/Monat. Mit Batch-API (nur für die nicht-interaktive nächtliche Recherche/Scan-Phase sinnvoll, da asynchron) halbieren sich die Tokenkosten nochmal. Empfehlung: Sonnet 5 als Arbeitspferd für Recherche und Erstentwurf, Opus 5 (oder punktuell Fable 5.1) nur für die finale Kritik-/Authentizitätsprüfung der letzten Fassung vor Freigabe – ein Mischmodell senkt Kosten ohne Qualitätsverlust an der kritischen Stelle. Anthropic Managed Agents (Scheduled Deployments) berechnen zusätzlich $0,08/Session-Laufzeitstunde (nur 'running'-Status) – bei realistischer Tagesnutzung im niedrigen einstelligen Dollarbereich, vernachlässigbar gegenüber Tokenkosten; Code-Execution ist kostenlos, wenn es implizit über web_search_20260209+/web_fetch_20260209+ (dynamic filtering) läuft. Datenquellen: Die BA-Jobsuche-API (bundesAPI, inoffiziell aber stabil) ist kostenlos und sollte Kernquelle sein; ergänzend Adzuna (kostenlos) und öffentliche ATS-Feeds (Personio/Greenhouse/Lever/Recruitee, alle unauthentifiziert und kostenlos). Für Firmenrecherche/Volltextsuche jenseits von Anthropics eigenem Web-Search-Tool sind Exa (150 Calls/Tag gratis, danach $7/1.000) und Tavily (1.000 Credits/Monat gratis, danach $30/Monat) am günstigsten; Brave hat seinen Free-Tier im Februar 2026 abgeschafft und ist jetzt teurer. Für seltenes gezieltes Scraping einzelner Karriereseiten ohne Feed reicht Firecrawls Free-Tier (1.000 Credits/Monat) oder punktuelle Apify-Actor-Nutzung ($0,05-5/1.000 Ergebnisse); ein Bright-Data-Abo lohnt sich bei diesem Volumen nicht. Hosting: Ein Hetzner-VPS (CPX22, 2 vCPU/4GB, 19,99€/Monat nach der Preiserhöhung vom 15.6.2026 – die oft zitierten CX22/CX32-Kampfpreise sind für Neubestellungen 2026 nicht mehr verfügbar) für einen Cron-Job reicht aus; Alternativen Fly.io (~5,70-5,92$/Monat) oder Railway (5$/Monat + Nutzung) bieten Zero-Ops gegen Aufpreis. Alternative: Komplett auf Anthropic Managed Agents/Scheduled Deployments setzen und keinen eigenen Server betreiben – bei diesem Volumen ist das ggf. sogar günstiger als eine dauerhaft laufende VPS-Grundgebühr. E-Mail: Gmail-API ist kostenlos (500 Sendungen/Tag Consumer-Limit reicht bei Weitem); für einen seriösen Auftritt mit eigener Domain sind Fastmail (6$/Monat) oder mailbox.org (~3€/Monat, DSGVO-fokussiert, deutscher Anbieter) die günstigsten Optionen. Markt/Zahlungsbereitschaft: Bestehende Konkurrenzprodukte zeigen die Preisspanne, an der sich ein späteres Produkt orientieren müsste – von kostenlosen Trackern (Teal, Simplify) über Auto-Apply-SaaS (LazyApply 99-999$/Jahr, Jobscan 49,95$/Monat) bis zu deutschen Premium-Hybrid-Diensten (Bewerbung-Schreiber.com 99-199€ pro Anschreiben). Die dokumentierte Marktdynamik (StepStone-Studie 2025: 80% der eingehenden Bewerbungen bestenfalls mittelmäßig bewertet; Greenhouse: Recruiter bearbeiten 3x mehr Bewerbungen als 2021; Ghost-Job-Quote 18-38%) stützt eine Qualität-vor-Quantität-Positionierung, für die es noch keinen etablierten Preisanker gibt. Belastbare BA-Arbeitsmarktzahlen (Arbeitslose, offene Stellen, Bewerbungen bis zur Zusage) für September 2026 konnten in dieser Session NICHT verifiziert werden (statistik.arbeitsagentur.de und gesetze-im-internet.de waren am Egress-Proxy blockiert, WebSearch-Budget erschöpft) – hier besteht eine echte Recherchelücke, die vor einer Geschäftsmodell-Entscheidung geschlossen werden sollte. Gleiches gilt für AVGS/AZAV (Aktivierungs- und Vermittlungsgutschein nach § 45 SGB III als möglicher B2B2C-Kanal über Jobcenter) und marktübliche Stundensätze von Bewerbungscoaches in Deutschland – beides nur mit allgemeinem, nicht live verifiziertem Hintergrundwissen eingeordnet (niedrige Konfidenz, klar markiert). Kernempfehlung: Für die Einzelperson ist das Projekt bei jedem der vier Modelle finanziell trivial (unter 600€/Monat selbst im teuersten Fall); die Geschäftsmodell-Frage (B2C-SaaS vs. AVGS-Kanal vs. reines Privatprojekt) sollte erst NACH stabilem Betrieb für eine Person und mit belastbaren Marktzahlen entschieden werden, nicht vorab.",
+  "findings": [
+    {
+      "claim": "Anthropic-Modellpreise Stand September 2026: Claude Fable 5.1 $10/$50 pro MTok (Input/Output), Claude Opus 5 $5/$25, Claude Sonnet 5 $2/$10 (dauerhaft, keine für 1.9.2026 diskutierte Erhöhung auf $3/$15), Claude Haiku 4.5 $1/$5.",
+      "detail": "Direkt von platform.claude.com/docs/en/models/overview.md abgerufen und über einen unabhängigen Cross-Check-Pass (verify-C.json dieser Session) bestätigt. Basis für alle folgenden Kostenrechnungen in diesem Report.",
+      "sources": [
+        "https://platform.claude.com/docs/en/models/overview",
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ],
+      "confidence": "high",
+      "info_date": "2026/09"
+    },
+    {
+      "claim": "Prompt-Caching: Cache-Write kostet 1,25x des Input-Preises bei 5-Minuten-TTL bzw. 2x bei 1-Stunden-TTL; Cache-Read kostet 0,1x des Input-Preises bei den meisten Modellen, aber nur 0,025x bei Claude Fable 5.1 und Claude Mythos 5.1.",
+      "detail": "Für unser Projekt entscheidend: Kandidatenprofil, Lebenslauf-Rohdaten, Styleguide und System-Prompt bleiben über den ganzen Tag (10 Bewerbungen) stabil und sollten als Cache-Präfix vor variablem Content (Stellenanzeige, Recherche-Ergebnisse) platziert werden – das senkt die effektiven Inputkosten der 2.-10. Bewerbung eines Tages erheblich.",
+      "sources": [
+        "https://platform.claude.com/docs/en/build-with-claude/prompt-caching"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Die Message-Batches-API gewährt 50% Rabatt auf Input- und Output-Tokenpreise für alle Modelle; Web-Suchen in der Batches-API werden aber zum vollen Preis wie in Standard-Requests abgerechnet.",
+      "detail": "Relevant für die nächtliche, nicht-interaktive Scan-/Recherchephase (Jobbörsen scannen, erste Kandidaten-Vorauswahl) – die kann asynchron laufen und 50% sparen; die interaktive Schreib-/Kritikschleife mit sofortigem Feedback eignet sich dagegen nicht für Batch.",
+      "sources": [
+        "https://platform.claude.com/docs/en/models/overview",
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Anthropics Web-Search-Server-Tool kostet $10 pro 1.000 Suchen, zusätzlich zu normalen Tokenkosten für die Suchergebnisse im Kontext; jede Suche zählt unabhängig von der Trefferzahl als eine Nutzung, fehlgeschlagene Suchen werden nicht berechnet.",
+      "detail": "Bei geschätzten 15-20 Suchen pro Bewerbung (Firmenrecherche, Ansprechpartnersuche, Stellenverifikation) entstehen dadurch ca. $0,15-0,20 Zusatzkosten pro Bewerbung, unabhängig vom gewählten Modell. Mit `web_search_20260209`+ (dynamic filtering) laufen Suchergebnisse durch serverseitige Code-Execution-Filterung, was die tatsächlich in den Kontext geladenen (und damit abgerechneten) Tokens reduziert, ohne die $10/1.000-Gebühr zu ändern.",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Anthropic Managed Agents (Scheduled Deployments) berechnen zusätzlich $0,08 pro Session-Laufzeitstunde (nur während Status 'running', sekundengenau), Idle-Zeit zählt nicht; Modell-Tokens laufen zu regulären Listenpreisen, Batch-Rabatt gilt hier NICHT.",
+      "detail": "Bei realistischer Tagesnutzung (10 Bewerbungen, je einige Minuten aktive Laufzeit) bleibt dieser Posten im niedrigen einstelligen Dollarbereich pro Tag und ist gegenüber den Tokenkosten vernachlässigbar. Diese Angabe stammt aus der offiziellen Budgets-Dokumentation und wurde in dieser Session per Cross-Check bestätigt (verify-C.json).",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/budgets"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Das Code-Execution-Tool ist kostenlos, wenn es implizit über Web-Search/Web-Fetch mit dynamic filtering (`_20260209`+) läuft; eigenständig genutzt gibt es 1.550 Freistunden/Organisation/Monat, danach $0,05/Stunde/Container (Mindestabrechnung 5 Minuten).",
+      "detail": "Relevant, falls die PDF-Erzeugung oder Datenverarbeitung zusätzlich über das Code-Execution-Tool statt lokal läuft; für ein Einzelnutzer-Projekt mit 10 Bewerbungen/Tag dürfte das Freikontingent bei weitem ausreichen.",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool",
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Eigene Architektur-Schätzung (nicht extern gemessen, siehe Summary für Herleitung): ca. 90.000 Input-Tokens (davon ca. 50% cachebar) und ca. 45.000 Output-Tokens sowie ca. 18 Web-Suchen pro vollständig recherchierter und geschriebener Bewerbung (Recherche + Anschreiben + angepasster Lebenslauf + 1-2 Kritikschleifen + ATS-Check).",
+      "detail": "Daraus errechnete Kosten pro Bewerbung: Sonnet 5 ≈ $0,73 (≈0,68€), Opus 5 ≈ $1,55 (≈1,44€), Fable 5.1 ≈ $2,89 (≈2,69€), Haiku 4.5 ≈ $0,45 (≈0,42€) – jeweils inkl. Web-Suchkosten, exkl. Batch-Rabatt. Kein externes Benchmark für vergleichbare Agenten-Pipelines wurde gefunden (WebSearch-Budget dieser Session war bereits vor Beginn der eigenen Recherche erschöpft); vor Produktivbetrieb unbedingt mit echten `response.usage`-Werten aus einem Prototyp nachmessen statt sich auf diese Schätzung zu verlassen.",
+      "sources": [],
+      "confidence": "low",
+      "info_date": "2026/09"
+    },
+    {
+      "claim": "Hochgerechnet auf 10 Bewerbungen/Tag und 22 Arbeitstage/Monat ergeben sich reine Modell-/Suchkosten von ca. 150-200€/Monat (Sonnet 5), 300-350€/Monat (Opus 5), 550-600€/Monat (Fable 5.1) bzw. 90-100€/Monat (Haiku 4.5), ohne Caching-Ersparnis eingerechnet.",
+      "detail": "Mit aktivem Prompt-Caching (Profil/Styleguide als stabiler Präfix) und ggf. Batch-API für die nächtliche Scan-Phase liegen die realen Kosten darunter. Diese Zahlen basieren auf der eigenen Token-Schätzung (siehe oben) und den bestätigten Anthropic-Listenpreisen – sie sind eine obere Näherung, kein Messwert.",
+      "sources": [],
+      "confidence": "low",
+      "info_date": "2026/09"
+    },
+    {
+      "claim": "`inference_geo: us` (garantierte US-Inferenz statt globalem Routing) kostet einen Aufschlag von 1,1x auf alle Token-Kategorien, auch innerhalb von Managed Agents.",
+      "detail": "Relevant nur, falls aus DSGVO-/Datenresidenz-Gründen eine bestimmte Inferenz-Region erzwungen werden soll; für ein Kostenmodell mit knappem Budget ist das Standard-Routing ohne diesen Parameter günstiger.",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Die Bundesagentur-für-Arbeit-Jobsuche-API (bundesAPI/jobsuche-api) ist eine inoffizielle, aber stabile Community-API, kostenlos nutzbar mit dem öffentlichen Fixwert 'jobboerse-jobsuche' als API-Key, ohne dokumentiertes Rate-Limit.",
+      "detail": "Deckt Deutschlands größte Stellendatenbank inkl. Direktarbeitgeber-Anzeigen ab und sollte Kernquelle für die tägliche Jobsuche sein – kostet $0. Aus jobboards.json dieser Session übernommen (dort mit hoher Konfidenz und mehreren Quellen belegt).",
+      "sources": [
+        "https://github.com/bundesAPI/jobsuche-api",
+        "https://jobsuche.api.bund.dev/"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Adzuna bietet eine offizielle kostenlose Such-API mit Deutschland-Abdeckung (App-ID + App-Key nach Registrierung), aber ohne dokumentierte konkrete Rate-Limits.",
+      "detail": "Ergänzt die BA-API kostenlos; vor Produktivbetrieb sollten aktuelle Kontingente direkt in den Adzuna-Docs geprüft werden, da keine Quelle konkrete Zahlen zu Requests/Tag nennt.",
+      "sources": [
+        "https://developer.adzuna.com/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "SerpAPI (Google-for-Jobs-Zugriff als Meta-Aggregator) bietet 250 kostenlose Suchen/Monat, danach ab $25/Monat für 1.000 Suchen bis $275/Monat für 30.000 Suchen.",
+      "detail": "Da schema.org/JobPosting-Markup Voraussetzung für Google-for-Jobs-Sichtbarkeit ist, deckt eine SerpAPI-Anbindung indirekt viele Einzelquellen (StepStone, Indeed, Firmenseiten) mit ab; bei 10 Bewerbungen/Tag reicht der Freikontingent für Testphase, danach kalkulierbar mit dem 25$/Monat-Einstiegstarif.",
+      "sources": [
+        "https://serpapi.com/google-jobs-api",
+        "https://serpapi.com/pricing"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Firecrawl-Preisstufen 2026: Free (0$, 1.000 Credits/Monat), Hobby (16$/Monat jährlich abgerechnet, 5.000 Credits), Standard (83$/Monat, 100.000 Credits), Growth (333$/Monat, 500.000 Credits), Scale (599$/Monat, 1.000.000 Credits); Scrape/Crawl kosten 1 Credit/Seite, Stealth-Modus 5 Credits/Seite.",
+      "detail": "Für gezieltes Abrufen einzelner Karriereseiten ohne strukturierten Feed geeignet; bei 30-50 Seitenabrufen/Tag reicht der Free-Tier für den Anfang bei weitem.",
+      "sources": [
+        "https://scrapegraphai.com/blog/firecrawl-pricing",
+        "https://affinco.com/firecrawl-pricing/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Exa bietet 150 unauthentifizierte Suchanfragen/Tag kostenlos (3 QPS); mit API-Key $20 Startguthaben + $10 monatliches Guthaben, danach $7 pro 1.000 Suchen.",
+      "detail": "Günstigste Option für Deep-Research/Firmenrecherche unter den geprüften Drittanbietern; gute Ergänzung zu Anthropics eigenem Web-Search-Tool für Fälle, in denen man die Suche außerhalb der Claude-API selbst orchestrieren will.",
+      "sources": [
+        "https://github.com/exa-labs/exa-mcp-server"
+      ],
+      "confidence": "medium",
+      "info_date": "2026/09"
+    },
+    {
+      "claim": "Tavily bietet 1.000 kostenlose API-Credits/Monat, danach ab $30/Monat (4.000 Credits) oder $0,008/Credit Pay-as-you-go.",
+      "detail": "Alternative/Ergänzung zu Exa; für ein Einzelnutzer-Projekt mit 10 Bewerbungen/Tag dürfte der kostenlose Tier je nach Recherchetiefe bereits einen relevanten Teil abdecken.",
+      "sources": [
+        "https://github.com/tavily-ai/tavily-mcp"
+      ],
+      "confidence": "medium",
+      "info_date": "2026/09"
+    },
+    {
+      "claim": "Brave Search API hat ihren kostenlosen Tier im Februar 2026 abgeschafft; jetzt guthabenbasiert mit Kreditkartenpflicht, $5 kostenlosem Monatsguthaben (≈1.000 Suchen) pro Plan, danach $5 pro 1.000 Anfragen ($0,005/Query).",
+      "detail": "Damit ist Brave seit 2026 teurer/unattraktiver als Exa oder Tavily für ein Prototyping-Budget; für 10 Bewerbungen/Tag mit mehreren Suchen pro Stelle könnte das monatliche Guthaben knapp werden.",
+      "sources": [
+        "https://www.implicator.ai/brave-drops-free-search-api-tier-puts-all-developers-on-metered-billing/",
+        "https://agentdeals.dev/vendor/brave-search-api"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Bright Data Web Scraper API kostet $1,50/1.000 Records Pay-as-you-go (sinkt auf $1,00/1.000 im $1.999/Monat-Scale-Tier, Einstieg ab $0,75/1.000 im Abo); die dedizierte 'Jobs Scraper API' hat 5.000 Records/Monat gratis.",
+      "detail": "Für 10 Bewerbungen/Tag deutlich überdimensioniert und teurer als Apify/Firecrawl bei kleinem Volumen; nur für punktuelle, schwer zugängliche Ziele (z.B. Cloudflare-geschützte Seiten) als Notlösung sinnvoll.",
+      "sources": [
+        "https://brightdata.com/products/web-scraper/jobs-scraper"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "JSearch (RapidAPI) aggregiert LinkedIn/Indeed/ZipRecruiter/Glassdoor/Bayt hinter einer API mit 200-Requests-Free-Tier (gesamt, nicht monatlich), danach ca. $10-200/Monat je nach Volumen.",
+      "detail": "Deutschland-Abdeckung nicht explizit bestätigt, aber über die Upstream-Quellen wahrscheinlich mitenthalten; reicht das Scraping-Risiko nur an RapidAPI weiter statt es zu eliminieren.",
+      "sources": [
+        "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch/pricing"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Apify-Actors für deutsche Jobbörsen (StepStone, Indeed u.a.) kosten je nach Actor zwischen ca. $0,05 und $5 pro 1.000 Ergebnisse; Apify nutzt 2026 überwiegend ein Pay-per-Event-Preismodell statt fixer Monatsabos.",
+      "detail": "Bei 10 Bewerbungen/Tag ein pragmatischer, günstiger Fallback für Börsen ohne offiziellen Feed/API (StepStone, Monster, XING); Qualität/Wartung variiert stark zwischen einzelnen Actors, Stichproben vor Produktivsetzung nötig.",
+      "sources": [
+        "https://apify.com/jupri/stepstone-scraper",
+        "https://apify.com/misceres/indeed-scraper"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Hetzner Cloud erhöhte am 15. Juni 2026 die Preise für Shared-vCPU-Pläne um 30-38%; zum Recherchezeitpunkt (September 2026) sind CPX12 (1 vCPU/2GB/40GB) für 11,99€/Monat und CPX22 (2 vCPU/4GB/80GB) für 19,99€/Monat bestellbar, die früher oft zitierten CX22/CX32/CAX-Kampfpreise sind für Neubestellungen nicht mehr verfügbar.",
+      "detail": "Für den im Auftrag genannten Referenzpreis 'Hetzner CX22/CX32/CAX 2026' ist die Konsequenz: mit den aktuell bestellbaren CPX-Plänen budgetieren (ca. 20€/Monat für einen soliden MVP-Server), nicht mit veralteten CX-Preisen. Es war bereits die vierte Preisanpassung Hetzners im Jahr 2026.",
+      "sources": [
+        "https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026/06"
+    },
+    {
+      "claim": "Fly.io kostet für eine dauerhaft laufende shared-cpu-1x/1GB-Instanz ca. $5,70-5,92/Monat; Railway Hobby-Plan kostet $5/Monat Grundgebühr plus nutzungsabhängig $10/GB-RAM/Monat und $20/vCPU/Monat; Render Starter kostet $7/Monat, Standard $25/Monat (feste statt nutzungsbasierte Preise).",
+      "detail": "Alle drei sind für einen technisch versierten Einzelentwickler tendenziell teurer als ein Hetzner-VPS, bieten aber Zero-Ops-Deployment (Git-Push statt eigenem Server-Management) – Abwägung Kosten vs. Betriebsaufwand.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": "2026/06"
+    },
+    {
+      "claim": "Fastmail Individual-Plan kostet $6/Monat ($5/Monat bei Jahreszahlung) inkl. Custom-Domain-Support (bis 100 Domains); mailbox.org Standard-Plan kostet ca. 3€/Monat (30€/Jahr), ebenfalls mit Custom-Domain ab diesem Plan; Gmail-API ist für Entwürfe/Versand über ein bestehendes Gmail-Konto kostenlos (500 Sendungen/Tag Consumer-Limit).",
+      "detail": "Für einen seriösen, nicht nach Bot aussehenden Versand über eine eigene Domain sind Fastmail oder das deutsche, DSGVO-fokussierte mailbox.org die günstigsten Optionen; bei bereits vorhandenem Gmail/iCloud-Konto des Nutzers entstehen dagegen keine Zusatzkosten.",
+      "sources": [
+        "https://www.fastmail.help/hc/en-us/articles/8033939068815-2024-pricing-and-plan-updates",
+        "https://mailbox.org/en/news/new-price-plans-available-mailboxorg/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "LazyApply (Volumen-Auto-Apply) kostet $99-999/Jahr für 15-1.500 Bewerbungen/Tag, hat aber nur 2,1/5 auf Trustpilot; Jobscan (ATS-Keyword-Scanner, kein Auto-Apply) kostet $49,95/Monat oder $29,98/Monat quartalsweise mit 5 kostenlosen Scans/Monat.",
+      "detail": "Zeigt zwei gegensätzliche Preis-/Qualitätsanker im Markt: Volumen-Tools sind zwar teuer, aber schlecht bewertet; reine Analyse-Tools wie Jobscan sind günstiger und dienen als gutes Vorbild für einen internen ATS-Gegencheck-Schritt vor Versand.",
+      "sources": [
+        "https://www.jobscan.co/",
+        "https://www.loopcv.pro/directory/lazyapply/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Teal+ kostet ca. $29/Monat (starker kostenloser Tracker-Tier ohne Auto-Apply); Kickresume kostet $24/Monat, $54/Quartal oder $96/Jahr für CV-/Anschreiben-Builder mit KI-Writer.",
+      "detail": "Beide sind reine Dokument-/Tracking-Tools ohne Recherche- oder Versandautomatisierung, dienen aber als Preisreferenz für Konsumenten-SaaS in diesem Marktsegment (20-30$/Monat als üblicher Bereich für Einzelfeature-Tools).",
+      "sources": [
+        "https://www.tealhq.com/",
+        "https://www.kickresume.com/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Bewerbung-Schreiber.com (deutscher Mensch+KI-Hybrid-Dienst) verlangt 99-199€ pro individuellem Anschreiben je nach Karrierestufe; erfolgo.de bietet einen reinen KI-Anschreiben-Generator für eine Pauschale von 9,95€, mit dokumentierten Halluzinationsfällen.",
+      "detail": "Spannt den Preisrahmen für den deutschen Markt auf: von Billig-Generator (9,95€, Qualitätsrisiko dokumentiert) bis Premium-Hybrid-Service (99-199€/Anschreiben) – ein KI-Agent mit echter Recherche und Freigabe-Workflow könnte sich preislich zwischen diesen beiden Polen positionieren, sofern eine spätere Kommerzialisierung überhaupt gewünscht ist.",
+      "sources": [
+        "https://bewerbung-schreiber.com/",
+        "https://erfolgo.de/"
+      ],
+      "confidence": "low",
+      "info_date": "2026/07"
+    },
+    {
+      "claim": "StepStone-Studie 2025 (700 Beschäftigte + 160 HR-Verantwortliche, AT/DE): 58% der Bewerbenden nutzen bereits KI für Bewerbungsunterlagen, aber 80% der eingehenden Bewerbungen werden von Recruitern bestenfalls als mittelmäßig bewertet; Greenhouse 2025 AI-in-Hiring-Report (>4.100 Befragte inkl. Deutschland): Recruiter bearbeiten heute ca. 3x so viele Bewerbungen pro Stelle wie 2021.",
+      "detail": "Bestätigt die im Projektauftrag angenommene Marktlücke ('Qualität vor Quantität') empirisch: Die Bewerbungsflut sinkt die Durchschnittsqualität, was ein auf Individualität und echte Recherche ausgelegtes System begünstigen sollte – aus dieser Session bereits vom Wettbewerbs-Dimension-Agenten recherchiert und mit hoher Konfidenz belegt.",
+      "sources": [
+        "https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitat/",
+        "https://www.greenhouse.com/newsroom/an-ai-trust-crisis-70-of-hiring-managers-trust-ai-to-make-faster-and-better-hiring-decisions-only-8-of-job-seekers-call-it-fair"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Ghost Jobs machen laut mehreren 2025er-Quellen 18-38% aller Online-Stellenanzeigen aus, im öffentlichen Sektor bis knapp 60%.",
+      "detail": "Direkte Kostenfolge für unser System: Ohne Plausibilitäts-/Frische-Check verschwendet die Pipeline Recherche- und Anschreiben-Token-Budget (siehe Kostenrechnung oben) auf 1 von 5 bis 1 von 3 Stellen – ein Ghost-Job-Filter vor der teuren Recherchephase ist auch aus reiner Kostensicht sinnvoll, nicht nur qualitativ.",
+      "sources": [
+        "https://unternehmer.de/wirtschaft/625515-ghost-jobs-jede-dritte-stellenanzeige-betroffen"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Belastbare, live verifizierte Zahlen zu Arbeitslosen, gemeldeten offenen Stellen und durchschnittlichen Bewerbungen pro Stelle in Deutschland (Bundesagentur für Arbeit, Stand September 2026) konnten in dieser Session NICHT beschafft werden.",
+      "detail": "statistik.arbeitsagentur.de und rest.arbeitsagentur.de waren am Netzwerk-Egress-Proxy dieser Umgebung blockiert (bestätigt per curl-Statusabfrage), das WebSearch-Kontingent der Session war bereits vor Beginn dieser Teilrecherche erschöpft. Aus allgemeinem, nicht session-verifiziertem Hintergrundwissen liegt die Zahl der Arbeitslosen in Deutschland in den letzten Jahren in der Größenordnung von 2,8-3,0 Millionen und die Zahl der bei der BA gemeldeten offenen Stellen bei ca. 600.000-800.000 – diese Werte sind NICHT für September 2026 verifiziert und dürfen nicht ungeprüft in eine Geschäftsplanung übernommen werden. Empfehlung: vor jeder marktbezogenen Entscheidung direkt bei statistik.arbeitsagentur.de bzw. destatis.de nachschlagen.",
+      "sources": [],
+      "confidence": "low",
+      "info_date": "unverifiziert"
+    },
+    {
+      "claim": "AVGS (Aktivierungs- und Vermittlungsgutschein, Rechtsgrundlage § 45 SGB III) ermöglicht es Arbeitslosen/Arbeitsuchenden, von Jobcentern oder Arbeitsagenturen finanzierte Coaching-/Bewerbungsunterstützungs-Maßnahmen bei zugelassenen Trägern in Anspruch zu nehmen; Anbieter benötigen dafür eine AZAV-Zulassung durch eine fachkundige Stelle (z.B. TÜV, DEKRA).",
+      "detail": "Dieser B2B2C-Kanal wurde in dieser Session nicht live recherchiert (Gesetzestext-Quelle gesperrt, kein WebSearch-Budget mehr); allgemein bekannt ist, dass eine AZAV-Zulassung ein mehrmonatiger, kostenpflichtiger Zertifizierungsprozess mit Qualitätsmanagement-Anforderungen (u.a. nach DIN ISO 29990 oder vergleichbar) ist – für ein Einzelentwickler-Projekt, das primär für eine Person funktionieren soll, ist dieser Aufwand in der aktuellen Phase klar unverhältnismäßig und sollte erst bei ernsthafter B2B-Kommerzialisierungsabsicht geprüft werden. Konkrete Kosten/Dauer der Zulassung wurden NICHT verifiziert.",
+      "sources": [],
+      "confidence": "low",
+      "info_date": "unverifiziert"
+    },
+    {
+      "claim": "Marktübliche Stundensätze deutscher Bewerbungscoaches/Karriereberater liegen nach allgemeinem, nicht in dieser Session verifiziertem Marktwissen grob im Bereich von 80-200€/Stunde bzw. 300-1.500€ für ein komplettes Bewerbungspaket.",
+      "detail": "Nicht live recherchiert (Suchbudget erschöpft); dient nur als grobe Preisorientierung für eine mögliche spätere 'Premium-Review-durch-Mensch'-Option, sollte vor jeder Preisentscheidung durch echte Anbietervergleiche (z.B. über die bereits identifizierten Bewerbung-Schreiber.com-Preise als Ankerpunkt) ersetzt werden.",
+      "sources": [],
+      "confidence": "low",
+      "info_date": "unverifiziert"
+    },
+    {
+      "claim": "n8n Community Edition ist kostenlos selbst hostbar (Sustainable-Use-License) für Orchestrierung/Glue-Code; n8n Cloud Starter kostet ab 20€/Monat (2.500 Executions); Voyage-3.5-Embeddings kosten $0,06/Million Input-Tokens, deutlich günstiger als OpenAI text-embedding-3-large ($0,13/M).",
+      "detail": "Für ein Matching-/Scoring-Modul (Stelle-gegen-Profil-Ähnlichkeit) sind Embeddings ein sehr kleiner zusätzlicher Kostenposten gegenüber den dominierenden Claude-Tokenkosten; aus architecture.json dieser Session übernommen.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": "2026/05"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Claude API (Sonnet 5 / Opus 5 / Fable 5.1 / Haiku 4.5)",
+      "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "category": "API",
+      "access": "REST/SDK, API-Key oder OAuth-Profil; Prompt Caching, Batch-API, Web-Search-/Web-Fetch-Server-Tools",
+      "pricing": "Sonnet 5 $2/$10 pro MTok, Opus 5 $5/$25, Fable 5.1 $10/$50, Haiku 4.5 $1/$5 (Sept. 2026); Cache-Read 0,1x (Fable 5.1: 0,025x); Batch 50% Rabatt auf Tokens",
+      "verdict": "empfohlen - Sonnet 5 als Standardmodell, Opus 5/Fable 5.1 punktuell für Kritik-/Qualitätsprüfung vor Versand"
+    },
+    {
+      "name": "Anthropic Web Search (Server-Tool)",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool",
+      "category": "API",
+      "access": "Als Tool in Claude-API-Requests deklariert, kein separates Konto nötig",
+      "pricing": "$10 pro 1.000 Suchen zzgl. Tokenkosten der Ergebnisse (2026)",
+      "verdict": "empfohlen - einfachste Integration, keine separate Infrastruktur; bei hohem Suchvolumen mit Exa/Tavily kombinieren"
+    },
+    {
+      "name": "Claude Managed Agents / Scheduled Deployments",
+      "url": "https://platform.claude.com/docs/en/managed-agents/overview",
+      "category": "API",
+      "access": "REST, Beta-Header managed-agents-2026-04-01, gehostete Sandbox+Cron",
+      "pricing": "$0,08/Session-Laufzeitstunde + Modell-Tokens zu Listenpreis + $10/1.000 Websuchen; kein Batch-Rabatt",
+      "verdict": "empfohlen als Alternative zu eigenem VPS - erspart Server-Betrieb, bei 10 Bewerbungen/Tag kostenneutral bis günstiger als Hetzner-Dauerbetrieb"
+    },
+    {
+      "name": "Bundesagentur für Arbeit Jobsuche API (bundesAPI)",
+      "url": "https://github.com/bundesAPI/jobsuche-api",
+      "category": "API",
+      "access": "REST GET, öffentlicher Fix-API-Key, kein dokumentiertes Rate-Limit, inoffiziell/instabil",
+      "pricing": "kostenlos",
+      "verdict": "empfohlen - kostenlose Kernquelle für deutsche Stellenanzeigen"
+    },
+    {
+      "name": "Adzuna Jobs API",
+      "url": "https://developer.adzuna.com/",
+      "category": "API",
+      "access": "REST, App-ID+App-Key nach kostenloser Registrierung, 12 Länder inkl. DE",
+      "pricing": "kostenlos, konkrete Rate-Limits nicht dokumentiert (vor Nutzung in Docs prüfen)",
+      "verdict": "empfohlen - kostenlose Ergänzung zur BA-API"
+    },
+    {
+      "name": "Exa API / Exa MCP",
+      "url": "https://github.com/exa-labs/exa-mcp-server",
+      "category": "API",
+      "access": "Gehosteter MCP-Server oder REST-API, unauthentifiziert (Rate-Limit) oder mit API-Key",
+      "pricing": "unauth 150 Calls/Tag gratis; mit Key $20 Start- + $10/Monat-Guthaben, danach $7/1.000 Suchen",
+      "verdict": "empfohlen - günstigste Deep-Research-Ergänzung zu Anthropics eigenem Web-Search"
+    },
+    {
+      "name": "Tavily API / Tavily MCP",
+      "url": "https://github.com/tavily-ai/tavily-mcp",
+      "category": "API",
+      "access": "npx-MCP-Server oder REST-API mit API-Key",
+      "pricing": "1.000 Credits/Monat gratis, danach $30/Monat (4.000 Credits) oder $0,008/Credit PAYG",
+      "verdict": "optional - Alternative/Ergänzung zu Exa"
+    },
+    {
+      "name": "Firecrawl",
+      "url": "https://firecrawl.dev/",
+      "category": "API",
+      "access": "REST-API, API-Key, Scrape/Crawl/Map/Extract-Endpunkte",
+      "pricing": "Free 1.000 Credits/Monat; Hobby $16/Monat (5.000 Credits); Standard $83/Monat (100.000 Credits) (2026)",
+      "verdict": "optional - für gezieltes Abrufen einzelner Karriereseiten ohne strukturierten Feed"
+    },
+    {
+      "name": "Apify (diverse Job-Scraper-Actors)",
+      "url": "https://apify.com/",
+      "category": "API",
+      "access": "Pay-per-Event/Pay-per-Result Actors, kein offizieller Support der Zielseiten",
+      "pricing": "ca. $0,05-5 pro 1.000 Ergebnisse je nach Actor (2026)",
+      "verdict": "optional - günstiger Fallback für Börsen ohne offiziellen Feed (StepStone, Monster); ToS-Risiko der Zielseite bewusst eingehen"
+    },
+    {
+      "name": "Bright Data Web/Jobs Scraper API",
+      "url": "https://brightdata.com/products/web-scraper/jobs-scraper",
+      "category": "API",
+      "access": "REST-API, Abo oder PAYG, 5.000 Records/Monat gratis bei Jobs-Scraper-API",
+      "pricing": "$1,50/1.000 Records PAYG, ab $0,75/1.000 im Abo (2026)",
+      "verdict": "vermeiden bei diesem Volumen - überdimensioniert/teurer als Apify/Firecrawl für 10 Bewerbungen/Tag"
+    },
+    {
+      "name": "SerpAPI (Google Jobs)",
+      "url": "https://serpapi.com/google-jobs-api",
+      "category": "API",
+      "access": "REST-API, API-Key, Google-SERP-Scraping als Service",
+      "pricing": "250 Suchen/Monat gratis, danach ab $25/Monat (1.000 Suchen) (2026)",
+      "verdict": "optional - guter Meta-Zugriff auf viele Quellen über Google-for-Jobs-Indexierung"
+    },
+    {
+      "name": "Brave Search API",
+      "url": "https://brave.com/search/api/",
+      "category": "API",
+      "access": "REST-API/MCP, Kreditkarte erforderlich, kein Free-Tier mehr seit Feb. 2026",
+      "pricing": "$5 Monatsguthaben (≈1.000 Suchen) je Plan, danach $5/1.000 Anfragen",
+      "verdict": "vermeiden gegenüber Exa/Tavily - seit Wegfall des Free-Tiers teurer im Vergleich"
+    },
+    {
+      "name": "JSearch (RapidAPI)",
+      "url": "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch",
+      "category": "API",
+      "access": "RapidAPI-Marktplatz, API-Key, aggregiert LinkedIn/Indeed/ZipRecruiter/Glassdoor",
+      "pricing": "200 Requests gratis (gesamt), danach $10-200+/Monat (2026)",
+      "verdict": "optional - DE-Abdeckung unbestätigt, ToS-Risiko wird nur weitergereicht"
+    },
+    {
+      "name": "Hetzner Cloud (CPX-Reihe)",
+      "url": "https://www.hetzner.com/cloud/",
+      "category": "SaaS",
+      "access": "Cloud-Konsole/API/Terraform, EU-Rechenzentren (u.a. Deutschland)",
+      "pricing": "CPX12 11,99€/Monat, CPX22 19,99€/Monat (Sept. 2026, nach Preiserhöhung 15.6.2026)",
+      "verdict": "empfohlen - bestes Preis-Kontrolle-Verhältnis für einen dauerhaft laufenden Cron-/Agent-Server in der EU"
+    },
+    {
+      "name": "Fly.io",
+      "url": "https://fly.io/",
+      "category": "SaaS",
+      "access": "Git/CLI-Deploy, globale Regionen, nutzungsbasiert",
+      "pricing": "shared-cpu-1x/1GB ca. $5,70-5,92/Monat (2026)",
+      "verdict": "optional - Zero-Ops-Alternative zu Hetzner bei Aufpreis"
+    },
+    {
+      "name": "Railway",
+      "url": "https://railway.com/",
+      "category": "SaaS",
+      "access": "Git-Push-Deploy, nutzungsbasiert",
+      "pricing": "Hobby $5/Monat + $10/GB-RAM/Monat + $20/vCPU/Monat (2026)",
+      "verdict": "optional - einfaches Deployment, aber bei Dauerbetrieb teurer als Hetzner"
+    },
+    {
+      "name": "Fastmail",
+      "url": "https://www.fastmail.com/",
+      "category": "SaaS",
+      "access": "IMAP/SMTP mit App-Passwort, JMAP-API, Custom-Domain-Support",
+      "pricing": "$6/Monat ($5/Monat bei Jahreszahlung), bis 100 Domains",
+      "verdict": "empfohlen falls eigene Bewerbungsdomain gewünscht - seriöser Auftritt, kein Bot-Verdacht"
+    },
+    {
+      "name": "mailbox.org",
+      "url": "https://mailbox.org/",
+      "category": "SaaS",
+      "access": "IMAP/SMTP, Custom-Domain ab Standard-Plan, deutscher Anbieter",
+      "pricing": "Standard ca. 3€/Monat (30€/Jahr) (2025/2026)",
+      "verdict": "empfohlen als günstigste DSGVO-fokussierte Alternative zu Fastmail"
+    },
+    {
+      "name": "Jobscan",
+      "url": "https://www.jobscan.co/",
+      "category": "SaaS",
+      "access": "Web-App, Resume-vs-Job-Description-Scan, kein öffentliches API bekannt",
+      "pricing": "$49,95/Monat oder $29,98/Monat quartalsweise, 5 Scans/Monat gratis",
+      "verdict": "optional - Preisreferenz, gutes Vorbild für internen ATS-Gegencheck-Schritt"
+    },
+    {
+      "name": "Bewerbung-Schreiber.com",
+      "url": "https://bewerbung-schreiber.com/",
+      "category": "SaaS",
+      "access": "Web-Formular + menschlicher Redakteur (Hybrid), kein API",
+      "pricing": "99-199€ pro Anschreiben je nach Karrierestufe (2026)",
+      "verdict": "optional - oberer Preisanker für 'hochwertig' im deutschen Markt bei späterer Kommerzialisierung"
+    }
+  ],
+  "recommendations": [
+    "Sonnet 5 als Standardmodell für Recherche und Erstentwurf nutzen; Opus 5 (oder punktuell Fable 5.1) gezielt nur für die letzte Kritik-/Authentizitätsprüfung vor Freigabe einsetzen - senkt Kosten deutlich ohne Qualitätsverlust an der entscheidenden Stelle.",
+    "Prompt-Caching konsequent nutzen: Kandidatenprofil, Lebenslauf-Rohdaten, Styleguide und System-Prompt als stabilen Cache-Präfix vor variablem Content (Stellenanzeige, Recherche-Ergebnisse) platzieren, um die Kosten der 2.-10. Bewerbung eines Tages spürbar zu senken.",
+    "Die nächtliche Scan-/Recherchephase (nicht-interaktiv) über die Batch-API laufen lassen (50% Tokenrabatt), die interaktive Schreib-/Freigabeschleife dagegen synchron belassen.",
+    "BA-Jobsuche-API und Adzuna als kostenlose Kernquellen nutzen; Exa oder Tavily als günstigste Ergänzung für Firmenrecherche vor Brave/Bright Data einsetzen; Bright Data und JSearch bei diesem Volumen (10 Bewerbungen/Tag) meiden - überdimensioniert.",
+    "Vor jeder Produktivsetzung ein reales Token-Nachmessen (`response.usage`) mit einem Mini-Prototyp durchführen statt sich auf die in diesem Report enthaltene architektonische Schätzung zu verlassen - die tatsächlichen Werte können je nach Recherchetiefe und Kritikschleifen-Anzahl deutlich abweichen.",
+    "Managed Agents/Scheduled Deployments gegen einen eigenen Hetzner-VPS abwägen: Bei 10 Bewerbungen/Tag könnte der reine Pay-per-Use-Ansatz ($0,08/Session-Stunde) günstiger sein als eine Server-Grundgebühr von ca. 20€/Monat, die auch an Tagen ohne Nutzung anfällt.",
+    "Für seriösen E-Mail-Versand über eine eigene Domain mailbox.org (günstigste DSGVO-fokussierte Option, ca. 3€/Monat) oder Fastmail (6$/Monat) einplanen, falls das bestehende private Postfach des Nutzers nicht direkt genutzt werden soll.",
+    "Geschäftsmodell-Entscheidung (B2C-SaaS, AVGS-Kanal, reines Privatprojekt) explizit NACH stabilem Betrieb für eine Person treffen, nicht vorab - passend zum Leitsatz 'zuerst für eine Person funktionieren'; die Kosten sind bei jedem der vier Modelle für den Einzelfall unkritisch (unter 600€/Monat selbst im teuersten Fall Fable 5.1 ohne Caching/Batch).",
+    "Vor einer AVGS/AZAV-Kanalentscheidung eine eigene, fokussierte Recherche zu Zulassungskosten/-dauer bei einer fachkundigen Stelle (z.B. TÜV, DEKRA) durchführen - in dieser Session nicht verifizierbar.",
+    "Belastbare BA-Arbeitsmarktzahlen (Arbeitslose, offene Stellen, Bewerbungen bis zur Zusage) direkt bei statistik.arbeitsagentur.de bzw. destatis.de nachrecherchieren, bevor Marktgrößen-Annahmen in eine Geschäftsplanung einfließen."
+  ],
+  "risks": [
+    "Die zentrale Token-/Kostenschätzung dieses Reports basiert auf einer eigenen Architektur-Herleitung, nicht auf einem externen Benchmark oder Messwerten - reale Werte können abweichen, insbesondere bei mehr Kritikschleifen oder tieferer Recherche als angenommen.",
+    "Belastbare deutsche Arbeitsmarktzahlen (BA-Statistik) und AVGS/AZAV-Details konnten in dieser Session wegen blockierter Domains und erschöpftem Suchbudget nicht verifiziert werden - eine Geschäftsmodell-Entscheidung auf Basis unvollständiger Marktdaten wäre riskant.",
+    "Datenquellen-Preise (insbesondere Apify, JSearch, Bright Data) ändern sich häufig und variieren stark zwischen einzelnen Actors/Tarifen - vor Produktivsetzung stets die aktuelle Anbieter-Seite direkt prüfen, nicht nur diesen Report.",
+    "Anthropic hat 2026 bereits mehrfach an der Preisstruktur gearbeitet (u.a. Cache-Sonderpreise für Fable 5.1); Hetzner erhöhte 2026 mehrfach die Preise (zuletzt +30-38% am 15.6.2026) - Kostenannahmen sollten periodisch neu geprüft werden, nicht einmalig fixiert.",
+    "Eine Vollautomatisierung ohne Kostenkontrolle (z.B. unbegrenzte Kritikschleifen oder unbegrenzte Websuchen pro Bewerbung) kann die Kosten pro Bewerbung deutlich über die hier geschätzten Werte treiben - ein Hard-Limit (z.B. max. X Suchen, max. Y Kritikrunden pro Bewerbung) sollte technisch erzwungen werden."
+  ],
+  "open_questions_for_user": [
+    "Ist eine spätere Kommerzialisierung (B2C-SaaS für andere Nutzer) überhaupt gewünscht, oder soll das System dauerhaft ein reines Einzelnutzer-Werkzeug bleiben? Das beeinflusst, ob sich der AVGS/AZAV-Kanal oder Wettbewerbsvergleiche mit LazyApply/Jobscan/Kickresume überhaupt lohnen zu vertiefen.",
+    "Soll für den E-Mail-Versand das bestehende private Postfach des Nutzers genutzt werden (kostenlos, aber ggf. Vermischung privat/beruflich) oder eine neue, dedizierte Domain (mailbox.org/Fastmail, wenige Euro/Monat, professionellerer Auftritt)?",
+    "Gibt es ein konkretes monatliches Kostenlimit, das der Nutzer für den Betrieb (Anthropic-Tokens + Datenquellen + Hosting) nicht überschreiten möchte? Das würde die Modellwahl (Sonnet 5 vs. Opus 5 vs. Fable 5.1) und die Häufigkeit der Kritikschleifen direkt beeinflussen.",
+    "Soll bewusst in echte BA-Arbeitsmarktzahlen und AVGS-Zulassungsvoraussetzungen investiert werden (eigene Folgerecherche), bevor eine Geschäftsmodell-Richtung festgelegt wird, oder reicht die grobe Einordnung aus diesem Report für den aktuellen Projektstand?"
+  ],
+  "search_log": [
+    "Anthropic Claude API pricing Opus Sonnet Haiku per million tokens 2026 (WebSearch - Budget bereits erschöpft, kein Ergebnis)",
+    "Anthropic prompt caching pricing discount 2026 (WebSearch - Budget bereits erschöpft, kein Ergebnis)",
+    "Anthropic Message Batches API 50% discount pricing (WebSearch - Budget bereits erschöpft, kein Ergebnis)",
+    "Anthropic web search tool pricing per 1000 searches (WebSearch - Budget bereits erschöpft, kein Ergebnis)",
+    "Claude Fable 5.1 Opus 5 pricing per token Anthropic (WebSearch - Budget bereits erschöpft, kein Ergebnis)",
+    "WebFetch https://platform.claude.com/docs/en/pricing.md (404)",
+    "WebFetch https://platform.claude.com/docs/en/build-with-claude/prompt-caching.md (erfolgreich - Cache-Preise bestätigt)",
+    "WebFetch https://platform.claude.com/docs/en/about-claude/models/overview.md (erfolgreich - Modellpreise bestätigt)",
+    "WebFetch https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool.md (erfolgreich - Websuch-Preis $10/1000 bestätigt)",
+    "WebFetch apify.com, serpapi.com, firecrawl.dev, exa.ai, tavily.com, hetzner.com, fly.io, railway.com, brave.com, kickresume.com, wikipedia.org, g2.com, gesetze-im-internet.de, statistik.arbeitsagentur.de (alle EGRESS_BLOCKED)",
+    "curl $HTTPS_PROXY/__agentproxy/status (bestätigt: breiter Egress-Block, nur wenige Domains wie platform.claude.com/pypi/npm/github erreichbar)",
+    "Wiederverwendung bereits vorhandener Recherche-Ergebnisse aus dieser Session: competitors.json, jobboards.json, verify-C.json, architecture.json, email.json, de_culture.json, claude_ecosystem.json (jeweils per Bash grep/Read durchsucht nach Preisen, Arbeitsmarktzahlen, AVGS/AZAV, Coach-Stundensätzen, Fly.io/Railway/Hetzner, Exa/Tavily)"
+  ],
+  "verification_notes": [
+    "verify-B: Anthropic-Listenpreise (Fable 5.1 $10/$50, Opus 5 $5/$25, Sonnet 5 $2/$10 dauerhaft, Haiku 4.5 $1/$5), Cache-Multiplikatoren (0,025x nur Fable 5.1/Mythos 5.1), Web Search $10/1.000, Batch 50%, Managed Agents $0,08/Session-Stunde, Code Execution 1.550 Freistunden/$0,05/h, inference_geo 1,1x am 2026-09-08 direkt auf platform.claude.com bestätigt.",
+    "verify-B KORREKTUR: Web Fetch ist gebührenfrei (nur Tokenkosten). Modelle ab Claude 4.7 (inkl. Sonnet 5/Opus 5/Fable 5.x) nutzen einen Tokenizer mit ca. 30% mehr Tokens – Token-/Kostenschätzung pro Bewerbung entsprechend um ~30% anheben.",
+    "verify-B KORREKTUR Quellen: Die Exa- und Tavily-Preisangaben sind mit github.com/exa-labs/exa-mcp-server bzw. github.com/tavily-ai/tavily-mcp belegt; beide Seiten enthalten keine Preise. Preise gelten als unverifiziert, bis exa.ai/pricing bzw. tavily.com/pricing geprüft wurden.",
+    "verify-B: Hetzner-Preiserhöhung (15.6.2026, CPX12 11,99€/CPX22 19,99€), Brave-Search-API-Änderung (Feb. 2026) und SerpAPI-Preise konnten nicht geprüft werden (Domains am Egress-Proxy gesperrt) – vor Budgetierung manuell verifizieren.",
+    "verify-B Ergänzung: Managed-Agents-Session-Budget (max_list_cost in US-Cent, Session pausiert mit stop_reason budget_reached) ist als harte Kostenbremse pro Deployment-Run nutzbar; Beta-Header 'managed-agents-2026-04-01'."
+  ]
+}

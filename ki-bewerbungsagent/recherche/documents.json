@@ -1,0 +1,546 @@
+{
+  "dimension": "Dokumentenerzeugung (PDF/DOCX) & deutsche Formalia",
+  "summary": "Für die automatisierte Erzeugung deutscher Bewerbungsunterlagen (Anschreiben, Lebenslauf, ggf. Bewerbungsmappe) empfiehlt sich eine zweigleisige Toolchain statt eines einzelnen Alles-Tools: Ein eigenes, erweitertes JSON-Datenschema (angelehnt an JSON Resume, aber um DIN-5008-Adressfelder, Ansprechpartner, Betreffzeile und ein coverLetter-Objekt ergänzt) als Single Source of Truth pro Bewerbung, gerendert primär über HTML/CSS + WeasyPrint (Python) zu PDF. WeasyPrint unterstützt CSS Paged Media (Anschriftfeld-Positionierung nach DIN 5008 exakt in cm platzierbar), erzeugt PDF/A- und PDF/UA-Varianten und läuft ohne Browser-Overhead - passt sauber in eine Python-/Agent-SDK-Pipeline. Für DOCX-Ausgabe (wenn ein Portal explizit .docx verlangt) sollte NICHT von HTML/PDF konvertiert werden, sondern ein paralleles python-docx-Template gepflegt werden; LibreOffice headless dient nur als Fallback-Konverter. Der Anthropic docx-Skill und pdf-Skill (github.com/anthropics/skills) sind sofort einsatzbereit, laufen im selben Claude-Agent-SDK-Stack (container.skills mit skill_id \"docx\"/\"pdf\" + code_execution-Tool) und decken die Kernoperationen ab - sind aber 'source-available', nicht Open Source, was vor kommerzieller Weiterverwendung geprüft werden muss. Für den Lebenslauf ist Typst (Apache-2.0, einzelne Rust-Binary, `typst compile`) eine attraktive Alternative zu LaTeX: schneller, moderner, mit großem Template-Ökosystem (Typst Universe) - allerdings existiert kein fertiges deutsches DIN-5008-Anschreiben-Template, das müsste selbst gebaut werden. RenderCV (17.5k Stars, MIT, YAML→PDF) ist ein guter Ausgangspunkt für den Lebenslauf-Teil, deckt aber kein Anschreiben ab und seine neun Themes sind international, nicht DIN-konform ausgerichtet. LaTeX-Klassiker (moderncv classic/banking-Theme, Awesome-CV mit LaTeX-Farbe statt Bild-Header) gelten als ATS-sicher, solange mit pdflatex/xelatex kompiliert wird - AltaCV mit seinem Zweispalten-Layout gilt dagegen als ATS-riskant und sollte gemieden werden. Kommerzielle Templating-Engines wie docxtemplater (1250-9000€/Jahr) sind für ein Einzelkandidaten-Projekt unwirtschaftlich; Carbone.io ist als self-hosted Open-Source-Kern (kostenlos) eine brauchbare Ausweich-Option, falls später Multi-Format-Templating (DOCX/XLSX/PPTX aus einem Template) gebraucht wird - existiert bereits als offizielles Claude-Plugin (carbone-skill). Wichtig für ATS-Parsbarkeit: einspaltiges Layout, keine Tabellen/Textboxen/Kopf-Fußzeilen für Kerninhalte, Standard-Schriften (Arial/Calibri/Helvetica), Textebene statt Bild-PDF - Tagged PDF/PDF-UA ist für die reine ATS-Textextraktion meist irrelevant, da die meisten Systeme (Workday, Greenhouse, Personio via Textkernel) einfache Textlagen-Extraktion nutzen, keine Screenreader-Tags auswerten. Bei deutschen Formalia gilt: DIN 5008 bleibt Referenzstandard (Anschriftfeld 4,5cm vom oberen Rand, Betreffzeile 2 Zeilen darunter, ISO-Datumsformat 2026-03-06 zunehmend akzeptiert), das Anschreiben ist bei 45% der Unternehmen noch Pflicht (StepStone 2025) aber bei 64% laut Taledo inzwischen optional, Bewerbungsfoto ist seit dem AGG nicht mehr Pflicht und sollte aus Diskriminierungsschutz- und Pipeline-Vereinfachungsgründen standardmäßig weggelassen werden, Deckblatt ist 2026 optional/veraltet für Online-Bewerbungen, eine Unterschrift ist rechtlich nicht vorgeschrieben (außer bei postalischen/konservativen Bewerbungen), Skills sollten als Textlisten mit konkretem Niveau statt Balken/Sternen dargestellt werden (ATS kann Grafiken nicht lesen). Die Pipeline muss zwei Ausgabeformen erzeugen können: eine zusammengeführte Gesamt-PDF (≤2MB) für E-Mail-Bewerbungen und Einzeldateien (Anschreiben/Lebenslauf/Zeugnisse getrennt, Namenskonvention Nachname_Vorname_Dokumenttyp.pdf, ASCII-sicher) für Portale mit getrennten Upload-Feldern (Personio: 10MB pro Dokument im Kandidatenprofil, 20MB via Bewerbungsformular, nur PDF/DOCX, max. 25 Dateien). Als Test-Strategie empfiehlt sich ein automatisierter Text-Extraktions-Check (pdftotext/pdfplumber gegen Referenztext diffen, Umlaute/Reihenfolge prüfen), eine Font-Embedding-Prüfung (pdffonts aus Poppler) und stichprobenartige Uploads in Test-Accounts realer ATS-Systeme oder öffentliche Checker vor dem produktiven Rollout. Die Claude-Cloud-Sandbox bringt bereits TeX Live, LibreOffice headless, Pandoc, Poppler-Utilities, python-docx/python-pptx/pypdf vorinstalliert mit - Typst und Node-docx müssten für eine Sandbox-Pipeline zusätzlich installiert werden (unkompliziert, da Single-Binary bzw. npm-Paket).",
+  "findings": [
+    {
+      "claim": "Anthropic bietet einen offiziellen 'docx'-Skill im github.com/anthropics/skills-Repo, der Word-Dokumente erstellt, liest, bearbeitet und konvertiert.",
+      "detail": "Kern-Abhängigkeiten: docx (npm, vorinstalliert), pandoc (Inhaltsextraktion zu Markdown), LibreOffice soffice (Format-Konvertierung), pdftoppm/Poppler (PDF-Vorschau). Workflow: Erstellen via Node.js mit docx-Bibliothek; Bearbeiten via Unzip -> XML-Editing in word/document.xml -> Rezip, mit merge_runs.py-Helfer für zuverlässiges Find-Replace; Tracked Changes über comment.py; PDF-Export via LibreOffice. Bekannte Fallstricke: Seite ist standardmäßig A4 (US Letter braucht explizite 12240x15840 DXA), Tabellen brauchen doppelte Breitenangaben (Tabelle UND Zelle in DXA), keine literalen Zeilenumbrüche (separate Paragraph-Elemente nötig), TOC braucht outlineLevel auf Heading-Styles.",
+      "sources": [
+        "https://raw.githubusercontent.com/anthropics/skills/main/skills/docx/SKILL.md"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Anthropic bietet einen offiziellen 'pdf'-Skill, der PDF-Erstellung, -Bearbeitung, -Extraktion und OCR abdeckt.",
+      "detail": "Bibliotheken: pypdf (Merge/Split/Rotate/Metadaten/Passwortschutz), pdfplumber (Text-/Tabellenextraktion mit Layout-Erhalt), reportlab (PDF-Erstellung from scratch), pdf2image + pytesseract (OCR auf gescannten Dokumenten), poppler-utils (pdftotext, pdfimages), qpdf und optional pdftk für CLI-Operationen. Deckt ab: Erstellen, Merge, Split, Rotation, Wasserzeichen, Text-/Tabellenextraktion, Metadaten, OCR, Bildextraktion, Verschlüsselung, Formularausfüllung.",
+      "sources": [
+        "https://raw.githubusercontent.com/anthropics/skills/main/skills/pdf/SKILL.md"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Die Anthropic docx-/pdf-/pptx-/xlsx-Skills sind lizenzrechtlich 'source-available', nicht Open Source, im Unterschied zu den meisten anderen Skills im Repo (Apache 2.0).",
+      "detail": "Für ein kommerzielles Produkt (auch wenn Kommerzialisierung sekundär ist) müssen die LICENSE.txt-Bedingungen der Document-Skills geprüft werden, bevor sie produktiv/weitervertrieben eingesetzt werden. Installation via '/plugin marketplace add anthropics/skills' dann '/plugin install document-skills@anthropic-agent-skills'.",
+      "sources": [
+        "https://github.com/anthropics/skills",
+        "https://raw.githubusercontent.com/anthropics/claude-plugins-official/main/.claude-plugin/marketplace.json"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Agent Skills (inkl. docx/pdf) lassen sich direkt über die Claude Messages API einbinden, ohne eigene Bibliotheks-Orchestrierung zu bauen.",
+      "detail": "Über den 'container'-Parameter: container.skills = [{type: 'anthropic', skill_id: 'docx'|'pdf'|'pptx'|'xlsx', version: 'latest' oder Datumsversion}], erfordert das code_execution-Tool (z.B. code_execution_20250825). Max. 20 Skills pro Request. Erzeugte Dateien liefern eine file_id, die über die Files API (client.files.download) heruntergeladen wird. Custom Skills (eigene, z.B. ein DIN-5008-Anschreiben-Skill) sind ebenfalls über die Skills API hochladbar und laufen technisch identisch ein.",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/skills.md",
+        "https://platform.claude.com/docs/en/build-with-claude/files.md"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Claude Managed Agents Cloud-Sandboxen liefern eine breite Dokumenten-Toolchain vorinstalliert, was Setup-Aufwand für eine Eigenbau-Pipeline reduziert.",
+      "detail": "Vorinstalliert: TeX Live (pdflatex, xelatex, latexmk), LibreOffice headless, Pandoc, Poppler-Utilities (pdftotext, pdftoppm) und qpdf, Tesseract (nur englische Sprachdaten), Python-Bibliotheken NumPy/pandas/openpyxl/python-docx/python-pptx/pypdf, sowie Playwright (Python+Node) mit Chromium unter /opt/pw-browsers. Node.js 20/21/22 mit npm/yarn/pnpm/bun ist ebenfalls vorhanden, sodass docx (npm) und Puppeteer/Playwright-basierte PDF-Erzeugung ohne zusätzliche Installationsschritte laufen. Typst ist NICHT explizit gelistet und müsste manuell installiert werden (unkompliziert als Single-Binary).",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/cloud-sandboxes-reference"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Tesseract in der Cloud-Sandbox hat standardmäßig nur englische Sprachdaten installiert.",
+      "detail": "Für OCR deutscher gescannter Zeugnisse/Nachweise (z.B. handschriftlich unterschriebene Arbeitszeugnisse als Anlage) müsste das deutsche Sprachpaket (tesseract-ocr-deu) zusätzlich installiert werden, sonst sinkt die Erkennungsqualität bei Umlauten und deutscher Grammatik deutlich.",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/cloud-sandboxes-reference"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Typst ist ein modernes, Apache-2.0-lizenziertes Markup-Satzsystem, das als leichtgewichtige Alternative zu LaTeX positioniert ist.",
+      "detail": "Kompiliert via CLI-Befehl 'typst compile file.typ' (optional mit Zielpfad). Vorteile gegenüber LaTeX: einfachere Syntax, integriertes Scripting, deutlich schnellere inkrementelle Kompilierung, als einzelne Rust-Binary leicht zu installieren/containerisieren (keine TeX-Live-Vollinstallation nötig). Keine gesicherten Angaben zu nativer PDF/A- oder Tagged-PDF-Unterstützung gefunden.",
+      "sources": [
+        "https://github.com/typst/typst"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Für Typst existiert ein großes Template-Ökosystem (Typst Universe) mit mehreren aktiv gepflegten Lebenslauf-Vorlagen, aber ohne fertiges deutsches DIN-5008-Geschäftsbrief-Template.",
+      "detail": "Beispiele: brilliant-cv (v4.1.0, Update 21.7.2026), modern-cv (direkter Port von Awesome-CV nach Typst, Update 20.4.2026), chicv (minimalistisch, anpassbar), impressive-impression (Update 4.3.2026, flexibel ein-/zweispaltig), neat-cv (v1.2.0, Update 24.6.2026). Für ein DIN-5008-konformes Anschreiben (Anschriftfeld, Datumsposition, Betreffzeile) muss ein eigenes Template gebaut oder ein bestehendes stark angepasst werden.",
+      "sources": [
+        "https://typst.app/universe/package/brilliant-cv/",
+        "https://typst.app/universe/package/modern-cv/",
+        "https://github.com/skyzh/chicv",
+        "https://typst.app/universe/package/impressive-impression/",
+        "https://typst.app/universe/package/neat-cv/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "RenderCV ist ein datengetriebener CV-Generator (YAML zu PDF), gut geeignet als Ausgangsbasis für den Lebenslauf-Teil der Pipeline.",
+      "detail": "17.5k GitHub Stars, MIT-Lizenz, benötigt Python 3.12+. CLI: 'pip install rendercv[full]', 'rendercv new \"Name\"', 'rendercv render datei.yaml'. Neun Themes (Classic, EngineeringResumes, Sb2nov, ModernCV, EngineeringClassic, Harvard, Ink, Opal, Ember), interaktive YAML-Vervollständigung über JSON-Schema, konfigurierbares Locale-Feld für mehrsprachige Lebensläufe. Deckt aber nur den Lebenslauf ab - kein Anschreiben-Modul und keine DIN-5008-Geschäftsbrief-Themes.",
+      "sources": [
+        "https://github.com/rendercv/rendercv",
+        "https://rendercv.com/"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "JSON Resume ist ein offenes, seit 2014 stabiles Schema (Version 1.0.0), 2026 in ein Monorepo konsolidiert, mit über 30 offiziellen und vielen Community-Themes.",
+      "detail": "Schema und CLI leben jetzt in einem Turborepo/pnpm-Monorepo (packages/schema, packages/cli statt getrennter Repos). Registry unter registry.jsonresume.org zum Preview verschiedener Themes. Community-Themes über npm unter dem Präfix 'jsonresume-theme-' auffindbar. Das Schema deckt basics/work/education/skills etc. ab, hat aber KEIN natives Feld für ein Anschreiben (coverLetter) - müsste als projektspezifische Schema-Erweiterung ergänzt werden.",
+      "sources": [
+        "https://github.com/jsonresume",
+        "https://jsonresume.org/themes",
+        "https://registry.jsonresume.org/"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Reactive Resume (42.3k Stars, MIT) ist der aktuell populärste Open-Source-Resume-Builder mit bereits eingebauter Claude-Integration.",
+      "detail": "15 Templates, AI-Integration für OpenAI/Google Gemini/Anthropic Claude, Multi-Language via Crowdin, Export als PDF (client-seitig)/JSON/DOCX, JSON-Resume-Import, self-hostbar via Docker mit PostgreSQL. Als vollwertige Web-App (TanStack Start/React 19) aber eher als Ideen-/Template-Referenz interessant, nicht als Kernbaustein einer Batch-Pipeline für 10 Bewerbungen/Tag - kein CLI-first/headless Betrieb dokumentiert, kein DIN-5008-Fokus.",
+      "sources": [
+        "https://github.com/amruthpillai/reactive-resume",
+        "https://rxresu.me/"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "OpenResume ist ein schlanker, privacy-fokussierter Resume-Builder/-Parser, der clientseitig läuft und ATS-Check bietet.",
+      "detail": "8.9k Stars, AGPL-3.0, Tech-Stack TypeScript/React/Redux/Next.js 13/PDF.js/React-pdf. Verarbeitung komplett im Browser (kein Server-Roundtrip), Fokus auf ATS-Kompatibilität und Diagnose bestehender Lebensläufe statt auf generative/automatisierte Massenerstellung.",
+      "sources": [
+        "https://github.com/xitanggg/open-resume"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "WeasyPrint ist eine Python-Bibliothek für HTML/CSS-zu-PDF-Konvertierung mit Unterstützung für moderne CSS-Layout-Module und PDF/A- sowie PDF/UA-Varianten.",
+      "detail": "Release Februar 2026 (aktuellste Version), benötigt Python 3.10+. Unterstützt Flexbox, Grid, CSS Paged Media (Kopf-/Fußzeilen, Seitenzahlen, benannte Seiten - relevant für exakte DIN-5008-Positionierung des Anschriftfelds via CSS-Maßangaben in cm/mm). PDF-Varianten wählbar über pdf_variant-Parameter: pdf/a-1b bis pdf/a-4b/u sowie pdf/ua-1 und pdf/ua-2 (Tagged PDF). Führt kein JavaScript aus - für rein datengetriebene, serverseitige Templates aber unproblematisch und Vorteil (kein Headless-Browser-Overhead).",
+      "sources": [
+        "https://www.nutrient.io/blog/how-to-generate-pdf-reports-from-html-in-python/",
+        "https://github.com/Kozea/WeasyPrint/issues/2153",
+        "https://weasyprint.com/"
+      ],
+      "confidence": "high",
+      "info_date": "2026-02"
+    },
+    {
+      "claim": "Puppeteer (Headless Chrome über DevTools-Protokoll) ist die populärste Node.js-Lösung für HTML-zu-PDF, aber weniger geeignet für reinen Text-PDF-Output als serverseitiges Rendering.",
+      "detail": "page.pdf() mit @media print-CSS, unterstützt Kopf-/Fußzeilen, Skalierung, JS-Ausführung (Vorteil bei dynamischen/interaktiven Vorlagen, Nachteil an Overhead/Komplexität für simple Dokumente). Community-Empfehlung: bei einfachen, nicht-JS-lastigen Seiten reicht Print-CSS; für garantiert selektierbaren/durchsuchbaren Text bei komplexeren Layouts wird serverseitiges Rendering (z.B. WeasyPrint) empfohlen statt Screenshot-artigem Ansatz.",
+      "sources": [
+        "https://blog.risingstack.com/pdf-from-html-node-js-puppeteer/",
+        "https://latenode.com/blog/web-automation-scraping/puppeteer-fundamentals-setup/complete-guide-to-pdf-generation-with-puppeteer-from-simple-documents-to-complex-reports"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Paged.js ist ein Open-Source-JS-Polyfill für CSS Paged Media, der Browser-HTML in paginierte, druckfertige Layouts umsetzt.",
+      "detail": "Übersetzt CSS-Paged-Media- und Generated-Content-Deklarationen in browserverständliche Fragmentierung (Spalten-basiert), inkl. Hooks für eigene Handler. Läuft im Browser oder headless via Puppeteer/Playwright. Nützlich für komplexere mehrseitige Layouts mit Fußnoten/Kapitel-Nummerierung - für ein einseitiges Anschreiben/zweiseitigen Lebenslauf vermutlich Overkill gegenüber WeasyPrint.",
+      "sources": [
+        "https://github.com/pagedjs/pagedjs/",
+        "https://pagedjs.org/en/documentation/1-the-big-picture/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "docxtemplater ist eine kommerzielle DOCX/PPTX/XLSX-Templating-Engine mit gestaffelter, für ein Einzelkandidaten-Projekt unwirtschaftlicher Preisstruktur.",
+      "detail": "Open-Source-Basisversion deckt nur DOCX/PPTX ab. Bezahlversionen: PRO-SELECT (4 wählbare Module) 1250€/Jahr, Einzelmodule je 500€/Jahr, Enterprise-Lizenz 3000€/Jahr, Premium 9000€/Jahr, Appliance-Lizenz (Weitervertrieb an eigene Kunden) 6500-15000€/Jahr. XLSX-Support, HTML-Formatierung, Bilder/Diagramme/Sub-Templates nur in Bezahlmodulen.",
+      "sources": [
+        "https://docxtemplater.com/pricing/",
+        "https://docxtemplater.com/articles/new-pricing-plans/"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Carbone.io hat einen kostenlosen, self-hostbaren Open-Source-Kern und ist bereits als offizielles Claude-Plugin verfügbar.",
+      "detail": "Self-hosted Nutzung ist dauerhaft kostenlos (30 Tage Trial für Cloud-Bezahlfeatures). Cloud-Pricing beginnt bei 29€/Monat (Essential: 1000 Dokumente, 500 Templates, 1 Nutzer, 30 Tage API-Analytics), Essential Plus 95€, Advanced 159€, Advanced Plus 295€, Advanced Ultra 595€. Templates werden in Word/Excel/LibreOffice/Google Docs designt und mit JSON-Daten befüllt; Ausgabeformate DOCX/XLSX/PPTX/ODT/HTML/Markdown/PDF. Existiert bereits als 'carbone-skill'-Plugin im offiziellen anthropics/claude-plugins-official-Marketplace mit vollständiger Templating-Sprachreferenz (Tags, Loops, Conditions, Formatters).",
+      "sources": [
+        "https://carbone.io/pricing.html",
+        "https://raw.githubusercontent.com/anthropics/claude-plugins-official/main/.claude-plugin/marketplace.json"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Tectonic ist eine moderne, self-contained TeX/LaTeX-Engine mit Fokus auf reproduzierbare Builds - vorteilhaft für eine automatisierte Container-Pipeline.",
+      "detail": "Powered by XeTeX und TeX Live, Open Source, aktiv gepflegt (Bug-Reports April/Mai 2026 dokumentiert). Kern-Feature: 'Bundle'-Technologie erlaubt vollständig reproduzierbare Kompilate ohne Systemabhängigkeiten - relevant für eine tägliche Batch-Generierung, bei der identischer Input immer identischen Output liefern soll, unabhängig von der lokalen TeX-Live-Version im Container.",
+      "sources": [
+        "https://tectonic-typesetting.github.io/en-US/",
+        "https://github.com/tectonic-typesetting/tectonic"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-04"
+    },
+    {
+      "claim": "LaTeX moderncv (Themes classic/banking) gilt als ATS-sicher, während awesome-cv ein mittleres und altacv ein geringes ATS-Risiko trägt.",
+      "detail": "moderncv: etabliertes Paket, einspaltige classic/banking-Themes gelten als ATS-sicher, beliebt im akademischen Umfeld. awesome-cv: farbiger Header/klare Sektionstrenner, ATS-Risiko gering WENN mit pdflatex kompiliert und der Header als LaTeX-Farbe statt eingebettetem Bild implementiert ist. altacv: kreatives Zweispalten-Layout, dadurch laut Quellen 'geringe ATS-Freundlichkeit' - für unseren Qualität-vor-Quantität-Anspruch mit ATS-Fokus nicht als Standardtemplate geeignet.",
+      "sources": [
+        "https://best-of-web.builder.io/library/liantze/AltaCV",
+        "https://resumeoptimizerpro.com/blog/latex-resume-template",
+        "https://letx.app/blog/best-latex-resume-templates/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Ein aus LaTeX/Typst mit Text-Engine (pdflatex/xelatex/typst compile) kompiliertes PDF enthält eine echte, durchsuchbare Textebene und wird von ATS grundsätzlich genauso gut gelesen wie ein aus Word exportiertes PDF.",
+      "detail": "Voraussetzung ist, dass keine Rasterbilder für Textinhalte verwendet werden (z.B. Header als Bild statt Farbfläche). Empfohlene Eigenkontrolle: Copy-Paste-Test (kompletten PDF-Text markieren/kopieren und prüfen, ob Reihenfolge/Umlaute/Sonderzeichen korrekt erhalten bleiben) vor jedem produktiven Versand.",
+      "sources": [
+        "https://resumeoptimizerpro.com/blog/latex-resume-template"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": ".docx gilt weiterhin als sicherstes ATS-Format, moderne Systeme (Workday, Greenhouse, Lever, Personio via Textkernel) parsen aber auch text-selektierbare PDFs zuverlässig; Bild-PDFs sind die Hauptursache für Parsing-Fehler.",
+      "detail": "Getestete Section-Extraction-Raten sind bei .docx am höchsten. Tabellen, Mehrspalten-Layouts und Kopf-/Fußzeilen-Inhalte werden von vielen ATS-Parsern verschluckt oder durcheinandergebracht. Empfehlung 2025/2026: .docx einreichen, außer PDF wird explizit verlangt - und PDF dann aus Word/Google Docs exportieren, nicht aus einem Design-Tool.",
+      "sources": [
+        "https://www.resumemate.io/blog/pdf-vs-docx-for-resumes-in-2025-what-recruiters-ats-really-prefer/"
+      ],
+      "confidence": "high",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Workday-Parser ist besonders formatierungsempfindlich: einspaltig, Kontakt im Fließtext (nicht in Kopfzeile), Standard-Überschriften ('Work Experience', 'Skills'), keine Tabellen/Grafiken.",
+      "detail": "Über 60% der Parsing-Fehler in Enterprise-ATS wie Workday sollen laut Quellen auf komplexe Layouts zurückgehen, die der NLP-basierte Parser nicht korrekt in Felder überführen kann. Direkte Konsequenz fürs Template-Design: striktes Einspalten-Layout als Default erzwingen.",
+      "sources": [
+        "https://applyarc.com/blog/workday-ats-resume-optimization",
+        "https://resufit.com/blog/optimizing-resume-text-for-autofill-success-a-guide-to-workday-and-ats-compatibility/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Empfohlene ATS-sichere Schriftarten 2026 sind Arial, Calibri, Helvetica, Times New Roman und Garamond - exotische Schriften riskieren fehlerhaftes Embedding und unlesbare Zeichen im ATS-Parser.",
+      "detail": "Calibri (11pt) gilt als durchgängig sichere Wahl branchenübergreifend, Arial gilt vielen Quellen 2026 als moderner und ebenfalls ATS-sicher. Empfohlene Größenordnung: 10-12pt Fließtext, 13-16pt Überschriften, 18-22pt Name. Für unsere Pipeline: nur Schriften einsetzen, die in jeder PDF-Engine (Typst/LaTeX/WeasyPrint) vollständig eingebettet werden, keine reinen System-Fallback-Fonts.",
+      "sources": [
+        "https://airesume.guru/blog/ats-friendly-resume-fonts",
+        "https://resufit.com/blog/best-fonts-for-resume-ats-tested/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "DIN 5008 bleibt 2025/2026 Referenzstandard für den deutschen Geschäftsbrief/Bewerbungsanschreiben mit konkret bemaßten Feldern.",
+      "detail": "Anschriftfeld beginnt 4,5cm vom oberen Rand, Betreffzeile liegt 2 Leerzeilen darunter (das Wort 'Betreff:' selbst wird laut aktueller Norm nicht mehr vorangestellt, nur die Zeile folgt). Neues, international kompatibles Datumsformat ISO 2025-03-06 wird empfohlen, alternativ 07.01.20XX. Zwei Formvarianten: Form A (Briefkopfhöhe 27mm) und Form B (45mm), unterschiedliche Zonenaufteilung für Zusatz-/Vermerkzone und Absenderangabe. Body-Text i.d.R. 12pt, Kontaktzeile ca. 10pt, Überschriften ca. 14pt.",
+      "sources": [
+        "https://www.gruendung.de/din-5008/",
+        "https://www.zeitblueten.com/news/brief-din-5008/",
+        "https://leonrenner.com/din-5008-geschaeftsbrief/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Das klassische Anschreiben ist 2025/2026 nicht mehr durchgängig Pflicht: 45% der deutschen Unternehmen verlangen es laut StepStone-Analyse noch, 64% laut Taledo-Umfrage machen es optional, einige DAX-Konzerne verzichten komplett.",
+      "detail": "Gleichzeitig empfinden 61% der Bewerber das Anschreiben laut StepStone 2025 als größte Bewerbungshürde. Trend seit 2023/2024 (Fachkräftemangel) geht Richtung Bewerbung ohne Anschreiben oder mit optionalem Kurzanschreiben. Für die Pipeline: Anschreiben weiterhin als Standard-Output erzeugen (Qualitätsanspruch des Projekts), aber die Länge/Tiefe an das jeweilige Portal-Feld anpassen können (manche Portale bieten nur ein Freitextfeld statt PDF-Upload).",
+      "sources": [
+        "https://karriere.de/mein-naechster-job/bewerbungsverfahren-bei-diesen-dax-konzernen-brauchen-sie-kein-anschreiben-mehr/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Ein Bewerbungsfoto ist seit dem AGG nicht mehr verpflichtend, wird von vielen deutschen Unternehmen aber weiterhin gern gesehen - für eine automatisierte Pipeline empfiehlt sich dennoch der Verzicht.",
+      "detail": "Rechtlich gibt es keine Fotopflicht mehr (§11 AGG-Kontext, Diskriminierungsschutz nach Alter/Herkunft/Geschlecht bei der Bewerberauswahl). Ein automatisch generiertes/eingefügtes Foto würde zusätzliche Datenschutz- und Diskriminierungsrisiken schaffen und die Pipeline verkomplizieren (Bildqualität, Formatierung, Aktualität) - Empfehlung: kein Standard-Foto, ATS-optimierte, moderne Lebensläufe verzichten ohnehin zunehmend darauf.",
+      "sources": [
+        "(salvage legal.md, Suche 11: AGG Lebenslauf Foto Geburtsdatum Familienstand)"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Eine Unterschrift auf Lebenslauf/Anschreiben ist in D/A/CH rechtlich nicht vorgeschrieben; bei Online-Bewerbungen unüblich, bei postalischen/konservativen Bewerbungen (Verwaltung, Banken, Versicherungen) weiterhin erwartet.",
+      "detail": "Faustregel: digital in der Regel keine Unterschrift nötig, klassisch/formell (Post, konservative Branche) eher ja. Eine eingescannte handschriftliche Unterschrift kann als Bild ins PDF/DOCX eingefügt werden, falls gewünscht - für die automatisierte Pipeline ist dies ein optionaler, nicht Standard-Baustein.",
+      "sources": [
+        "https://enhancv.com/de/blog/datum-und-unterschrift-auf-lebenslauf/",
+        "https://karrierebibel.de/bewerbung-lebenslauf-unterschreiben/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Eine zusammengeführte Bewerbungsmappe als eine PDF-Datei wird für E-Mail-Bewerbungen empfohlen (Reihenfolge bleibt erhalten, wirkt strukturierter), Zielgröße unter 2MB; bei Online-Portalen mit getrennten Upload-Feldern müssen dagegen Einzeldateien vorbereitet werden.",
+      "detail": "Die Pipeline muss also beide Ausgabeformen unterstützen: eine kombinierte PDF (Anschreiben + Lebenslauf + ggf. Anlagen) sowie separate Einzeldateien pro Dokumenttyp, je nachdem was das Zielportal verlangt.",
+      "sources": [
+        "https://cvlotse.de/ratgeber/bewerbungsunterlagen-pdf",
+        "https://www.bewerbungstools.de/ratgeber/bewerbungsunterlagen-eine-pdf"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Datei-Upload-Limits variieren je Portal: Personio erlaubt 10MB pro Dokument im Kandidatenprofil bzw. 20MB via Bewerbungsformular (nur PDF/DOCX, max. 25 Dateien); generell bewegen sich die meisten Portale zwischen 2-10MB, E-Mail-Bewerbungen üblicherweise max. 5MB Gesamtgröße.",
+      "detail": "Für Softgarden und Workday wurden in der Recherche keine spezifischen MB-Angaben gefunden (offene Frage/Lücke). Konsequenz für die Pipeline: PDF-Kompression/Optimierung als Standardschritt einplanen, Zielgröße konservativ bei 2-5MB pro Gesamtmappe ansetzen, um auch strengere Portale sicher zu bedienen.",
+      "sources": [
+        "https://community.personio.de/recruiting-2/upload-bewerberdatei-inkl-lebenslaeufe-5027",
+        "https://www.bewerbungsanschreiben.info/achtung-datenflut-ueber-die-richtige-dateigroesse-von-bewerbungsanlagen/"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Empfohlene Dateibenennung: 'Nachname_Vorname_Dokumenttyp.pdf' (z.B. Mueller_Sven_Lebenslauf.pdf), ohne Umlaute/Leerzeichen/Sonderzeichen/Emojis, ohne Datum im Dateinamen.",
+      "detail": "Nur Vornamen zu verwenden gilt als Fehler (Eindeutigkeit bei großen Unternehmen). Ein Datum im Dateinamen verrät zudem ungewollt, wie lange die Bewerbung schon 'unterwegs' ist. Bindestrich/Unterstrich sind unproblematisch für Lesbarkeit.",
+      "sources": [
+        "https://www.tabellarischer-lebenslauf.net/bewerbung-tipps/dateinamen-der-bewerbungsdokumente/",
+        "https://www.namequick.app/de/blog/how-to-name-a-resume-file"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Ein Deckblatt ist 2025/2026 in D/A/CH üblich aber nicht Pflicht; für automatisierte Online-Bewerbungen meist verzichtbar, sinnvoll nur bei umfangreichen Mappen, konservativen Branchen oder expliziter Forderung.",
+      "detail": "Widersprüchliche Signale in den Quellen: einerseits 'Deckblatt nicht mehr nötig 2026', andererseits 'kann Aufmerksamkeit steigern, wenn es Mehrwert bietet'. Empfehlung fürs Projekt: Deckblatt NICHT als Standard-Output erzeugen (reduziert Komplexität, Seitenzahl, Generierungszeit), optional als Konfigurationsschalter pro Bewerbung anbieten.",
+      "sources": [
+        "https://bewerbungsgenius.de/ratgeber/bewerbungsmappe-2026-was-reingehoert-und-die-richtige-reihenfolge"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Skills sollten 2026 als reine Textlisten mit konkretem Kompetenzniveau dargestellt werden, nicht als Balken/Sterne/grafische Bewertungssysteme - ATS können Grafiken nicht auswerten.",
+      "detail": "Statt 'Excel 80%' oder Sterne-Widgets empfohlen: 'Fortgeschrittene Kenntnisse in Excel (Pivot-Tabellen, SVERWEIS, Makros)' bzw. Kategorien (Sprachen/Software/Methoden/Zertifikate) mit konkretem Niveau wie 'Englisch (C1)'. Direkte Design-Implikation: Templates dürfen keine CSS-Balken-Widgets für Skills enthalten, nur Aufzählungen/Fließtext.",
+      "sources": [
+        "https://www.bewerbungundlebenslauf.de/lebenslauf-faehigkeiten/",
+        "https://easycv.ai/blog/de/ats-optimierter-lebenslauf-2026-der-komplette-leitfaden"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Ein englischer CV/Resume unterscheidet sich strukturell deutlich vom deutschen Lebenslauf: kein Foto/Alter/Familienstand, oft mehr Fließtext statt tabellarischer Auflistung, Resume max. 1 Seite (Berufseinsteiger) bis 2-3 Seiten (international/Senior).",
+      "detail": "Foto/Alter/Familienstand gelten im internationalen CV als 'No-Go' und können sogar zum Ausschluss führen (Diskriminierungsschutz-Praxis in UK/US). Eine reine Übersetzung des deutschen Lebenslaufs reicht nicht - Struktur und Tonalität müssen für den Zielmarkt angepasst werden. Relevant für das Projekt, da Bewerbungen teils auf Englisch verlangt werden: separates englisches CV-Template mit eigener Struktur nötig, nicht nur Sprachwechsel desselben Templates.",
+      "sources": [
+        "https://at.indeed.com/karriere-guide/bewerbung/lebenslauf-englisch",
+        "https://cvlotse.de/ratgeber/deutscher-vs-englischer-lebenslauf"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Eine Kurzbewerbung/Kurzprofil (1-2 Seiten, kombiniertes Anschreiben+Lebenslauf) ist eine etablierte, kompaktere Bewerbungsform für Initiativbewerbungen.",
+      "detail": "Unterscheidet sich vom vollständigen Anschreiben durch deutlich kürzere Länge (max. 1 DIN-A4-Seite) und Verzicht auf ein separates Motivationsschreiben. Für das Projekt als optionale Zusatz-Ausgabevariante denkbar, aber nicht Kernanforderung, da der Auftrag zehn vollständige, hochwertige Bewerbungen/Tag vorsieht.",
+      "sources": [
+        "https://www.arbeitsrechte.de/kurzbewerbung/"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Anthropic docx Skill",
+      "url": "https://github.com/anthropics/skills/tree/main/skills/docx",
+      "category": "CLI/Skill",
+      "access": "Über Claude Code Plugin-Marketplace oder Messages API (container.skills, skill_id 'docx') nutzbar; benötigt code_execution-Tool",
+      "pricing": "Skill selbst kostenlos im Repo, Nutzung über die API kostet reguläre Token/Code-Execution-Gebühren; Lizenz 'source-available' (proprietär, LICENSE.txt), kein Open Source",
+      "verdict": "empfohlen - direkter Anschluss an den Claude Agent SDK Stack, deckt DOCX-Erstellung/-Bearbeitung/-PDF-Export ab, aber Lizenzbedingungen vor kommerzieller Nutzung prüfen"
+    },
+    {
+      "name": "Anthropic pdf Skill",
+      "url": "https://github.com/anthropics/skills/tree/main/skills/pdf",
+      "category": "CLI/Skill",
+      "access": "Wie docx-Skill, über Plugin-Marketplace oder API (skill_id 'pdf')",
+      "pricing": "Wie docx-Skill; proprietäre Lizenz",
+      "verdict": "empfohlen - deckt Merge/Split/Wasserzeichen/Extraktion/OCR ab, sinnvoll für Bewerbungsmappen-Zusammenführung"
+    },
+    {
+      "name": "Typst",
+      "url": "https://github.com/typst/typst",
+      "category": "CLI",
+      "access": "Open Source, lokale Binary-Installation oder in Container/Sandbox, `typst compile`",
+      "pricing": "Kostenlos, Apache-2.0",
+      "verdict": "empfohlen als Lebenslauf-Renderer - schnell, modern, gut versionierbar; DIN-5008-Anschreiben-Template muss selbst gebaut werden"
+    },
+    {
+      "name": "RenderCV",
+      "url": "https://github.com/rendercv/rendercv",
+      "category": "CLI/Bibliothek",
+      "access": "pip install, Open Source, CLI-basiert (YAML-Input)",
+      "pricing": "Kostenlos, MIT-Lizenz",
+      "verdict": "optional - guter Startpunkt/Referenz für datengetriebenen Lebenslauf, aber kein Anschreiben-Modul und keine deutschen DIN-Themes"
+    },
+    {
+      "name": "LaTeX (moderncv via TeX Live)",
+      "url": "https://ctan.org/pkg/moderncv",
+      "category": "CLI/Bibliothek",
+      "access": "TeX Live vorinstalliert in Claude Cloud Sandbox (pdflatex/xelatex/latexmk)",
+      "pricing": "Kostenlos, Open Source",
+      "verdict": "optional - solide Fallback-Option für konservative Branchen mit ATS-sicherem Single-Column-Theme, aber langsamer/komplexer als Typst"
+    },
+    {
+      "name": "Tectonic",
+      "url": "https://github.com/tectonic-typesetting/tectonic",
+      "category": "CLI",
+      "access": "Open Source, self-contained Binary/Bundle-System",
+      "pricing": "Kostenlos",
+      "verdict": "optional - falls LaTeX-Pipeline gewählt wird, wegen reproduzierbarer Builds einer vollen TeX-Live-Installation vorzuziehen"
+    },
+    {
+      "name": "JSON Resume",
+      "url": "https://jsonresume.org/",
+      "category": "Datenschema",
+      "access": "Offenes Schema + CLI (npm), Registry unter registry.jsonresume.org",
+      "pricing": "Kostenlos, Open Source",
+      "verdict": "optional - guter Ausgangspunkt für das Datenmodell, muss um coverLetter/DIN-5008-Felder erweitert werden"
+    },
+    {
+      "name": "WeasyPrint",
+      "url": "https://weasyprint.com/",
+      "category": "Bibliothek",
+      "access": "Python-Paket (pip install weasyprint), lokal oder in Sandbox installierbar",
+      "pricing": "Kostenlos, Open Source (BSD-artig)",
+      "verdict": "empfohlen als primärer HTML/CSS-zu-PDF-Renderer - exakte DIN-5008-Positionierung via CSS möglich, unterstützt PDF/A- und PDF/UA-Varianten"
+    },
+    {
+      "name": "Puppeteer",
+      "url": "https://pptr.dev/",
+      "category": "Bibliothek",
+      "access": "npm-Paket, Chromium in Claude Cloud Sandbox bereits vorhanden (Playwright-Pfad)",
+      "pricing": "Kostenlos, Open Source",
+      "verdict": "optional - nur falls Template JS-Interaktivität benötigt, sonst WeasyPrint schlanker für reine Text-Dokumente"
+    },
+    {
+      "name": "Paged.js",
+      "url": "https://github.com/pagedjs/pagedjs/",
+      "category": "Bibliothek",
+      "access": "npm-Paket/Browser-Skript, läuft in Kombination mit Puppeteer für PDF-Export",
+      "pricing": "Kostenlos, Open Source",
+      "verdict": "optional - nur bei komplexeren mehrseitigen Layouts mit Fußnoten/Kapiteln relevant, für Anschreiben/CV vermutlich unnötig"
+    },
+    {
+      "name": "python-docx",
+      "url": "https://python-docx.readthedocs.io/",
+      "category": "Bibliothek",
+      "access": "In Claude Cloud Sandbox vorinstalliert; pip install python-docx sonst",
+      "pricing": "Kostenlos, Open Source (MIT)",
+      "verdict": "empfohlen für serverseitige DOCX-Erzeugung ohne Konvertierungsverluste"
+    },
+    {
+      "name": "docx (npm)",
+      "url": "https://docx.js.org/",
+      "category": "Bibliothek",
+      "access": "npm-Paket, vom Anthropic docx-Skill direkt genutzt",
+      "pricing": "Kostenlos, Open Source (MIT)",
+      "verdict": "optional - Alternative auf Node-Seite, falls die Pipeline primär in Node/TypeScript gebaut wird"
+    },
+    {
+      "name": "docxtemplater",
+      "url": "https://docxtemplater.com/",
+      "category": "Bibliothek/SaaS",
+      "access": "npm-Paket (Open-Source-Kern DOCX/PPTX), Bezahlmodule für XLSX/HTML/Bilder",
+      "pricing": "PRO-SELECT 1250€/Jahr, Einzelmodule je 500€/Jahr, Enterprise 3000€/Jahr, Premium 9000€/Jahr (Stand 2026)",
+      "verdict": "vermeiden - für ein Einzelkandidaten-Projekt unwirtschaftlich teuer, Open-Source-Kern reicht evtl. für einfache DOCX-Templates aus"
+    },
+    {
+      "name": "Carbone.io",
+      "url": "https://carbone.io/",
+      "category": "SaaS/CLI",
+      "access": "Self-hosted Open-Source-Kern kostenlos nutzbar; Cloud-API mit Free-Trial",
+      "pricing": "Cloud ab 29€/Monat (Essential), self-hosted dauerhaft kostenlos",
+      "verdict": "optional - guter Fallback für Multi-Format-Templating (DOCX/XLSX/PPTX/PDF aus einem Template), existiert bereits als Claude-Plugin"
+    },
+    {
+      "name": "Pandoc",
+      "url": "https://pandoc.org/",
+      "category": "CLI",
+      "access": "In Claude Cloud Sandbox vorinstalliert",
+      "pricing": "Kostenlos, Open Source (GPL)",
+      "verdict": "empfohlen für Format-Konvertierung/Inhaltsextraktion (z.B. DOCX zu Markdown zum Prüfen)"
+    },
+    {
+      "name": "LibreOffice (headless)",
+      "url": "https://www.libreoffice.org/",
+      "category": "CLI",
+      "access": "In Claude Cloud Sandbox vorinstalliert (soffice --headless)",
+      "pricing": "Kostenlos, Open Source",
+      "verdict": "empfohlen als Fallback-Konverter DOCX→PDF, wird auch vom Anthropic docx-Skill dafür genutzt"
+    },
+    {
+      "name": "Reactive Resume",
+      "url": "https://github.com/amruthpillai/reactive-resume",
+      "category": "SaaS/Bibliothek",
+      "access": "Self-hostbar via Docker (PostgreSQL), oder gehostet unter rxresu.me",
+      "pricing": "Kostenlos, Open Source (MIT)",
+      "verdict": "vermeiden als Kernbaustein (Web-App-Fokus, kein Batch/Headless-Betrieb dokumentiert) - optional als Template-Ideen-Referenz"
+    },
+    {
+      "name": "Claude Agent Skills API (container.skills)",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/skills.md",
+      "category": "API",
+      "access": "Über Messages API mit code_execution-Tool, max. 20 Skills/Request, eigene Custom Skills via Skills-API hochladbar",
+      "pricing": "Reguläre Claude-API-Token- plus Code-Execution-Kosten, kein separater Skill-Preis dokumentiert",
+      "verdict": "empfohlen als Integrationsweg, um Anthropic-Skills und eigene Custom-Skills (z.B. DIN-5008-Template) einheitlich im Agenten-Workflow zu orchestrieren"
+    }
+  ],
+  "recommendations": [
+    "Eigenes, erweitertes JSON-Datenschema (Basis: JSON Resume) als Single Source of Truth pro Bewerbung definieren - ergänzt um ein coverLetter-Objekt, DIN-5008-Adressfelder (Absender, Empfänger, Anschriftfeld, Datum, Ansprechpartner) und Sprach-Flag (de/en).",
+    "WeasyPrint als primären PDF-Renderer für HTML/CSS-Templates einsetzen (exakte DIN-5008-Positionierung via CSS-Maßeinheiten, PDF/A- und PDF/UA-Varianten wählbar, keine Browser-Overhead-Abhängigkeit) - Puppeteer nur ergänzen, falls ein Template JS-Interaktivität braucht.",
+    "Typst als Zweitrenderer für den Lebenslauf evaluieren (schnellere Iteration, moderne Typografie), aber ein eigenes DIN-5008-Anschreiben-Template selbst bauen, da kein fertiges deutsches Template im Typst-Ökosystem existiert.",
+    "DOCX-Ausgabe über python-docx bzw. den Anthropic docx-Skill direkt erzeugen (nicht durch Konvertierung aus PDF/HTML), um Formatierungsverluste zu vermeiden; LibreOffice headless nur als Fallback-Konverter einplanen.",
+    "Anthropic docx-/pdf-Skills über das Claude Agent SDK (container.skills, code_execution-Tool) einbinden statt komplette Eigenentwicklung - spart Entwicklungszeit, erfordert aber vorherige Prüfung der proprietären Lizenzbedingungen vor produktivem/kommerziellem Einsatz.",
+    "Pipeline muss zwei Ausgabeformen pro Bewerbung erzeugen: (1) eine zusammengeführte Gesamt-PDF (Anschreiben+Lebenslauf+ggf. Anlagen, Zielgröße ≤2MB) für E-Mail-Bewerbungen, (2) Einzeldateien pro Dokumenttyp für Portale mit getrennten Upload-Feldern (z.B. Personio-Limits: 10-20MB/Dokument, nur PDF/DOCX).",
+    "Kein Bewerbungsfoto, kein Deckblatt und keine Skill-Balken/-Sterne als Standard-Output - reduziert Diskriminierungsrisiko (AGG), Pipeline-Komplexität und folgt dem 2026er ATS-Trend.",
+    "Einspaltiges Layout, Standard-Schriften (Arial/Calibri/Helvetica), keine Tabellen/Textboxen für Kerninhalte als feste Design-Regel im Template-System verankern (unabhängig vom gewählten Renderer) - Workday & Co. sind formatierungssensibel.",
+    "Dateibenennung standardisieren: 'Nachname_Vorname_Dokumenttyp.pdf', ASCII-sicher (keine Umlaute/Leerzeichen/Emojis), kein Datum im Dateinamen.",
+    "Test-Strategie vor produktivem Rollout etablieren: automatisierter Text-Extraktions-Diff (pdftotext/pdfplumber gegen Referenztext, Umlaute/Reihenfolge prüfen), Font-Embedding-Check (pdffonts aus Poppler), Copy-Paste-Test, sowie Stichproben-Upload in Test-Accounts realer ATS-Systeme oder öffentliche ATS-Checker.",
+    "Separates englisches CV-Template mit eigener Struktur (kein Foto/Alter/Familienstand, andere Gliederung) vorhalten statt nur den deutschen Lebenslauf zu übersetzen, für Stellenanzeigen, die explizit Englisch verlangen.",
+    "Für Anlagen (Zeugnisse) die Anthropic pdf-Skill-Funktionen (Merge, OCR) nutzen, ggf. tesseract-ocr-deu nachinstallieren, falls gescannte deutsche Dokumente per OCR durchsuchbar gemacht werden sollen."
+  ],
+  "risks": [
+    "Anthropic docx-/pdf-Skills sind 'source-available', nicht Open Source - Lizenzbedingungen (LICENSE.txt) vor produktivem oder gar kommerziellem Einsatz genau prüfen.",
+    "LaTeX-/Typst-Templates ohne native DIN-5008-Unterstützung bergen bei automatisierter Massen-Generierung das Risiko unbemerkter Formatierungsfehler (Anschriftfeld-Position, Datumsformat) - ohne automatisierte Validierung fällt das erst bei Portal-Ablehnung auf.",
+    "Tagged-PDF/PDF-UA-Erzeugung ist für die reine ATS-Textextraktion meist irrelevant, da gängige Systeme (Textkernel-basierte Parser bei Personio/softgarden/d.vinci, Workday-NLP-Parser) einfache Textlagen-Extraktion nutzen statt Screenreader-Tags auszuwerten - Entwicklungszeit besser in saubere lineare Textreihenfolge und Font-Embedding stecken als in Accessibility-Tagging.",
+    "Kommerzielle Templating-SaaS (docxtemplater, teilweise Carbone-Cloud-Tiers) skaliert preislich nicht für ein Ein-Personen-Projekt - bei Fehleinschätzung der Notwendigkeit droht unnötiger Kostenaufwand.",
+    "Tesseract in der Claude-Cloud-Sandbox hat nur englische Sprachdaten vorinstalliert - OCR deutscher gescannter Zeugnisse liefert ohne Nachinstallation des deutschen Sprachpakets schlechte Ergebnisse.",
+    "Community-Typst-Templates (Typst Universe) werden häufig aktualisiert und können Breaking Changes enthalten - ungepinnte 'latest'-Versionen können die Pipeline unerwartet brechen; Versionen explizit pinnen (z.B. @preview/brilliant-cv:4.1.0).",
+    "Für Softgarden und Workday konnten in dieser Recherche keine spezifischen Datei-Upload-Größenlimits verifiziert werden (nur Personio-Werte gesichert) - konservative Zielgröße (≤2-5MB) als Sicherheitsmarge ansetzen, bis portalspezifische Werte geprüft sind."
+  ],
+  "open_questions_for_user": [
+    "Soll der Agent standardmäßig auf ein Bewerbungsfoto verzichten (Empfehlung dieser Recherche), oder soll optional ein vom Kandidaten bereitgestelltes Foto eingebunden werden können?",
+    "Soll grundsätzlich unsigniert generiert werden, oder soll einmalig eine eingescannte Unterschrift des Kandidaten hinterlegt und bei Bedarf (z.B. postalische/konservative Bewerbungen) automatisch eingefügt werden?",
+    "Nach welcher Regel soll die Sprache (Deutsch vs. Englisch) pro Bewerbung entschieden werden - anhand der Sprache der Stellenanzeige, der Unternehmenssprache, oder soll der Nutzer das pro Bewerbung final freigeben?",
+    "Soll die Lebenslauf-Länge starr auf 1-2 Seiten begrenzt bleiben, auch bei sehr erfahrenen Kandidaten mit langer Historie, oder soll die Pipeline flexibel bis 3 Seiten zulassen?",
+    "Ist ein Deckblatt für bestimmte Zielbranchen (z.B. konservative Branchen wie Banken/Verwaltung) gewünscht, oder generell nicht?",
+    "Welche konkrete Zielbranche/Seniorität hat der Kandidat - beeinflusst die Wahl zwischen konservativem DIN-5008-WeasyPrint-Template und einem kreativeren Typst/LaTeX-Layout als Standard-Ausgangsdesign."
+  ],
+  "search_log": [
+    "Typst CV Lebenslauf Vorlage Template 2026 GitHub",
+    "LaTeX moderncv vs awesome-cv vs altacv 2026 ATS comparison",
+    "Tectonic LaTeX engine 2026 status reproducible",
+    "JSON Resume schema 2026 themes registry status maintained",
+    "WeasyPrint HTML to PDF 2026 tagged PDF accessibility Python",
+    "docxtemplater pricing license 2026",
+    "Carbone.io pricing free tier 2026 docx pdf template",
+    "ATS-sichere Schriftarten Lebenslauf 2026 Calibri Arial empfohlen",
+    "DIN 5008 Geschäftsbrief Anschreiben Absender Anschriftfeld Datum Betreff 2025 2026 aktuell",
+    "Bewerbungsmappe eine PDF Datei oder getrennte Dokumente Empfehlung Personaler 2026",
+    "Dateibenennung Bewerbung Lebenslauf PDF Dateiname Empfehlung Nachname Vorname",
+    "Deckblatt Bewerbung 2026 noch zeitgemäß üblich",
+    "Unterschrift Anschreiben Lebenslauf digital eingescannt 2026 notwendig",
+    "Skills Darstellung Lebenslauf keine Balken Sternchen 2026 ATS Empfehlung",
+    "englischer CV vs deutscher Lebenslauf Unterschiede 2026 Bewerbung international",
+    "Puppeteer PDF generation Node.js 2026 headless Chrome print CSS",
+    "Paged.js CSS Paged Media polyfill 2026 status print PDF",
+    "Bewerbungsportal Upload Dateigröße Limit MB Lebenslauf Personio Softgarden Workday",
+    "(Salvage-Daten wiederverwendet aus abgebrochener Vorgänger-Session: ats.md - ATS-Parsing/PDF-vs-DOCX/Textkernel; competitors.md - RenderCV/Reactive Resume/OpenResume GitHub-Fetches; architecture.md - Claude Cloud Sandbox Toolliste, Typst GitHub-Fetch; claude_ecosystem.md - Anthropic docx/pdf Skill SKILL.md-Fetches, Skills-API-Dokumentation, Files-API; writing.md - Anschreiben-Konventionen/DIN-5008-Basiswissen/Kurzbewerbung)"
+  ],
+  "verification_notes": [
+    "[verify-C] WeasyPrint: PDF/A- und PDF/UA-Varianten (pdf/ua-1, pdf/ua-2, pdf/a-4u …) existieren, sind aber laut WeasyPrint-Doku 'experimentell' (seit v57) – Konformität nicht garantiert, Validierung liegt beim Nutzer. Aktuelle Doku-Version 69.0; 'Release Februar 2026' und Python-Mindestversion nicht prüfbar (doc.courtbouillon.org gesperrt).",
+    "[verify-C] Personio-Upload-Limits (10/20 MB, 25 Dateien, PDF/DOCX) nicht prüfbar (community.personio.de gesperrt) – confidence 'low' beibehalten.",
+    "[verify-C] Bestätigt: Code Execution/container.skills-Kosten (1.550 Freistunden/Monat, $0,05/h, kostenlos mit Web Search/Fetch ≥20260209); python-docx/pypdf/reportlab/pdfplumber im Code-Execution-Container vorinstalliert.",
+    "[verify-C] Quelle '(salvage legal.md, Suche 11 …)' beim AGG/Foto-Finding ist ein Platzhalter, keine URL – durch belastbare Quelle (z. B. Gesetzestext AGG §§ 1, 7, 11) ersetzen oder confidence auf 'low' setzen.",
+    "[verify-C] Nicht geprüft: DIN-5008-Maße, StepStone-45 %/Taledo-64 %-Statistiken, docxtemplater-/Carbone-Preise, RenderCV-Sterne."
+  ]
+}

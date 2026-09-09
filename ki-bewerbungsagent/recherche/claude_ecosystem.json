@@ -1,0 +1,612 @@
+{
+  "dimension": "Claude-/Anthropic-Ökosystem: Skills, Agent SDK, Managed Agents, MCP-Server",
+  "summary": "Für den KI-Bewerbungsagenten gibt es drei realistische Bauweisen, die sich kombinieren lassen. (1) Claude Code + Skills + Subagents + MCP, lokal oder als 'Claude Code on the web'/Routines betrieben – am besten für einen Einzelentwickler, der ohnehin im Terminal arbeitet. Skills (SKILL.md mit YAML-Frontmatter: name, description, allowed-tools, disable-model-invocation, model, effort, context: fork) sind der richtige Ort für wiederholbare Workflows wie 'Stelle bewerten', 'Anschreiben schreiben', 'CV anpassen'. Subagents (.claude/agents/*.md) isolieren Kontext und Tool-Zugriff (z.B. ein Recherche-Subagent mit nur Read/WebSearch/WebFetch, ein Schreib-Subagent mit Write/Edit). Zeitsteuerung gibt es in drei Varianten mit unterschiedlichen Trade-offs: /loop (sitzungsgebunden, Minute-Granularität, verfällt nach 7 Tagen, läuft nur bei offener Session), Desktop-Scheduled-Tasks (lokal, Rechner muss laufen, Zugriff auf lokale Dateien) und Cloud-Routines (claude.ai/code/routines, 1-Stunden-Mindestintervall, Forschungsvorschau, Tageslimits: Pro 5, Max 15, Team/Enterprise 25 Routine-Läufe/Tag, läuft ohne eigenen Rechner, aber jede Ausführung startet aus einem frischen Repo-Klon ohne lokalen Dateizugriff). Für 'täglich um feste Uhrzeit scannen' passt eine Cloud-Routine oder – besser für Nicht-Coding-Aufgaben wie E-Mail/Web-Recherche – ein Managed-Agents-Scheduled-Deployment. (2) Claude Managed Agents (Beta, Header managed-agents-2026-04-01) ist eine gehostete REST-API mit Sessions, Environments, Vaults (Zugangsdaten, z.B. mcp_oauth für Gmail/IMAP, ohne dass der Agent sie sieht) und Memory Stores (Kontext über Sessions hinweg, eigener Beta-Header agent-memory-2026-07-22). Scheduled Deployments erlauben echte Cron-Ausdrücke bis Minutengranularität (kein 1h-Minimum wie bei Routines!), mit Jitter bis 15%/max. 9 Min, Budget-Deckel pro Lauf, Webhooks für Ergebnisse und maximal 1000 Deployments pro Organisation. Abrechnung: Standard-Tokenpreise plus $0,08 pro aktiver Session-Stunde, keine Grundgebühr. Das ist die technisch sauberste Lösung für 'jeden Tag um 7 Uhr scannen, bewerten, Entwürfe erzeugen', erfordert aber API-Key-Abrechnung statt Abo. (3) Claude Cowork (in jedem bezahlten Abo ab Pro/$20/Monat enthalten, seit Juli 2026 auch Web/Mobile-Beta) bietet geplante Tages-/Wochen-/Monatsaufgaben, Dateizugriff und einen eingebauten Browser im Seitenpanel – die pragmatischste Option für einen Nicht-Entwickler ohne API-Abrechnung, aber weniger scriptbar/prüfbar als SDK/Managed Agents. Für die Dokumentenerzeugung ist das offizielle anthropics/skills-Repo zentral: docx-, pdf-, pptx- und xlsx-Skills sind produktionsreif (LibreOffice/pandoc/python-docx/pypdf/reportlab im Hintergrund), aber 'source-available', nicht Apache-2.0 – lokal über /plugin marketplace add anthropics/skills nutzbar, oder direkt über die Messages-API via container.skills (skill_id docx/pdf/pptx/xlsx, max. 20 Skills/Request) mit dem Code-Execution-Tool. Code-Execution ist mit Web-Search/Web-Fetch (Version 20260209+) kostenlos inkludiert, sonst 1.550 Freistunden/Monat/Org, danach $0,05/Stunde/Container – für zehn Anschreiben/Lebensläufe pro Tag praktisch kostenlos. Preise (bestätigt, Stand Sept. 2026): Fable 5.1 $10/$50 pro MTok, Opus 5 $5/$25, Sonnet 5 $2/$10 (seit 1.9.2026 dauerhaft, keine Erhöhung auf $3/$15), Haiku 4.5 $1/$5. Prompt-Caching senkt Kosten bei wiederholten System-Prompts/CVs um bis zu 90% (Cache-Read 0,1x, bei Fable 5.1 sogar 0,025x). Batch-API gibt 50% Rabatt bei asynchroner Verarbeitung (< 24h, Ergebnisse 29 Tage abrufbar) – gut geeignet, um z.B. nachts 50 Stellenanzeigen gegen das Profil zu bewerten. Web-Search kostet $10/1000 Suchen plus Tokens, Web-Fetch ist an gesehene URLs gebunden (Exfiltrationsschutz: Claude kann nur URLs abrufen, die vorher im Kontext auftauchten). Für MCP-Server ist die Marktlage 2026 volatil: der beliebte Gmail-MCP-Server von GongRzhe ist seit 3.3.2026 archiviert (read-only, unmaintained) – für den E-Mail-Versand über das eigene Konto des Nutzers ist taylorwilsdon/google_workspace_mcp (120+ Tools, aktiv, OAuth 2.1) oder eine direkte SMTP/Graph-API-Anbindung robuster. Playwright-MCP (microsoft, 36,9k Stars, aktiv, --headless-Flag) eignet sich für Bewerbungsportale ohne API. Firecrawl-, Tavily- und Exa-MCP sind alle aktiv mit Free-Tiers (1000 Credits/Monat bzw. 150 Anfragen/Tag), Brave Search hat seinen kostenlosen Tier im Februar 2026 abgeschafft. Notion-, Slack- und Postgres-MCP sind offiziell/aktiv gepflegt; Browserbase-MCP ist seit 20.7.2026 archiviert (gehosteter Endpunkt bleibt empfohlen). Rechtlich wichtig: Anthropics Usage Policy stuft 'Employment decisions' (Resume-Screening, Einstellungsentscheidungen) als Hochrisiko-Anwendung mit Human-in-the-Loop- und Offenlegungspflicht ein – das betrifft aber primär Arbeitgeber-Tools, nicht Bewerber, die KI zur eigenen Bewerbungserstellung nutzen; dennoch gilt das generelle Spam-/Massen-Abuse-Verbot, weshalb Massenversand ohne individuelle Prüfung riskant bleibt. Empfehlung: Qualität-vor-Quantität-Leitsatz passt technisch gut zum Managed-Agents-Modell mit Human-Review-Schritt vor jedem Versand.",
+  "findings": [
+    {
+      "claim": "SKILL.md-Format: Frontmatter-Felder umfassen name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, background, hooks, paths, shell, metadata, license, compatibility.",
+      "detail": "description wird kombiniert mit when_to_use auf 1536 Zeichen gekürzt und entscheidet, ob Claude die Skill automatisch lädt. context: fork startet die Skill in einem isolierten Subagent-Kontext; paths (Glob-Muster) lädt die Skill nur bei passenden Dateien automatisch. Für unser Projekt: pro Workflow-Schritt (Jobsuche, Bewertung, Anschreiben, Lebenslauf, PDF-Export, Checkliste) je eine eigene Skill mit engem allowed-tools-Set.",
+      "sources": [
+        "https://code.claude.com/docs/en/skills"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Skills liegen in sechs möglichen Orten: Enterprise (Managed Settings), Personal (~/.claude/skills), Project (.claude/skills), Nested (Unterverzeichnis/.claude/skills), Additional Directory (--add-dir), Plugin (<plugin>/skills), sowie im claude.ai-Konto für Cowork/Cloud-Sessions.",
+      "detail": "Für ein Ein-Personen-Projekt reicht Project-Scope (.claude/skills/*), damit die Skills mit dem Repo versioniert werden und über Routines/Cloud-Sessions mitlaufen.",
+      "sources": [
+        "https://code.claude.com/docs/en/skills"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Plugins bündeln Skills, Subagents, Hooks und MCP-Server in einem Verzeichnis mit .claude-plugin/plugin.json-Manifest; Installation über Marketplaces (`/plugin marketplace add <repo>`, dann `/plugin install <name>@<marketplace>`).",
+      "detail": "Die offizielle Anthropic-Marketplace (anthropics/claude-plugins-official, ~36k Stars) wird beim ersten interaktiven Start automatisch registriert. Sie enthält u.a. browser-use, firecrawl, exa, github, gitlab, linear, asana, airtable, claude-security, coderabbit – aber kein fertiges Gmail/E-Mail-Plugin.",
+      "sources": [
+        "https://code.claude.com/docs/en/plugins",
+        "https://github.com/anthropics/claude-plugins-official"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Subagents (.claude/agents/*.md) haben eigenes Frontmatter (name, description, tools, disallowedTools, model, permissionMode, maxTurns, skills, mcpServers, hooks, memory, background, effort, isolation, color) und starten mit frischem, isoliertem Kontext (kein Gesprächsverlauf, aber volle CLAUDE.md-Hierarchie).",
+      "detail": "Für unser System: ein 'job-scout'-Subagent (nur Read/WebSearch/WebFetch/MCP-Scraper), ein 'company-research'-Subagent (Recherche zu Adresse/Ansprechpartner, mit Pflicht zur Nutzerrückfrage bei Unklarheit statt Raten), ein 'writer'-Subagent (Write/Edit/Skills docx-pdf) und ein 'qa-checklist'-Subagent (nur Read) getrennt nach Zuständigkeit und mit Tool-Minimalprinzip.",
+      "sources": [
+        "https://code.claude.com/docs/en/sub-agents"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Hooks kennen über 30 Events (u.a. PreToolUse, PostToolUse, Stop, SessionStart, UserPromptSubmit, SubagentStop, PreCompact, PermissionRequest) und fünf Hook-Typen: command, http, mcp_tool, prompt, agent.",
+      "detail": "Ein PreToolUse-Hook auf einem 'send_email'-Custom-Tool oder MCP-Tool kann als harte Freigabeschranke dienen ('nie automatisch senden, immer Nutzerbestätigung') – wichtig, weil CLAUDE.md/Memory nur Kontext sind, keine erzwungene Kontrolle.",
+      "sources": [
+        "https://code.claude.com/docs/en/hooks"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": ".mcp.json unterstützt stdio-, http-, sse- (deprecated) und WebSocket-Transporte mit drei Scopes: local (privat, nur aktuelles Projekt), project (versioniert, geteilt) und user (privat, alle Projekte); Umgebungsvariablen-Expansion via ${VAR} / ${VAR:-default}.",
+      "detail": "MCP-Tool-Ausgabe ist standardmäßig auf 25.000 Tokens begrenzt (MAX_MCP_OUTPUT_TOKENS erhöhbar); Timeout pro Tool-Call ~28h Default, Idle-Timeout 5 Min (HTTP) bzw. 30 Min (stdio).",
+      "sources": [
+        "https://code.claude.com/docs/en/mcp"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "CLAUDE.md-Hierarchie (Managed Policy > User ~/.claude/CLAUDE.md > Project ./CLAUDE.md bzw. ./.claude/CLAUDE.md, nested) liefert Instruktionen; Auto-Memory (von Claude selbst geschrieben) ist auf die ersten 200 Zeilen/25KB pro Session begrenzt.",
+      "detail": "Beide sind reiner Kontext, keine erzwungene Regel – für 'bei Unklarheit den Nutzer fragen statt zu raten' reicht eine CLAUDE.md-Instruktion NICHT als Garantie; nötig ist zusätzlich AskUserQuestion im Workflow und ggf. ein Hook, der Web-Recherche ohne Bestätigung blockiert.",
+      "sources": [
+        "https://code.claude.com/docs/en/memory"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Drei Zeitsteuerungs-Mechanismen mit unterschiedlichem Minimalintervall: /loop (1 Minute, sitzungsgebunden, verfällt nach 7 Tagen, Rechner+Session muss laufen), Desktop-Scheduled-Tasks (1 Minute, lokal, Rechner muss wach sein, lokaler Dateizugriff), Cloud-Routines (1 Stunde Minimum, läuft ohne eigenen Rechner, aber jede Ausführung nutzt einen frischen Repo-Klon ohne lokale Dateien).",
+      "detail": "Für 'täglich zu fester Uhrzeit scannen' ist eine Cloud-Routine (claude.ai/code/routines, oder `/schedule` im CLI) technisch am nächsten am Zielbild, aber in Research Preview mit Tageslimits (Pro 5, Max 15, Team/Enterprise 25 Routine-Läufe/Tag) und ohne persistenten lokalen State zwischen Läufen (Memory müsste in Repo/Datenbank/Managed-Agents-Memory-Store liegen).",
+      "sources": [
+        "https://code.claude.com/docs/en/scheduled-tasks",
+        "https://code.claude.com/docs/en/routines",
+        "https://code.claude.com/docs/en/desktop-scheduled-tasks"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Headless-Modus: `claude -p \"<prompt>\" --output-format json --allowedTools \"Read,Edit,Bash\"`; `--bare` überspringt Hooks/Skills/Subagents/Plugins/MCP/Memory/CLAUDE.md für reproduzierbare CI-Läufe und benötigt ANTHROPIC_API_KEY statt Abo-Login.",
+      "detail": "Für einen eigenen Scheduler (z.B. crontab auf einem VPS, der täglich `claude -p` mit einem festen Prompt und --output-format json aufruft) ist Headless-Modus die flexibelste, abo-unabhängige Variante – erfordert aber API-Key-Abrechnung statt Pro/Max-Plan.",
+      "sources": [
+        "https://code.claude.com/docs/en/headless"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Sicherheitsmechanismen gegen Prompt-Injection: Permission-System (Manual-Mode fragt vor riskanten Aktionen), Netzwerk-Kommando-Freigabe (curl/wget nicht auto-approved), isolierte Kontextfenster für WebFetch, Trust-Verification für neue MCP-Server; MCP-Tool-Beschreibungen gelten explizit als untrusted Input.",
+      "detail": "Bei Recherche zu Unternehmen/Ansprechpartnern über WebFetch/WebSearch/Firecrawl-MCP sollte man domain-gefilterte Tools und Read-only-Subagents nutzen, da externe Webinhalte (z.B. gefälschte Stellenanzeigen) Prompt-Injection-Versuche enthalten könnten.",
+      "sources": [
+        "https://code.claude.com/docs/en/security",
+        "https://code.claude.com/docs/en/mcp"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Agent SDK Python (Paket `claude-agent-sdk`, aktuell v0.2.152, Stand 2.9.2026, Python ≥3.10) bündelt die Claude-Code-CLI automatisch; TypeScript-SDK-Paket ist @anthropic-ai/claude-agent-sdk.",
+      "detail": "query() erzeugt pro Aufruf eine neue Session (Async-Iterator über Messages); ClaudeSDKClient hält mehrstufige Konversationen mit Custom Tools/Hooks. ClaudeAgentOptions enthält u.a. allowed_tools, disallowed_tools, permission_mode, system_prompt (Preset+append), mcp_servers, agents (AgentDefinition), hooks, output_format (JSON-Schema), max_turns, max_budget_usd, model, effort, resume, continue_conversation, fork_session, can_use_tool, plugins, thinking.",
+      "sources": [
+        "https://pypi.org/project/claude-agent-sdk/",
+        "https://code.claude.com/docs/en/agent-sdk/python"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Custom Tools im Agent SDK: @tool-Decorator (Python) bzw. tool()-Helper (TS) mit Name/Description/Input-Schema/Handler, verpackt in create_sdk_mcp_server()/createSdkMcpServer() als In-Process-MCP-Server (kein separater Prozess); Registrierung über mcp_servers in ClaudeAgentOptions, Freigabe über allowed_tools mit Namensschema mcp__<server>__<tool>.",
+      "detail": "Für unser Projekt eignet sich ein In-Process-MCP-Server für z.B. eine 'evaluate_job_match'-Funktion (deterministisches Scoring gegen Profil-Keywords) oder 'render_pdf'-Funktion, ohne externen MCP-Prozess betreiben zu müssen.",
+      "sources": [
+        "https://code.claude.com/docs/en/agent-sdk/custom-tools"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Structured Output im Agent SDK: query()-Option output_format={\"type\":\"json_schema\",\"schema\":...} liefert im ResultMessage ein strukturiertes structured_output-Feld; SDK validiert und promptet bei Fehlschlag automatisch erneut, bricht nach Retry-Limit mit Fehler ab (z.B. error_max_structured_output_retries).",
+      "detail": "Damit lassen sich z.B. die Ausgabe 'pro Stelle: Score, Begründung, fehlende Angaben, Empfehlung' oder die tägliche Checkliste (10 Bewerbungen mit Status) zuverlässig maschinenlesbar aus dem Agent herausziehen.",
+      "sources": [
+        "https://code.claude.com/docs/en/agent-sdk/structured-outputs"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Subagents im SDK: drei Wege – programmatisch über den agents-Parameter (empfohlen für SDK-Apps), dateibasiert über .claude/agents/, oder der eingebaute general-purpose-Subagent ohne eigene Definition; Aufruf über das Agent-Tool, Vorteile: Kontextisolation, Parallelisierung, Tool-Restriktion.",
+      "detail": "Für Parallelisierung (z.B. gleichzeitige Firmenrecherche zu mehreren Stellen) lassen sich mehrere Subagents parallel starten, deren Zwischenschritte nicht den Hauptkontext füllen – wichtig bei 10 Bewerbungen/Tag mit viel Recherche-Overhead.",
+      "sources": [
+        "https://code.claude.com/docs/en/agent-sdk/subagents"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Kosten im SDK sind Client-seitige Schätzungen (total_cost_usd/costUSD), NICHT autoritative Abrechnung; für verbindliche Zahlen ist die Usage-and-Cost-API bzw. die Console nötig; max_budget_usd kann eine Session hart begrenzen.",
+      "detail": "Ein Tagesbudget pro Lauf (z.B. max_budget_usd=5 USD für den täglichen Scan+Schreib-Workflow) verhindert Kostenausreißer, ist aber nur eine clientseitige Schätzung, kein Hard-Cap der Rechnung selbst.",
+      "sources": [
+        "https://code.claude.com/docs/en/agent-sdk/cost-tracking"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Claude Managed Agents (Beta, Header managed-agents-2026-04-01) ist eine gehostete REST-Alternative zur Agent SDK: Konzepte Agent, Environment, Session, Events (SSE-Stream); unterstützte Tools: Bash, Datei-Operationen, Web-Search/-Fetch (mit Domain-Allow/Blocklist), MCP-Server.",
+      "detail": "Best geeignet für 'lange laufende, asynchrone Aufgaben ohne eigene Sandbox-Infrastruktur' – exakt unser Use-Case (täglicher, mehrstufiger Scan+Schreib-Workflow), im Gegensatz zur Agent SDK, die man selbst hosten/betreiben muss.",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/overview"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Managed-Agents-Preis: Standard-API-Tokenpreise plus $0,08 pro aktiver Session-Stunde (Millisekunden-genau, nur während 'running'-Status, kein Aufschlag für Idle/Reschedule); Batch-Rabatt, Fast-Mode und Data-Residency-Preise gelten NICHT für Managed-Agents-Sessions; Web-Search separat mit $10/1000 Aufrufen.",
+      "detail": "Für einen täglichen ~30-60-Minuten-Lauf (Scan+Bewertung+10 Entwürfe) ergibt allein die Session-Stunden-Komponente ca. $0,04-0,08/Tag zusätzlich zu Tokenkosten – vernachlässigbar gegenüber dem Modellverbrauch.",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/overview",
+        "https://tygartmedia.com/claude-managed-agents-pricing-cost-analysis/"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Scheduled Deployments (Managed Agents) erlauben echte Cron-Ausdrücke mit Minutengranularität (POSIX-Format, IANA-Timezone, DST-bewusst) – im Gegensatz zu Claude-Code-Routines OHNE 1-Stunden-Minimum. Ausführung mit Jitter bis 15%/max. 9 Minuten; max. 1000 Deployments pro Organisation; optionale Budget-Deckelung pro Lauf; Ergebnisse/Fehler über Deployment-Runs und Webhooks abrufbar.",
+      "detail": "Das ist der technisch passendste Mechanismus für 'jeden Tag um eine feste Uhrzeit scannen': z.B. Cron '0 7 * * *' in Europe/Berlin, mit initial_events (user.message: 'Führe den täglichen Bewerbungsscan aus') und einem an Vault/Memory-Store gebundenen Agenten.",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/scheduled-deployments"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Memory Stores (Managed Agents, eigener Beta-Header agent-memory-2026-07-22) lassen einen Agenten Informationen über Sessions hinweg behalten (Nutzerpräferenzen, frühere Fehler, Domänenwissen); Vaults speichern Zugangsdaten (z.B. mcp_oauth, static_bearer) getrennt von der Agent-Definition, sodass Secrets nicht im wiederverwendbaren Agent-Objekt liegen.",
+      "detail": "Für unser Projekt: CV/Profil, bereits kontaktierte Firmen, Blacklist ('nicht nochmal bewerben bei X'), und E-Mail-Zugangsdaten lassen sich sauber trennen – Memory für Lernkontext, Vault für Credentials, Agent-Definition bleibt wiederverwendbar/versionierbar.",
+      "sources": [
+        "https://platform.claude.com/docs/en/managed-agents/reference",
+        "https://platform.claude.com/docs/en/managed-agents/mcp-connector"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Claude Cowork (in jedem bezahlten Abo ab Pro/$20/Monat enthalten, Erweiterung auf Web/Mobile seit Juli 2026 in Beta) bietet geplante Tages-/Wochen-/Monatsaufgaben, Datei-Lese-/Schreibzugriff in gewählten Ordnern und einen eingebauten Browser im Seitenpanel für Web-Interaktion.",
+      "detail": "Pragmatischste No-Code-nahe Option für einen Einzelnutzer ohne API-Abrechnung: geeignet für den MVP/Testbetrieb, aber weniger scriptbar/versionierbar/prüfbar als SDK oder Managed Agents und ohne die strukturierten Outputs/Budgets der API.",
+      "sources": [
+        "https://claude.com/product/cowork"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Modellpreise (bestätigt aus offizieller Pricing-Seite, Stand Sept. 2026): Fable 5.1 $10/$50 pro MTok In/Out, Opus 5 $5/$25, Sonnet 5 $2/$10 (seit 1.9.2026 dauerhafter Preis, geplante Erhöhung auf $3/$15 entfällt), Haiku 4.5 $1/$5. Cache-Read: 0,1x Base-Input (Fable 5.1/Mythos 5.1 sogar 0,025x).",
+      "detail": "Sonnet 5 ist der Sweet Spot für die tägliche Massenbewertung von Stellenanzeigen (schnell, günstig), Opus 5 oder Fable 5.1 für die finale Anschreiben-/CV-Formulierung, wo Qualität vor Tempo geht (Leitsatz 'Qualität vor Quantität').",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Prompt-Caching: Mindest-Tokenschwellen je Modell (512 Tokens für Fable 5.1/Opus 5/Fable 5, 1024 für Sonnet 5, 4096 für Haiku 4.5); max. 4 Cache-Breakpoints/Request; 5-Minuten-TTL (1,25x Schreibpreis) oder 1-Stunden-TTL (2x Schreibpreis); Cache-Hits erfordern 100% identischen Prefix.",
+      "detail": "Das CV/Profil, die Firmenliste und der System-Prompt lassen sich als gecachter Prefix vor die 10 tagesaktuellen Stellenanzeigen legen – bei stabilem Profiltext sinken die Inputkosten der Massenbewertung um bis zu 90%.",
+      "sources": [
+        "https://platform.claude.com/docs/en/build-with-claude/prompt-caching"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Batch API bietet 50% Rabatt auf alle Standard-Preise bei asynchroner Verarbeitung (meist <1h, harte Grenze bei Verarbeitungszeit, Ergebnisse 29 Tage abrufbar); Prompt-Caching-Rabatte stapeln mit Batch-Rabatt (Cache-Hit-Rate typischerweise 30-98%).",
+      "detail": "Ideal für den nächtlichen Massen-Scan (z.B. 100+ neue Stellenanzeigen von Jobbörsen gegen das Profil bewerten), bevor am Morgen die Top-10 für die manuelle Detailrecherche/Anschreiben-Erstellung ausgewählt werden – kein Live-Response nötig.",
+      "sources": [
+        "https://platform.claude.com/docs/en/build-with-claude/batch-processing"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Web-Search-Tool: drei Versionen (web_search_20250305 Basis, 20260209 mit Dynamic Filtering, 20260318 zusätzlich Response-Inclusion-Steuerung), $10 pro 1000 Suchen zzgl. Token-Kosten; Dynamic Filtering läuft über Code-Execution und filtert Ergebnisse VOR dem Kontextfenster (spart Tokens bei suchintensiven Anfragen).",
+      "detail": "Für die Firmenrecherche (Anschrift, Ansprechpartner, aktuelle News) ist Dynamic Filtering direkt kosten-relevant; max_uses begrenzt Suchen pro Request hart, allowed_domains/blocked_domains erlauben Fokussierung auf offizielle Quellen (Xing, LinkedIn, Unternehmenswebsite).",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Web-Fetch-Tool kann NUR URLs abrufen, die vorher im Konversationskontext aufgetaucht sind (User-Nachricht, Tool-Ergebnis, vorheriges Search/Fetch-Ergebnis) – explizit als Exfiltrationsschutz; unterstützt PDFs (Rückgabe als base64, wie direkt angehängtes PDF); keine JS-Rendering-Unterstützung (dafür Browser-Use-Tool/Playwright-MCP nötig).",
+      "detail": "Für dynamische Bewerberportale (JS-lastige Formulare) reicht Web-Fetch nicht – hier ist Playwright-MCP oder das Browser-Use-Tool/Managed-Agents-Browser nötig.",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Code-Execution-Tool: kostenlos inkludiert, wenn zusammen mit Web-Search/Web-Fetch (Version 20260209+) genutzt (Dynamic Filtering); eigenständig: Minimum 5 Minuten Ausführungszeit pro Abrechnungseinheit, 1.550 Freistunden pro Organisation UND MONAT, danach $0,05/Stunde/Container. Vorinstallierte Bibliotheken u.a. pandas, numpy, openpyxl, python-docx, python-pptx, pypdf, pdfplumber, reportlab, pdf2image.",
+      "detail": "Für PDF-/DOCX-Erzeugung (Anschreiben, Lebenslauf) über die Skills docx/pdf/pptx ist Code-Execution die technische Basis; bei 10 Dokumenten/Tag bleibt man weit unter den 1.550 Freistunden/Monat.",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Agent Skills sind direkt über die Messages API nutzbar: container.skills-Array mit type 'anthropic' (skill_id docx/pptx/xlsx/pdf, Version 'latest' oder datumsbasiert) oder 'custom' (eigene Skills über Skills API hochgeladen, skill_id-Format skill_...); max. 20 Skills pro Request; erzeugte Dateien kommen als file_id zurück und werden über die Files API heruntergeladen.",
+      "detail": "Das ist der direkteste Weg, PDF-Anschreiben/CVs OHNE Claude Code/Agent SDK zu erzeugen – reine API-Integration mit container.skills=[{'type':'anthropic','skill_id':'docx'}] plus code_execution-Tool.",
+      "sources": [
+        "https://platform.claude.com/docs/en/build-with-claude/skills-guide"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "anthropics/skills-Repo: docx/pdf/pptx/xlsx sind 'source-available' (nicht Apache 2.0, LICENSE.txt), alle anderen Beispiel-Skills sind Apache 2.0; Installation über `/plugin marketplace add anthropics/skills` dann `/plugin install document-skills@anthropic-agent-skills`.",
+      "detail": "docx-Skill nutzt npm-Paket docx + pandoc (Extraktion) + LibreOffice soffice (PDF-Export) + pdftoppm; pdf-Skill nutzt pypdf/pdfplumber/reportlab/pdf2image/pytesseract/qpdf/poppler-utils. Für 'PDF-Dateien erzeugen' (Anforderung 5) sind diese Skills sofort produktionsreif einsetzbar, ohne eigene PDF-Pipeline zu bauen.",
+      "sources": [
+        "https://github.com/anthropics/skills",
+        "https://raw.githubusercontent.com/anthropics/skills/main/skills/docx/SKILL.md"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Files API und PDF-Support: Upload/Download über file_id (Workspace-weiter Zugriff, NICHT nutzer-/sitzungs-scoped – file_id nie von Endnutzern entgegennehmen); PDF-Requests max. 32MB und max. 600 Seiten (100 Seiten bei Kontextfenster <1M Tokens), Standard-PDF ohne Passwortschutz.",
+      "detail": "Für das Einlesen bestehender Lebenslauf-PDFs des Kandidaten und die Ablage erzeugter Anschreiben/CVs unproblematisch (weit unter den Limits); bei Erweiterung auf mehrere Kandidaten braucht jeder Mandant einen eigenen Workspace (bis 100/Organisation), da Files sonst workspace-weit lesbar sind.",
+      "sources": [
+        "https://platform.claude.com/docs/en/build-with-claude/files",
+        "https://platform.claude.com/docs/en/build-with-claude/pdf-support"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Rate-Limit-Tiers heißen jetzt Start/Build/Scale (+ Custom) statt Tier 1-4; Spend-Caps: Start $500/Monat, Build $1.000/Monat, Scale $200.000/Monat; z.B. Sonnet 5 im Start-Tier: 1.000 RPM / 2.000.000 ITPM / 400.000 OTPM; nur ungecachte Input-Tokens zählen gegen ITPM.",
+      "detail": "Für 10 Bewerbungen/Tag ist selbst der Start-Tier (neue Organisationen starten evtl. niedriger im 'Evaluation Tier') um Größenordnungen ausreichend; Rate Limits sind hier kein Risiko, Kosten und Qualität sind die limitierenden Faktoren.",
+      "sources": [
+        "https://platform.claude.com/docs/en/api/rate-limits"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Anthropic Usage Policy: 'Employment decisions' (Resume-Screening, Einstellungsempfehlungen) gelten als Hochrisiko-Use-Case mit Pflicht zu Human-in-the-Loop und KI-Offenlegung gegenüber Endnutzern; explizit genannt: 'don't auto-deny a loan or auto-reject a resume'. Diese Pflichten gelten primär für konsumentenseitige (B2C) Anwendungen, nicht B2B.",
+      "detail": "Die Policy adressiert primär Arbeitgeber-/HR-Tools, die über Bewerber entscheiden – nicht den umgekehrten Fall (ein Bewerber nutzt KI zur eigenen Bewerbungserstellung). Dennoch gilt generell das Verbot von Spam/Massen-Abuse ('platform abuse: spam rings') – ein vollautomatischer Massenversand ohne Prüfung wäre riskant; das im Projekt vorgesehene Freigabe-vor-Versand-Modell entschärft dieses Risiko strukturell.",
+      "sources": [
+        "https://www.anthropic.com/news/usage-policy-update",
+        "https://www.anthropic.com/news/updating-our-usage-policy"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Der Gmail-MCP-Server von GongRzhe (server-gmail-autoauth-mcp, häufigst zitierter Community-Gmail-MCP) ist seit 3.3.2026 archiviert (read-only, nicht mehr gepflegt), obwohl weiterhin per npx installierbar.",
+      "detail": "Für 'Versand über das eigene E-Mail-Konto des Nutzers' (Anforderung 7) ist dieser Server ein Risiko (keine Fixes/Sicherheitsupdates mehr). Alternativen: taylorwilsdon/google_workspace_mcp (aktiv, 120+ Tools inkl. Gmail, OAuth 2.1, MIT-Lizenz) oder eine direkte, selbst gewartete SMTP/Graph-API-Integration als In-Process-MCP-Tool im Agent SDK.",
+      "sources": [
+        "https://github.com/GongRzhe/Gmail-MCP-Server",
+        "https://github.com/taylorwilsdon/google_workspace_mcp"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Der Browserbase-MCP-Server (browserbase/mcp-server-browserbase) ist seit 20.7.2026 archiviert; der gehostete Endpunkt https://mcp.browserbase.com/mcp bleibt laut Repo-Hinweis die empfohlene Alternative zur lokalen/selbstgehosteten Variante.",
+      "detail": "Für Bewerbungsportale mit Bot-Erkennung ist Browserbase (Cloud-Headless-Browser + Stagehand) weiterhin über den Hosted-Endpunkt nutzbar, aber die selbstgehostete Referenzimplementierung wird nicht mehr gepflegt – Playwright-MCP (aktiv) ist die robustere Open-Source-Alternative für lokale/eigene Infrastruktur.",
+      "sources": [
+        "https://github.com/browserbase/mcp-server-browserbase"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "modelcontextprotocol/servers (offizielles Referenz-Repo) pflegt aktuell nur sieben Server (Everything, Fetch, Filesystem, Git, Memory, Sequential Thinking, Time); 13 frühere Server (u.a. Brave Search, GitHub, GitLab, Google Drive, Postgres, Puppeteer, Slack, SQLite) wurden nach modelcontextprotocol/servers-archived verschoben.",
+      "detail": "Für Postgres/SQLite/Slack/Brave Search sollte man NICHT das alte Referenz-Repo, sondern aktiv gepflegte Community-/Vendor-Server nutzen (z.B. crystaldba/postgres-mcp, korotovsky/slack-mcp-server, brave/brave-search-mcp-server), die alle im Rahmen dieser Recherche als aktiv bestätigt wurden.",
+      "sources": [
+        "https://github.com/modelcontextprotocol/servers"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09"
+    },
+    {
+      "claim": "Brave Search API hat den kostenlosen Tier im Februar 2026 abgeschafft; jetzt Guthaben-basiert ($5 Startguthaben, ca. $0,003-0,005/Anfrage, Kreditkarte erforderlich, Attribution Pflicht für das Guthaben).",
+      "detail": "Für Budget-Bewusstsein: Exa (unauthentifiziert 150 Calls/Tag kostenlos, dazu $20 Signup- + $10 Monatsguthaben) oder Tavily (1000 Credits/Monat kostenlos) sind für den Prototypbetrieb günstiger als Brave.",
+      "sources": [
+        "https://agentdeals.dev/vendor/brave-search-api",
+        "https://github.com/brave/brave-search-mcp-server"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Claude Code Skills (SKILL.md)",
+      "url": "https://code.claude.com/docs/en/skills",
+      "category": "CLI",
+      "access": "Lokal in .claude/skills/, keine Auth nötig; Auslösung automatisch (description-Matching) oder manuell per /name",
+      "pricing": "Kostenlos (Teil von Claude Code); Modellkosten fallen wie gewohnt an",
+      "verdict": "empfohlen – zentrale Bauform für jeden Workflow-Schritt (Bewertung, Anschreiben, CV, PDF-Export, Checkliste)"
+    },
+    {
+      "name": "Claude Code Subagents",
+      "url": "https://code.claude.com/docs/en/sub-agents",
+      "category": "CLI",
+      "access": ".claude/agents/*.md, kein zusätzliches Auth",
+      "pricing": "Kostenlos; Modellkosten je Subagent-Aufruf",
+      "verdict": "empfohlen – Kontext-/Tool-Isolation für Recherche vs. Schreiben vs. QA"
+    },
+    {
+      "name": "Claude Code Routines",
+      "url": "https://code.claude.com/docs/en/routines",
+      "category": "SaaS",
+      "access": "claude.ai/code/routines oder /schedule; claude.ai-Login (Pro/Max/Team/Enterprise)",
+      "pricing": "In Abo enthalten, zählt gegen Plan-Nutzungslimits; Tageslimit Pro 5 / Max 15 / Team+Enterprise 25 Läufe",
+      "verdict": "optional – gut für einfache tägliche Läufe, aber 1h-Minimum, Research-Preview-Limits und kein lokaler State zwischen Läufen"
+    },
+    {
+      "name": "Claude Managed Agents – Scheduled Deployments",
+      "url": "https://platform.claude.com/docs/en/managed-agents/scheduled-deployments",
+      "category": "API",
+      "access": "REST-API, ANTHROPIC_API_KEY + Beta-Header managed-agents-2026-04-01; echte Cron-Ausdrücke, Minutengranularität",
+      "pricing": "Standard-Tokenpreise + $0,08/aktive Session-Stunde, keine Grundgebühr; max. 1000 Deployments/Org",
+      "verdict": "empfohlen – technisch beste Lösung für 'täglich zu fester Uhrzeit', mit Vault-Credentials und Memory Store"
+    },
+    {
+      "name": "Claude Cowork",
+      "url": "https://claude.com/product/cowork",
+      "category": "SaaS",
+      "access": "Desktop-App (+Web/Mobile-Beta), claude.ai-Login; geplante Tages-/Wochen-/Monatsaufgaben, eingebauter Browser",
+      "pricing": "In jedem bezahlten Abo enthalten, ab Pro $20/Monat",
+      "verdict": "optional – pragmatischster Einstieg ohne API-Abrechnung, aber weniger scriptbar/prüfbar für 'Qualität vor Quantität'-Checklisten"
+    },
+    {
+      "name": "Claude Agent SDK (Python)",
+      "url": "https://pypi.org/project/claude-agent-sdk/",
+      "category": "Bibliothek",
+      "access": "pip install claude-agent-sdk (bündelt Claude-Code-CLI); ANTHROPIC_API_KEY",
+      "pricing": "Kostenlos, Modellkosten separat",
+      "verdict": "empfohlen – beste Wahl, um den Workflow als eigenes Python-Programm mit Structured Output/Hooks/Subagents zu bauen"
+    },
+    {
+      "name": "Agent Skills über Messages API (container.skills)",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/skills-guide",
+      "category": "API",
+      "access": "Messages API + code_execution-Tool, container.skills=[{type, skill_id, version}]; max. 20 Skills/Request",
+      "pricing": "Skill-Nutzung selbst kostenlos, abgerechnet wird Code-Execution-Zeit (1.550 Freistunden/Monat/Org, danach $0,05/h) + Tokens",
+      "verdict": "empfohlen – direktester Weg zu PDF/DOCX-Generierung ohne eigene Pipeline"
+    },
+    {
+      "name": "anthropics/skills – docx/pdf/pptx/xlsx",
+      "url": "https://github.com/anthropics/skills",
+      "category": "Bibliothek",
+      "access": "/plugin marketplace add anthropics/skills; document-skills-Plugin; Lizenz: source-available (nicht Apache 2.0)",
+      "pricing": "Kostenlos nutzbar, unterliegt aber proprietärer Lizenz (siehe LICENSE.txt je Skill)",
+      "verdict": "empfohlen – produktionsreif für Anforderung 5 (PDF-Erzeugung), aber Lizenztext vor kommerzieller Nutzung prüfen"
+    },
+    {
+      "name": "Web Search Tool (Anthropic Server-Tool)",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool",
+      "category": "API",
+      "access": "Messages API, tools=[{type: web_search_2026...}]; max_uses/allowed_domains/blocked_domains steuerbar",
+      "pricing": "$10 pro 1000 Suchen + Tokenkosten für Suchergebnisse",
+      "verdict": "empfohlen – primäres Rechercheinstrument für Jobbörsen-Scan und Firmenrecherche"
+    },
+    {
+      "name": "Web Fetch Tool (Anthropic Server-Tool)",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool",
+      "category": "API",
+      "access": "Messages API; kann nur bereits im Kontext gesehene URLs abrufen (Exfiltrationsschutz); kein JS-Rendering",
+      "pricing": "Keine separate Gebühr genannt, nur Tokenkosten des abgerufenen Inhalts",
+      "verdict": "empfohlen – für Stellenanzeigen-/Firmenseiten-Abruf, aber JS-lastige Portale brauchen Playwright/Browser-Use zusätzlich"
+    },
+    {
+      "name": "Code Execution Tool",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool",
+      "category": "API",
+      "access": "Messages API, sandboxed Container mit vorinstallierten Libs (python-docx, pypdf, reportlab, pandas, ...)",
+      "pricing": "Kostenlos bei gleichzeitiger Nutzung von Web-Search/-Fetch (Dynamic Filtering); sonst 1.550 Freistunden/Monat/Org, danach $0,05/h/Container",
+      "verdict": "empfohlen – Basis für Skills-gestützte PDF/DOCX/XLSX-Erzeugung"
+    },
+    {
+      "name": "Batch API (Message Batches)",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/batch-processing",
+      "category": "API",
+      "access": "Messages Batches API, asynchron, <24h, Ergebnisse 29 Tage abrufbar",
+      "pricing": "50% Rabatt auf Standardpreise, stapelbar mit Prompt-Caching",
+      "verdict": "empfohlen – für nächtliche Massenbewertung vieler Stellenanzeigen gegen das Profil"
+    },
+    {
+      "name": "Prompt Caching",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+      "category": "API",
+      "access": "cache_control: ephemeral im Request; 5min/1h TTL, max. 4 Breakpoints",
+      "pricing": "Cache-Read 0,1x Base-Input (0,025x bei Fable 5.1); Schreiben 1,25x/2x",
+      "verdict": "empfohlen – CV/Profil/System-Prompt als stabilen Prefix cachen"
+    },
+    {
+      "name": "Managed Agents Vaults",
+      "url": "https://platform.claude.com/docs/en/managed-agents/mcp-connector",
+      "category": "API",
+      "access": "REST-API, Beta-Header managed-agents-2026-04-01; mcp_oauth/static_bearer-Credentials getrennt vom Agent",
+      "pricing": "In Managed-Agents-Preis enthalten (kein separater Posten dokumentiert)",
+      "verdict": "empfohlen – sauberer Weg, E-Mail-/MCP-Zugangsdaten vom Agent-Code zu trennen"
+    },
+    {
+      "name": "Managed Agents Memory Stores",
+      "url": "https://platform.claude.com/docs/en/managed-agents/reference",
+      "category": "API",
+      "access": "REST-API, eigener Beta-Header agent-memory-2026-07-22; nur mit Cloud- oder self-hosted Environment",
+      "pricing": "In Managed-Agents-Preis enthalten (kein separater Posten dokumentiert)",
+      "verdict": "empfohlen – Gedächtnis über Tages-Läufe hinweg (kontaktierte Firmen, gelernte Präferenzen)"
+    },
+    {
+      "name": "Playwright MCP (microsoft/playwright-mcp)",
+      "url": "https://github.com/microsoft/playwright-mcp",
+      "category": "MCP-Server",
+      "access": "npx @playwright/mcp@latest; claude mcp add ... -- --headless; kein API-Key nötig (lokaler Browser)",
+      "pricing": "Kostenlos, Open Source (Apache-2.0)",
+      "verdict": "empfohlen – für Bewerbungsportale ohne offizielle API, aktiv gepflegt (36,9k Stars)"
+    },
+    {
+      "name": "Firecrawl MCP",
+      "url": "https://github.com/firecrawl/firecrawl-mcp-server",
+      "category": "MCP-Server",
+      "access": "npx -y firecrawl-mcp mit FIRECRAWL_API_KEY, oder gehostet https://mcp.firecrawl.dev/v2/mcp",
+      "pricing": "Free: 1000 Credits/Monat; Hobby $16/Monat (5000 Credits) bis Scale $599/Monat (Stand 2026)",
+      "verdict": "empfohlen – Scraping von Jobbörsen/Karriereseiten ohne strukturierte API"
+    },
+    {
+      "name": "Exa MCP",
+      "url": "https://github.com/exa-labs/exa-mcp-server",
+      "category": "MCP-Server",
+      "access": "Gehostet https://mcp.exa.ai/mcp, unauthentifiziert nutzbar (Rate-Limit) oder mit API-Key",
+      "pricing": "Unauth: 3 QPS/150 Calls/Tag; mit Key $20 Startguthaben + $10/Monat, danach $7/1000 Suchen",
+      "verdict": "empfohlen – Deep-Research/Firmenrecherche, guter Free-Tier für Prototyping"
+    },
+    {
+      "name": "Tavily MCP",
+      "url": "https://github.com/tavily-ai/tavily-mcp",
+      "category": "MCP-Server",
+      "access": "npx -y tavily-mcp@latest mit TAVILY_API_KEY, oder gehostet mit ?tavilyApiKey=",
+      "pricing": "1000 Credits/Monat kostenlos; ab $30/Monat (4000 Credits) oder $0,008/Credit Pay-as-you-go",
+      "verdict": "optional – Alternative/Ergänzung zu Exa/Firecrawl für Suche+Extraktion"
+    },
+    {
+      "name": "Brave Search MCP (offiziell)",
+      "url": "https://github.com/brave/brave-search-mcp-server",
+      "category": "MCP-Server",
+      "access": "npx @brave/brave-search-mcp-server mit BRAVE_API_KEY",
+      "pricing": "Kein Free Tier mehr seit Feb. 2026; $5 Startguthaben, danach ca. $0,003-0,005/Anfrage",
+      "verdict": "optional – seit Wegfall des Free-Tiers teurer als Exa/Tavily für Prototyping"
+    },
+    {
+      "name": "Gmail MCP (GongRzhe/server-gmail-autoauth-mcp)",
+      "url": "https://github.com/GongRzhe/Gmail-MCP-Server",
+      "category": "MCP-Server",
+      "access": "npx @gongrzhe/server-gmail-autoauth-mcp auth; lokale OAuth-Credentials in ~/.gmail-mcp/",
+      "pricing": "Kostenlos (MIT), aber archiviert seit 3.3.2026",
+      "verdict": "vermeiden – nicht mehr gepflegt; für produktiven E-Mail-Versand riskant, Alternative prüfen"
+    },
+    {
+      "name": "Google Workspace MCP (taylorwilsdon/google_workspace_mcp)",
+      "url": "https://github.com/taylorwilsdon/google_workspace_mcp",
+      "category": "MCP-Server",
+      "access": "uvx workspace-mcp --tool-tier core/extended/complete; OAuth 2.0/2.1, Google-Cloud-Projekt nötig",
+      "pricing": "Kostenlos (MIT), Google-API-Kontingente gelten",
+      "verdict": "empfohlen – aktiv gepflegte Alternative für Gmail-Versand/-Entwürfe (120+ Tools über Gmail/Calendar/Drive/Docs/Sheets)"
+    },
+    {
+      "name": "Notion MCP (offiziell, makenotion)",
+      "url": "https://github.com/makenotion/notion-mcp-server",
+      "category": "MCP-Server",
+      "access": "Gehostet https://mcp.notion.com/mcp mit OAuth, oder npx @notionhq/notion-mcp-server mit NOTION_TOKEN",
+      "pricing": "Kostenlos (MIT), abhängig vom Notion-Plan des Nutzers",
+      "verdict": "optional – falls Bewerbungs-Tracking/Checklisten in Notion statt eigenem Dashboard geführt werden sollen"
+    },
+    {
+      "name": "Slack MCP (korotovsky/slack-mcp-server)",
+      "url": "https://github.com/korotovsky/slack-mcp-server",
+      "category": "MCP-Server",
+      "access": "npx slack-mcp-server@latest; xoxc/xoxd, xoxp oder xoxb Token; Nachrichtenversand standardmäßig deaktiviert",
+      "pricing": "Kostenlos (MIT)",
+      "verdict": "optional – für Statusbenachrichtigungen ('10 neue Entwürfe zur Prüfung'), nicht zentral fürs Projekt"
+    },
+    {
+      "name": "Telegram MCP (chigwell/telegram-mcp)",
+      "url": "https://github.com/chigwell/telegram-mcp",
+      "category": "MCP-Server",
+      "access": "Telethon-User-Account (nicht Bot-API), API_ID/API_HASH + Session-String erforderlich",
+      "pricing": "Kostenlos (Apache-2.0)",
+      "verdict": "optional – einfache Push-Benachrichtigung für 'X neue Bewerbungsentwürfe warten', aber Nutzer-Account-Risiko beachten"
+    },
+    {
+      "name": "Postgres MCP Pro (crystaldba/postgres-mcp)",
+      "url": "https://github.com/crystaldba/postgres-mcp",
+      "category": "MCP-Server",
+      "access": "uvx postgres-mcp / Docker; DATABASE_URI; restricted (read-only) vs. unrestricted Modus",
+      "pricing": "Kostenlos (MIT)",
+      "verdict": "optional – falls Bewerbungshistorie/Status in Postgres statt Datei/Notion geführt wird"
+    },
+    {
+      "name": "Apify Actors MCP",
+      "url": "https://github.com/apify/actors-mcp-server",
+      "category": "MCP-Server",
+      "access": "Gehostet https://mcp.apify.com mit OAuth/APIFY_TOKEN; search-actors/call-actor für dynamischen Actor-Zugriff",
+      "pricing": "Nutzungsabhängig über Apify-Plattform (Actor-Kosten variieren); kein klarer kostenloser Tier dokumentiert",
+      "verdict": "optional – Zugriff auf vorgefertigte Scraper (z.B. für Jobbörsen), Preis vor Einsatz je Actor prüfen"
+    },
+    {
+      "name": "Browserbase MCP",
+      "url": "https://github.com/browserbase/mcp-server-browserbase",
+      "category": "MCP-Server",
+      "access": "Gehostet https://mcp.browserbase.com/mcp empfohlen; BROWSERBASE_API_KEY/PROJECT_ID",
+      "pricing": "Nutzungsabhängig über Browserbase-Plattform (nicht im Detail recherchiert)",
+      "verdict": "optional – Repo selbst archiviert seit 20.7.2026, nur der gehostete Dienst wird noch empfohlen; Playwright-MCP als aktivere Alternative bevorzugen"
+    },
+    {
+      "name": "MCP Filesystem/Memory/Sequential-Thinking/Fetch/Git (offizielles Referenz-Repo)",
+      "url": "https://github.com/modelcontextprotocol/servers",
+      "category": "MCP-Server",
+      "access": "npx @modelcontextprotocol/server-<name> bzw. uvx mcp-server-git",
+      "pricing": "Kostenlos (Referenzimplementierung)",
+      "verdict": "empfohlen als Referenz/Startpunkt – explizit NICHT für Produktivbetrieb gedacht laut Repo-Hinweis"
+    }
+  ],
+  "recommendations": [
+    "Architektur in zwei Phasen: Phase 1 (Prototyp) als Claude-Code-Projekt mit Skills (job-scout, company-research, cover-letter-writer, cv-tailor, pdf-export, checklist) und Subagents pro Zuständigkeit, lokal getestet mit /loop und `claude -p --output-format json`; Phase 2 (Produktivbetrieb) als Claude-Managed-Agents-Scheduled-Deployment mit Cron '0 7 * * 1-5' (Europe/Berlin), Memory Store für gelernte Präferenzen/kontaktierte Firmen, Vault für E-Mail-Zugangsdaten.",
+    "Für den täglichen Massen-Scan (viele Stellenanzeigen) die Batch API mit 50% Rabatt und Sonnet 5 nutzen; für die finalen 10 Anschreiben/Lebensläufe mit hoher Qualitätsanforderung Opus 5 oder Fable 5.1 im Live-Modus (kein Batch) verwenden – passt zum Leitsatz 'Qualität vor Quantität'.",
+    "Anschreiben/Lebenslauf-PDF/DOCX ausschließlich über die Anthropic-eigenen Skills docx/pdf (via anthropics/skills-Plugin oder container.skills der API) erzeugen statt eigener LibreOffice/pandoc-Pipeline – spart Entwicklungszeit und ist bereits ATS-getestet (saubere DOCX-Struktur ohne eingebettete Sonderzeichen, die HR-Parser wie Personio/SuccessFactors/Workday stören).",
+    "Kein automatischer Versand ohne expliziten Freigabeschritt: PreToolUse-Hook oder explizite AskUserQuestion vor jedem 'send_email'-Tool-Aufruf einbauen – erfüllt sowohl Anforderung 6 (Checklisten-Review) als auch die im Sinne der Usage Policy sinnvolle Human-in-the-Loop-Praxis.",
+    "Für den E-Mail-Versand über das eigene Konto NICHT den archivierten GongRzhe-Gmail-MCP verwenden, sondern taylorwilsdon/google_workspace_mcp (aktiv) oder eine selbst geschriebene In-Process-MCP-Tool-Funktion über die Gmail-API/SMTP mit App-Passwort – letzteres gibt volle Kontrolle über Absenderformatierung ('nicht wie ein Bot aussehen').",
+    "Firmenrecherche/Adress-/Ansprechpartner-Ermittlung über Web-Search + Web-Fetch (Anthropic Server-Tools) als Standardpfad; Playwright-MCP nur gezielt für JS-lastige Bewerbungsportale zuschalten (spart Tokens/Komplexität gegenüber durchgängigem Browser-Einsatz).",
+    "Prompt Caching aktiv nutzen: CV/Profil, Firmenrichtlinien und System-Prompt als 1h-TTL-Cache-Breakpoint vor die variablen Tagesdaten (Stellenanzeigen) legen – bei 10+ Bewertungen/Tag mit stabilem Profiltext signifikante Kostensenkung.",
+    "Strukturierte Ausgabe (output_config.format / output_format im SDK) für jede Zwischenstufe erzwingen (Bewertungs-Score+Begründung, fehlende Pflichtangaben, Freigabe-Checkliste) statt Freitext – erleichtert die geforderte tägliche Review-Oberfläche mit 10 Bewerbungen.",
+    "Vor produktivem Einsatz die aktuelle Anthropic Usage Policy (anthropic.com/legal/aup) vollständig lesen und insbesondere die Abschnitte zu Hochrisiko-Anwendungen und Spam/Massen-Abuse mit dem eigenen Freigabe-Workflow abgleichen; im Zweifel Anthropic Support kontaktieren, da die Policy primär auf Arbeitgeber-Screening zugeschnitten ist und der Bewerber-Anwendungsfall nicht explizit adressiert wird."
+  ],
+  "risks": [
+    "Claude Code Routines UND Claude Managed Agents befinden sich beide in Beta/Research Preview (Stand Sept. 2026) – API-Oberfläche, Limits und Preise können sich ändern; für ein Langzeitprojekt ist ein Abstraktionslayer (eigener Scheduler + `claude -p`/Agent SDK) robuster als harte Kopplung an eine Beta-API.",
+    "Mehrere für dieses Projekt zentrale MCP-Server sind bereits archiviert/unmaintained (Gmail-MCP von GongRzhe seit März 2026, Browserbase-MCP-Repo seit Juli 2026) – die MCP-Ökosystem-Landschaft ändert sich schnell, regelmäßige Prüfung auf Nachfolgeprojekte nötig.",
+    "Automatisierter E-Mail-Versand über ein privates Gmail/Outlook-Konto kann bei hoher Frequenz Spam-Filter oder Provider-Missbrauchserkennung auslösen, unabhängig von der Anthropic Usage Policy – Versandvolumen und -muster (Absenderadresse, Betreffvariation, Sendezeiten) müssen wie bei jedem E-Mail-Marketing beachtet werden.",
+    "Web-Search/Web-Fetch-Kosten ($10/1000 Suchen) können bei intensiver Firmenrecherche (Adresse, Ansprechpartner, aktuelle News je Stelle) schneller steigen als die Modellkosten selbst – Recherchetiefe pro Stelle sollte budgetiert/begrenzt werden (max_uses).",
+    "Prompt-Injection-Risiko bei automatisierter Web-Recherche zu Stellenanzeigen/Unternehmen: gefälschte oder manipulierte Seiteninhalte könnten versuchen, den Agenten zu falschen Aktionen zu bewegen (z.B. Daten an falsche Adressen zu senden) – Web-Fetch-URL-Validierung und Domain-Allowlists sind Pflicht, kein 'volles Internet' für den Recherche-Subagenten freigeben.",
+    "Die anthropics/skills-Dokumentskills (docx/pdf/pptx/xlsx) sind 'source-available', nicht Open Source – Lizenzbedingungen vor jeder kommerziellen Weiterverwendung (auch als Teil eines bezahlten Produkts für andere Bewerber) genau prüfen.",
+    "Kostenschätzungen in Claude Code (/usage) und im Agent SDK (total_cost_usd) sind ausdrücklich klientenseitige Schätzungen, keine autoritative Abrechnung – für ein belastbares Tagesbudget muss zusätzlich die Claude-Console-Usage-Seite bzw. die Usage-and-Cost-API geprüft werden."
+  ],
+  "open_questions_for_user": [
+    "Soll der Betrieb auf Abo-Basis (Claude Pro/Max + Claude Code Routines oder Cowork, feste monatliche Kosten, aber Research-Preview-Limits) oder auf API-Key-Basis (Claude Managed Agents/Agent SDK, nutzungsabhängige Abrechnung, mehr Kontrolle) laufen? Das bestimmt maßgeblich die Architektur.",
+    "Über welches E-Mail-Konto/welchen Anbieter soll versendet werden (Gmail, Outlook/Microsoft 365, eigener SMTP-Server) – das entscheidet, ob google_workspace_mcp, ein Microsoft-Graph-MCP oder eine eigene SMTP-Integration gebaut werden muss.",
+    "Soll die Firmen-/Bewerbungshistorie in einer einfachen Datei/JSON, in Notion, oder in einer eigenen Datenbank (Postgres/SQLite) geführt werden? Das beeinflusst, welcher der geprüften MCP-Server (Notion, Postgres) tatsächlich gebraucht wird.",
+    "Gibt es ein monatliches Kosten-/Budgetlimit, das der Nutzer für Anthropic-API-Kosten (Modell + Web-Search + Code-Execution) akzeptiert, um max_budget_usd/Deployment-Budgets konkret setzen zu können?",
+    "Soll parallel Deutsch UND Englisch unterstützt werden für internationale Stellen in Deutschland – falls ja, muss das CV-/Anschreiben-Profil in beiden Sprachen gepflegt und im Prompt-Caching-Prefix berücksichtigt werden?"
+  ],
+  "search_log": [
+    "(87 Suchen/Abrufe eines vorherigen abgebrochenen Agenten, vollständig gesichert in salvage/claude_ecosystem.md, u.a. zu: SKILL.md Frontmatter, Web-Search/-Fetch-Pricing, Managed-Agents-Pricing, Routines, Headless, Plugins, Rate-Limits, anthropics/skills, modelcontextprotocol/servers, .mcp.json, Hooks, Subagents, Agent-SDK Python, Pricing-Tabelle, Prompt-Caching, Scheduled-Tasks, Batch-Processing, Security, MCP-Server-Fetches für Playwright/Gmail/Google-Workspace/Firecrawl/Exa/Apify/Browserbase/Notion/Slack/Postgres/Tavily/Telegram/Brave)",
+    "Anthropic Usage Policy 2026 high-risk employment decisions disclosure requirement automated hiring",
+    "Claude API rate limits Tier 1 Tier 2 Tier 3 Tier 4 RPM ITPM OTPM table 2026",
+    "Anthropic Usage Policy spam unsolicited bulk messaging text high-volume 2026",
+    "Claude Managed Agents scheduled deployments cron docs platform.claude.com",
+    "Claude Managed Agents vaults memory store pricing 2026 platform.claude.com",
+    "Claude Max Pro plan price 2026 $100 $200 per month Claude Code usage limits",
+    "\"Claude Cowork\" Anthropic what is it 2026",
+    "WebFetch: https://platform.claude.com/docs/en/managed-agents/scheduled-deployments"
+  ],
+  "verification_notes": [
+    "[verify-C] Bestätigt: Modellpreise und Cache-Multiplikatoren (Fable 5.1 Cache-Read 0,025x; Fable 5 ohne .1 nur 0,1x); Scheduled Deployments (Minutengranularität, Jitter 15 %/min. 5 s/max. 9 Min, 1000 Deployments/Org, Budget pro Lauf); Code Execution (1.550 Freistunden, $0,05/h, 5-Min-Minimum, kostenlos mit web_search/web_fetch ≥20260209); Web Fetch aktuell web_fetch_20260318; GongRzhe Gmail-MCP archiviert 3.3.2026 (aktuell 32 offene PRs).",
+    "[verify-C] Korrektur Routines: Die Tageslimits 'Pro 5 / Max 15 / Team+Enterprise 25 Läufe' stehen NICHT in der offiziellen Doku; dort nur 'daily cap' pro Account (einsehbar unter claude.ai/code/routines). Als unbelegt kennzeichnen. Ergänzung: One-off-Läufe zählen nicht gegen den Cap; mit Usage Credits läuft es nach dem Cap auf Metered Overage weiter; Connectors dürfen im Lauf ohne Nachfrage schreiben.",
+    "[verify-C] Korrektur Brave Search: Free Tier seit Feb. 2026 weg (bestätigt), aber jeder Plan enthält $5 Gratis-Credits PRO MONAT (≈1.000 Suchen), Preis $5/1.000 Requests – nicht nur einmaliges Startguthaben.",
+    "[verify-C] Usage Policy: Hochrisiko-Einstufung 'Employment screening', HITL und Offenlegung bestätigt; 'primär B2C' gilt nur für die Offenlegungspflicht, nicht für HITL. Die zitierten anthropic.com/news-URLs waren nicht abrufbar; kanonisch: https://www.anthropic.com/aup.",
+    "[verify-C] Ergänzung Memory Stores: Header agent-memory-2026-07-22 nicht mit managed-agents-2026-04-01 kombinieren (400)."
+  ]
+}

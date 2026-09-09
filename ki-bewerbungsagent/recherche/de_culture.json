@@ -1,0 +1,504 @@
+{
+  "dimension": "Deutsche Bewerbungskultur & HR-Erwartungen 2025/2026",
+  "summary": "Die deutsche Bewerbungskultur befindet sich 2025/2026 in einem Umbruch, der für einen KI-Bewerbungsagenten sowohl Chancen als auch scharfe Fallstricke birgt. Drei Trends überlagern sich: (1) Formale Anforderungen lockern sich (Anschreiben, Foto, Unterschrift werden seltener zur Pflicht), (2) Bewerbungsprozesse werden gleichzeitig KI-durchdrungener, ohne dass die Personalarbeit selbst schon stark automatisiert ist, und (3) Recruiter entwickeln wachsende Skepsis gegenüber sichtbar KI-generierten, generischen Unterlagen. Beim Anschreiben zeigt die StepStone-Studie 2025, dass nur noch 51 Prozent der Unternehmen es überhaupt verlangen und nur 26 Prozent der Recruiter es für entscheidend halten; 15 Prozent der Bewerber brechen eine Bewerbung sogar ab, wenn ein Anschreiben gefordert wird. Konzerne wie die Otto Group verzichten inzwischen komplett darauf (One-Klick-Bewerbung mit Lebenslauf/XING-Profil), die Deutsche Bahn nur bei Azubi- und dualen Studienplätzen, während Telekom, Siemens, Daimler es weiterhin einfordern. Für den Agenten folgt daraus: Anschreiben-Erzeugung muss bedingt sein (aus Stellenanzeige/Unternehmenstyp abgeleitet), nicht Standard für jede Bewerbung. Die Prüfzeit ist brutal kurz: Eye-Tracking-Studien nennen 6 bis 43 Sekunden für den ersten Blick auf einen Lebenslauf, während Personaler subjektiv glauben, 5-6 Minuten zu investieren – Klarheit und Scanbarkeit schlagen Kreativität. Gleichzeitig ist KI beim Bewerber bereits Alltag: 61 Prozent haben laut StepStone (Nov. 2025) KI zur Anschreiben-Bearbeitung genutzt, softgarden beziffert die aktive KI-Nutzung fürs Anschreiben auf 43,2 Prozent (2026, verdreifacht seit 2023). Das erzeugt ein Echoproblem: 69 Prozent der Recruiter empfinden Bewerbungen seit der KI-Welle als weniger individuell, 73 Prozent als weniger authentisch (StepStone 2025), und 72 Prozent sind bereits auf KI-gestützten Bewerbungsbetrug gestoßen (gefälschte Portfolios, Deepfake-Interviews). Das ist der wichtigste Einzelbefund für dieses Projekt: Der Leitsatz 'Qualität vor Quantität' und der Fokus auf echte Recherche statt Variablen-Templating sind keine Kür, sondern die einzige Strategie, die nicht sofort als Bewerbungs-Spam auffliegt. Auf der ATS-Seite entkräften die Recherchen den US-geprägten Mythos vom Roboter, der automatisch 75 Prozent aussortiert: In Deutschland lesen Recruiter die Profile überwiegend selbst, automatische Ablehnungen entstehen fast nur durch K.-o.-Fragen in Bewerbungsformularen. Laut Bitkom (März 2025) screenen erst 1 Prozent der Unternehmen Bewerbungen mit KI-Unterstützung, wobei sich 21 Prozent das vorstellen können – Personio rollt automatisiertes KI-Screening/CV-Zusammenfassung aber erst 2026 schrittweise aus, SAP SuccessFactors und Workday bauen KI in Enterprise-Workflows aus. Das reale Risiko liegt daher weniger in Keyword-Stuffing-Filtern als in unvollständig geparsten Profilen (z. B. Skills nur als Grafik-Balken statt Klartext), die bei Active-Sourcing-Suchen unsichtbar bleiben. AGG-Konformität ist ein klarer, gut belegter Produktparameter: Foto, Geburtsdatum und Familienstand sind seit 2006 rechtlich freiwillig und sollten im Zweifel weggelassen werden, eine Unterschrift ist rechtlich nicht nötig, wird aber von rund 80 Prozent der Personaler weiterhin implizit erwartet. Formal gilt: eine PDF-Datei pro Bewerbung, klare Dateinamen, Sie-Anrede auch bei Du-Stellenanzeigen, Gehaltsangabe/Eintrittstermin/Kündigungsfrist nur wenn explizit gefordert. Arbeitsmarktseitig ist die Lage 2025/2026 uneinheitlich: Der Hays-Fachkräfteindex zeigt einen konjunkturellen Einbruch der Nachfrage Ende 2025 (Q4: -47 Prozentpunkte ggü. Vorjahr), mit beginnender IT-Erholung Anfang 2026 (Index 96); IW Köln und Bitkom bestätigen weiterhin strukturelle Engpässe in IT (~109.000 fehlende Kräfte), Pflege/Gesundheit, Bau und Erziehung, während der Anteil generell betroffener Unternehmen (22,7 Prozent Anfang 2026) unter das Niveau von 2019 gefallen ist. Initiativbewerbungen bleiben mit 20-33 Prozent Erfolgsquote (bei individueller Ansprache, nicht Massenmail) ein unterschätzter Kanal für das Produkt. Reaktionszeiten sind ein Reibungspunkt: Der XING Arbeitsmarktreport 2025 nennt 165 Tage durchschnittliche Time-to-Hire, 72 Prozent der Bewerber wünschen sich eine Absage binnen zwei Wochen, aber nur 32 Prozent der Arbeitgeber halten das ein – ein Nachfass-Feature mit Vorschlagslogik (nach 10-15 Werktagen, dienstags bis donnerstags 9-11/14-16 Uhr) ist ein sinnvoller, gut belegter Produktbaustein. Insgesamt zeigt die Recherche: Die technische ATS-Optimierung ist notwendig, aber der eigentliche Differenzierungsfaktor 2025/2026 ist erkennbare, recherchierte Individualität gegen einen wachsenden Strom generischer KI-Bewerbungen.",
+  "findings": [
+    {
+      "claim": "Nur 51 Prozent der Unternehmen verlangen 2025 noch ein Anschreiben, nur 26 Prozent der Recruiter halten es für entscheidend.",
+      "detail": "StepStone-Studie 2025. 15 Prozent der Bewerber brechen die Bewerbung ab, wenn ein Anschreiben gefordert wird. Konsequenz: Agent muss Anschreiben-Erstellung konditional an die Stellenanzeige knüpfen, nicht als Standardbaustein jeder Bewerbung erzeugen.",
+      "sources": [
+        "https://www.meinbezirk.at/c-lokales/worauf-personaler-bei-bewerbungen-wirklich-achten_a7456336"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Die Deutsche Bahn verlangt seit 2018 nur bei Azubi-Stellen und dualem Studium kein Anschreiben mehr, nicht bei regulären Stellen.",
+      "detail": "Für andere DB-Bewerbungen bleibt das Anschreiben erwünscht. Wichtig für Produktlogik: Unternehmens-/Stellentyp-abhängige Regel, keine globale Ausnahme für 'Deutsche Bahn'.",
+      "sources": [
+        "https://www.talention.de/blog/die-deutsche-bahn-kein-anschreiben-fuer-mehr-bewerbungen",
+        "https://www.wirausbilder.de/recruiting/kein-anschreiben-mehr-bei-der-deutschen-bahn/"
+      ],
+      "confidence": "medium",
+      "info_date": "2018/2025"
+    },
+    {
+      "claim": "Die Otto Group verzichtet komplett auf Anschreiben und Motivationsfragen; Bewerbung per Smartphone mit CV und XING-Profil-Link möglich.",
+      "detail": "Otto wirbt aktiv mit 'Du kannst Dich ohne Anschreiben bewerben'. Zeigt: Ein gepflegtes XING/LinkedIn-Profil kann das Anschreiben teilweise ersetzen.",
+      "sources": [
+        "https://www.otto.de/unternehmen/en/press/du-kannst-dich-ohne-anschreiben-bewerben-otto-setzt-neue-ma%C3%9Fst%C3%A4be-im-recruitment",
+        "https://www.otto.de/jobs/de/bewerben/bewerbungs-faq.php"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Telekom, Siemens, Daimler und Post/DHL zählen das Anschreiben weiterhin zur vollständigen Bewerbung; Telekom experimentiert daneben mit One-Klick-Bewerbung.",
+      "detail": "Große Konzerne sind uneinheitlich; Branche und Unternehmenstyp bestimmen die Erwartung stärker als 'Konzern vs. Mittelstand'.",
+      "sources": [
+        "https://www.ber-it.de/news/bewerbungen-ohne-anschreiben-one-klick-bewerbung-neue-trends-im-bewerbungsprozess"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025"
+    },
+    {
+      "claim": "Eye-Tracking-Studien zur Prüfzeit von Lebensläufen streuen zwischen ca. 6 und 43 Sekunden je nach Studiendesign; Personaler schätzen ihren eigenen Zeitaufwand subjektiv auf 5-6 Minuten.",
+      "detail": "Häufig zitiert: TheLadders (USA) 6 Sekunden, andere deutsche Quellen 7,4 bzw. 43 Sekunden. Kernaussage unabhängig von der genauen Zahl: Scanbarkeit (klare Struktur, Fettungen, keine langen Fließtextblöcke) schlägt Design-Kreativität.",
+      "sources": [
+        "https://www.experteer.de/magazin/6-sekunden-entscheiden-ueber-ihren-lebenslauf/",
+        "https://www.personal-wissen.de/9266/lebenslauf-bewerberfoto-co-erste-begutachtung-dauert-nur-wenige-sekunden/"
+      ],
+      "confidence": "low",
+      "info_date": "diverse, unklar/älter"
+    },
+    {
+      "claim": "61 Prozent der Bewerber haben laut StepStone (befragt: 3.500 Beschäftigte, 700 Personalverantwortliche) bereits KI zur Bearbeitung ihres Anschreibens genutzt.",
+      "detail": "Veröffentlicht Ende Mai/November 2025. Hauptkritikpunkt der Recruiter: Bewerbungen sind zu unspezifisch und zu wenig an die konkreten Anforderungen der Stellenanzeige angeglichen.",
+      "sources": [
+        "https://persoblogger.de/2025/05/29/studie-zwei-von-drei-bewerbungen-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitaet",
+        "https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/stepstone-studie-2025-ki-und-jobsuche"
+      ],
+      "confidence": "high",
+      "info_date": "2025-11"
+    },
+    {
+      "claim": "69 Prozent der Recruiter finden Bewerbungsunterlagen seit der KI-Verbreitung weniger individuell auf die Stelle zugeschnitten, 73 Prozent bewerten sie als weniger authentisch.",
+      "detail": "StepStone-Studie 2025. Zentraler Befund für dieses Projekt: Generische, nur variablenbasierte KI-Texte werden von Recruitern zunehmend erkannt und negativ bewertet – echte, recherchierte Individualisierung ist der entscheidende Qualitätsfaktor, nicht nur Rechtschreibung/Grammatik.",
+      "sources": [
+        "https://www.leadersnet.de/news/89828,ki-macht-bewerbungen-professioneller-aber-weniger-authentisch.html",
+        "https://persoblogger.de/2025/05/29/studie-zwei-von-drei-bewerbungen-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitaet"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Die KI-Nutzung beim Verfassen von Anschreiben hat sich laut softgarden seit Frühjahr 2023 mehr als verdreifacht auf 43,2 Prozent.",
+      "detail": "softgarden-Studie 'KI trifft Recruiting' 2026. Ergänzt die StepStone-Zahl (61 Prozent 'schon einmal genutzt') um eine Verlaufsangabe zur aktiven/regelmäßigen Nutzung.",
+      "sources": [
+        "https://softgarden.com/de/ressourcen/studien/ki-trifft-recruiting-2026/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "72 Prozent der Recruiter sind im Herbst 2025 bereits auf KI-gestützten Bewerbungsbetrug gestoßen: 51 Prozent auf gefälschte Portfolios, 15 Prozent auf Gesichtstausch-Software in Videointerviews.",
+      "detail": "Erhöht generelles Misstrauen gegenüber KI-Anteilen in Bewerbungen – auch inhaltlich korrekte KI-Unterlagen können dadurch stärker geprüft/skeptischer gelesen werden.",
+      "sources": [
+        "https://personalmarketing2null.de/2025/09/11/ki-schlaegt-recruiter/"
+      ],
+      "confidence": "low",
+      "info_date": "2025-09"
+    },
+    {
+      "claim": "Nur 1 Prozent der befragten deutschen Unternehmen screent Bewerbungen bereits mit KI-Unterstützung, nur 4 Prozent haben einen KI-Chatbot im Bewerbungsprozess (Bitkom, 852 Unternehmen, März 2025).",
+      "detail": "21 Prozent können sich KI-Screening künftig vorstellen, 25 Prozent einen KI-Chatbot. Zeigt: Der US-geprägte 'ATS-Roboter sortiert automatisch aus'-Mythos trifft auf die deutsche Breitenpraxis 2025 (noch) nicht zu, während 100 Prozent digitale Einreichung und 88 Prozent Talentpool-Speicherung längst Standard sind.",
+      "sources": [
+        "https://bitkom-research.de/news/die-bewerbung-laeuft-fast-ueberall-schon-digital-aber-meistens-noch-ohne-ki",
+        "https://www.bitkom.org/Presse/Presseinformation/Bewerbung-fast-ueberall-digital-meistens-ohne-KI"
+      ],
+      "confidence": "high",
+      "info_date": "2025-03"
+    },
+    {
+      "claim": "In deutschen ATS/Bewerbermanagementsystemen gibt es im Standard keine automatische 75-Prozent-Aussortierung; automatische Absagen entstehen fast nur über K.-o.-Fragen im Bewerbungsformular, nicht über CV-Scoring.",
+      "detail": "Reale Gefahr ist eher, dass unvollständig geparste Profile (z. B. Skills nur als Grafik statt Klartext) bei Recruiter-Suchen im System unsichtbar bleiben. Keyword-Stuffing wird von modernen Systemen erkannt und negativ bewertet.",
+      "sources": [
+        "https://midvalla.ai/de/ratgeber/was-ist-ein-ats",
+        "https://www.lebenslauf-ai.de/blog/wie-ats-systeme-funktionieren"
+      ],
+      "confidence": "low",
+      "info_date": "2025/2026, Quelle teils Blogpost ohne Primärstudie"
+    },
+    {
+      "claim": "Personio rollt KI-gestütztes Bewerber-Screening (automatische CV-Zusammenfassung, Priorisierung) erst 2026 schrittweise aus; SAP SuccessFactors und Workday bauen KI in Enterprise-Recruiting-Workflows kontinuierlich aus.",
+      "detail": "SAP SuccessFactors hat laut Anbieterangaben ca. 42 Prozent Marktanteil im Enterprise-Segment DACH, Personio ca. 10.000 KMU-Kunden DACH. Für die eigene ATS-Optimierungsstrategie heißt das: Struktur/Parsbarkeit jetzt schon wichtig, wird aber 2026 relevanter.",
+      "sources": [
+        "https://community.personio.de/topic/show?tid=12972&fid=2",
+        "https://activate-hr.de/knowhow/hr-cloud-suiten-vergleich/"
+      ],
+      "confidence": "low",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Initiativbewerbungen erzielen Erfolgsquoten von ca. 20-33 Prozent, wenn sie individuell und recherchiert statt als Massen-Blindbewerbung erfolgen; 75 Prozent der Personaler bewerten spezifische Initiativbewerbungen positiv.",
+      "detail": "Rund 33 Prozent der Neueinstellungen basieren laut zitierten Quellen auf persönlichen Kontakten/proaktiver Ansprache statt klassischer Stellenausschreibung. Unterstützt die Produktidee, Initiativbewerbungen als Zusatzkanal neben Stellenanzeigen-Matching anzubieten.",
+      "sources": [
+        "https://www.roberthalf.com/de/de/insights/bewerbungs-tipps/initiativbewerbung-erster-schritt-zum-traumjob-oder-eher-vergebene-liebesmueh",
+        "https://karrierebibel.de/initiativbewerbung/"
+      ],
+      "confidence": "low",
+      "info_date": "unklar, mehrere Ratgeberquellen ohne Primärstudie"
+    },
+    {
+      "claim": "Der XING Arbeitsmarktreport 2025 nennt eine durchschnittliche Time-to-Hire von 165 Tagen in Deutschland; 21 Prozent der Bewerber haben schon eine Stelle abgesagt, weil ihnen der Auswahlprozess zu lange dauerte.",
+      "detail": "Appinio befragte im Auftrag von XING/New Work SE 3.500 Beschäftigte in DACH (Juli 2025). Reaktionszeit-Erwartung: max. 5 Werktage für Erstrückmeldung.",
+      "sources": [
+        "https://www.presseportal.de/pm/56177/6151788"
+      ],
+      "confidence": "medium",
+      "info_date": "2025-07"
+    },
+    {
+      "claim": "72 Prozent der Bewerber wünschen sich eine Absage binnen zwei Wochen, aber nur 32 Prozent der Arbeitgeber halten diese Frist ein.",
+      "detail": "Erklärt die Nachfrage nach einem transparenten Status-Tracking/Nachfass-Feature im Produkt, da lange Funkstille ein häufiger Frustpunkt ist.",
+      "sources": [
+        "https://t3n.de/news/reaktionszeit-bei-bewerbungen-1707344/"
+      ],
+      "confidence": "low",
+      "info_date": "unklar, Quelle ohne genaues Studienjahr"
+    },
+    {
+      "claim": "Nachfassen nach einer Bewerbung gilt für 43 Prozent der Personaler nach 1-2 Wochen als okay, für weitere 30 Prozent nach 2-3 Wochen; empfohlene Anrufzeiten sind Di-Do 9-11 Uhr und 14-16 Uhr.",
+      "detail": "Empfehlung: zuerst kurze E-Mail, bei Ausbleiben einer Reaktion nach einigen Tagen telefonisch nachfassen. Direkt umsetzbar als Automatisierungsregel mit Nutzer-Freigabe vor Versand.",
+      "sources": [
+        "https://karrierebibel.de/nachfassen-bewerbung/",
+        "https://www.jobrobot.de/blog/telefonisch-nachhaken-6.htm"
+      ],
+      "confidence": "low",
+      "info_date": "unklar, mehrere Ratgeberquellen"
+    },
+    {
+      "claim": "Bei der Ansprache neuer Mitarbeitender nutzen befragte Unternehmen am häufigsten die eigene Website (97 Prozent), gefolgt von Jobportalen (92 Prozent) und Social Media (90 Prozent, davon 82 Prozent LinkedIn).",
+      "detail": "Studie 'Beste Arbeitgeber 2025' (SWI Human Resources). Wichtig für Sourcing-Priorisierung: Firmenkarriereseiten sind mittlerweile der meistgenutzte Kanal, nicht mehr klassische Jobbörsen allein.",
+      "sources": [
+        "https://www.handelsblatt.com/unternehmen/ranking-das-sind-deutschlands-beste-arbeitgeber-des-jahres-2025/100155599.html"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Online-Medien (Jobportale, Firmenwebsite, Social Media zusammen) waren laut IAB-Stellenerhebung bei gut der Hälfte (52 Prozent) der erfolgreichen Stellenbesetzungen 2025 entscheidend, im Vorjahr 47 Prozent.",
+      "detail": "IAB-Stellenerhebung 1/2026, amtliche Arbeitsmarktforschung (Institut für Arbeitsmarkt- und Berufsforschung). Robustere Quelle als reine PR-Studien.",
+      "sources": [
+        "https://iab-forum.de/online-medien-sind-bei-der-personalsuche-auf-dem-vormarsch/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026 (Daten 2025)"
+    },
+    {
+      "claim": "Über 85 Prozent der Recruiter suchen Kandidat:innen aktiv auf LinkedIn (Active Sourcing), bevor eine klassische Bewerbung überhaupt eingereicht wird; XING bleibt für den DACH-Mittelstand und regionale Suchen wichtig.",
+      "detail": "Konsequenz: Ein gepflegtes, mit der Bewerbung konsistentes LinkedIn/XING-Profil ist ein Cover-Faktor unabhängig vom eigentlichen Bewerbungsdokument.",
+      "sources": [
+        "https://www.youngcapital.de/blog/4062-ohne-linkedin-xing-und-co-keine-chance-auf-deinen-traumjob"
+      ],
+      "confidence": "low",
+      "info_date": "unklar, Ratgeberquelle ohne Primärstudie"
+    },
+    {
+      "claim": "72 Prozent der Personaler halten Arbeitszeugnisse laut einer älteren Studie ('Job-Trends 2017') für wichtig, jedoch verbringen 40 Prozent maximal 5 Minuten mit der Erstprüfung der gesamten Bewerbung.",
+      "detail": "Keine neuere deutschsprachige Primärstudie zur Zeugnis-Relevanz 2025/2026 gefunden. Praktische Konsequenz bleibt plausibel: Vollständigkeit (letzte 2-3 relevante Zeugnisse) wichtiger als Detailtiefe.",
+      "sources": [
+        "https://www.karriereakademie.de/arbeitszeugnis-wichtig"
+      ],
+      "confidence": "low",
+      "info_date": "2017 (ältere Studie, keine 2025/26-Aktualisierung gefunden)"
+    },
+    {
+      "claim": "Bewerbungsfotos sind seit Einführung des AGG 2006 rechtlich nicht Pflicht; einige Unternehmen bitten inzwischen aktiv um Verzicht, um Diskriminierung nach Aussehen/Herkunft/Alter zu vermeiden.",
+      "detail": "Praxis bleibt gemischt: Viele Unternehmen erwarten implizit weiterhin ein Foto, obwohl rechtlich nicht gefordert. Produktentscheidung: Foto standardmäßig weglassen, optional als Nutzereinstellung.",
+      "sources": [
+        "https://www.photo-bergmeister.de/2025/08/22/bewerbungsfoto-pflicht-das-solltest-du-2025-wissen/",
+        "https://www.haufe.de/id/beitrag/agg-die-merkmale-rasse-und-ethnische-herkunft-23-bewerbungsfoto-HI16209081.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Geburtsdatum und Familienstand sind rechtlich freiwillige Angaben im Lebenslauf; aktuelle Ratgeber empfehlen, beide aus AGG-Vorsichtsgründen wegzulassen bzw. Familienstand generell als überholt zu betrachten.",
+      "detail": "Geburtsdatum bleibt Konvention (Weglassen fällt auf), Familienstand gilt zunehmend als reine Privatsache ohne Bewerbungsrelevanz.",
+      "sources": [
+        "https://www.stepstone.de/magazin/artikel/persoenliche-daten-lebenslauf",
+        "https://www.cvmaker.de/blog/lebenslauf/familienstand-im-lebenslauf"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Eine Unterschrift ist rechtlich auch bei Online-Bewerbungen nicht notwendig, wird aber laut zitierten Quellen von rund 80 Prozent der Personaler weiterhin erwartet bzw. von 74 Prozent als 'persönliche Note' geschätzt.",
+      "detail": "Praxis: eingescannte/digitale Signatur in Anschreiben und Lebenslauf einfügen, sofern Nutzer eine Signaturvorlage bereitstellt.",
+      "sources": [
+        "https://karrierebibel.de/unterschrift-bei-online-bewerbung/"
+      ],
+      "confidence": "low",
+      "info_date": "unklar, Ratgeberquelle ohne genaue Studienangabe"
+    },
+    {
+      "claim": "Alle Bewerbungsanlagen sollten zu einer einzigen PDF-Datei zusammengefasst werden (Reihenfolge: ggf. Deckblatt, Anschreiben, Lebenslauf, Zeugnisse – neuestes zuerst), Dateigröße idealerweise unter 5 MB bei E-Mail-Bewerbung, Word/Excel gilt als unprofessionell.",
+      "detail": "Dateiname-Konvention: Name des Bewerbers + Dokumentart (+ ggf. Stellenbezeichnung). Direkt umsetzbare technische Spezifikation für den PDF-Erzeugungsschritt des Agenten.",
+      "sources": [
+        "https://meine-bewerbungsvorlage.de/blogs/news/pdf-zusammenfuegen-bewerbung",
+        "https://www.tabellarischer-lebenslauf.net/bewerbung-tipps/dateinamen-der-bewerbungsdokumente/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Im Anschreiben gilt standardmäßig die Sie-Anrede, auch wenn die Stellenanzeige duzt (v. a. bei Startups); manche Berater empfehlen, im Anschreiben trotzdem beim Sie zu bleiben, um nicht respektlos zu wirken.",
+      "detail": "Konsequenz: Ton-Erkennung aus Stellenanzeige nötig, aber Default bleibt Sie im formellen Anschreiben-Text, es sei denn Unternehmenskultur ist eindeutig Du-geprägt (z. B. explizite Aufforderung + Startup-Kontext).",
+      "sources": [
+        "https://bewerbung.com/du-in-stellenanzeigen/",
+        "https://www.peopleatventure.de/bewerbung-anrede"
+      ],
+      "confidence": "low",
+      "info_date": "unklar"
+    },
+    {
+      "claim": "Gehaltsangabe, frühestmöglicher Eintrittstermin und Kündigungsfrist sind keine generelle Pflicht, sollten aber angegeben werden, wenn die Stellenanzeige explizit danach fragt; Gehaltsangabe erfolgt als Bruttojahresgehalt im Schlussabsatz des Anschreibens.",
+      "detail": "Kritisch für den Agenten: Diese Werte dürfen nicht geraten werden (Halluzinationsrisiko bei Gehalt), sondern müssen entweder vom Nutzer hinterlegt oder bei Bedarf aktiv erfragt werden.",
+      "sources": [
+        "https://www.jobteaser.com/de/advices/gehaltsvorstellung-in-der-bewerbung-formulieren-so-geht-s",
+        "https://karrierebibel.de/bewerbung-eintrittstermin-nennen-sofort/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Für internationale/ATS-optimierte Lebensläufe wird empfohlen, Sprachkenntnisse zusätzlich zur GER-Skala (A1-C2) mit umgangssprachlichen Begriffen wie 'verhandlungssicher' oder 'fließend' zu ergänzen.",
+      "detail": "GER-Skala ist präziser und international vergleichbar, umgangssprachliche Begriffe bleiben für deutsche Recruiter und Klartext-Suche wichtig.",
+      "sources": [
+        "https://karrierebibel.de/sprachkenntnisse-lebenslauf/"
+      ],
+      "confidence": "low",
+      "info_date": "unklar"
+    },
+    {
+      "claim": "Bei ausländischen Hochschulabschlüssen prüft die Datenbank Anabin (anabin.kmk.org) die Vergleichbarkeit; fehlt ein Eintrag oder ist er unklar (Status ungleich H+), ist eine kostenpflichtige Zeugnisbewertung bei der ZAB nötig, die derzeit mehrere Monate dauert.",
+      "detail": "Produktkonsequenz: Anabin-Check sollte ganz am Anfang des Bewerbungsprozesses stehen (Checkliste/Nutzerabfrage), nicht erst wenn eine passende Stelle gefunden wurde – sonst verstreicht die Chance durch die lange ZAB-Bearbeitungszeit.",
+      "sources": [
+        "https://anabin.kmk.org/kurzanleitung/ich-moechte-feststellen-wie-mein-auslaendischer-hochschulabschluss-in-deutschland-bewertet-wird.html",
+        "https://www.kmk.org/themen/anerkennung-auslaendischer-abschluesse.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Beglaubigte Übersetzungen von Zeugnissen dürfen nur vereidigte Übersetzer:innen ausstellen; Kosten liegen je nach Sprache und Seitenzahl bei etwa 30 bis 100 Euro pro Dokument.",
+      "detail": "Der Agent darf Übersetzungen nicht selbst erzeugen und als 'beglaubigt' ausgeben – er kann höchstens einen Rohentwurf liefern und muss den Nutzer auf die Pflicht zur vereidigten Übersetzung hinweisen.",
+      "sources": [
+        "https://beglaubigt.de/blog/zeugnisbeglaubigung-fuer-auslandische-jobbewerbungen-ein-umfassender-ueberblick",
+        "https://www.mentorium.de/zeugnisse-beglaubigt-uebersetzen/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "52,9 Prozent der Nutzer von Arbeitgeberbewertungsportalen haben sich bereits wegen negativer Kununu-Bewertungen gegen eine Bewerbung entschieden, 61,6 Prozent wegen positiver Bewertungen beworben; 83,2 Prozent lesen auch Arbeitgeberantworten auf Bewertungen.",
+      "detail": "Wissenschaftliche Studie der WU Wien, 1.528 befragte Bewerber. Sinnvoller Rechercheschritt für den Agenten: Kununu-Score/-Antwortverhalten des Zielunternehmens als Kontextinfo in der Prüf-Checkliste zeigen.",
+      "sources": [
+        "https://www.saatkorn.com/studie-relevanz-von-arbeitgeberbewertungen/"
+      ],
+      "confidence": "low",
+      "info_date": "unklar, keine genaue Jahresangabe in Quelle"
+    },
+    {
+      "claim": "Der Hays-Fachkräfte-Index zeigt für Q4/2025 einen Rückgang der Fachkräftenachfrage um 47 Prozentpunkte gegenüber dem Vorjahresquartal (konjunktureller Abschwung); der IT-Index erholt sich in Q1/2026 auf 96 Prozent (fast Vorjahresniveau).",
+      "detail": "Zeigt, dass die Arbeitsmarktlage 2025/2026 branchenabhängig sehr volatil ist – statische Branchenpriorisierung im Produkt sollte regelmäßig aktualisiert statt hartcodiert werden.",
+      "sources": [
+        "https://www.hays.de/personaldienstleistung-aktuell/presse-mitteilung/fachkraefte-index-2025-q4-fachkraeftenachfrage-sinkt-2025-deutlich-unter-vorjahresniveau"
+      ],
+      "confidence": "medium",
+      "info_date": "2025-Q4/2026-Q1"
+    },
+    {
+      "claim": "IW Köln prognostiziert bis 2028 einen Mangel von rund 768.000 Fachkräften bundesweit; im Gesundheitswesen blieben 2024 über 46.000 Stellen unbesetzt, im IT-Bereich fehlen laut Bitkom weiterhin über 100.000 Fachkräfte.",
+      "detail": "Strukturelle Engpassbranchen für Matching-Priorisierung: IT, Gesundheit/Pflege, Bau, Erziehung/Bildung, Handwerk. Gleichzeitig ist der Anteil generell betroffener Unternehmen (22,7 Prozent Anfang 2026) niedriger als 2019 – kein pauschaler 'Bewerbermarkt'.",
+      "sources": [
+        "https://www.iwkoeln.de/presse/pressemitteilungen/alexander-burstedde-jurek-tiedemann-2028-fehlen-768000-fachkraefte.html",
+        "https://bitkom-research.de/news/deutschland-fehlen-weiterhin-mehr-als-100000-it-fachkraefte"
+      ],
+      "confidence": "medium",
+      "info_date": "2025/2026"
+    },
+    {
+      "claim": "Die durchschnittliche Vakanzzeit für Fachkraftstellen liegt bei 173 Tagen, in einzelnen Engpassberufen bei 250-300 Tagen (statistiken-aktuell.de, Sammelquelle ohne genannten Primärstudien-Link).",
+      "detail": "Konsistent mit dem XING-Wert von 165 Tagen Time-to-Hire. Bestätigt: Lange Prozesse sind branchenübergreifend Realität, nicht auf einzelne Studien beschränkt.",
+      "sources": [
+        "https://statistiken-aktuell.de/fachkraeftemangel-nach-branchen/"
+      ],
+      "confidence": "low",
+      "info_date": "2026, Quelle ohne klare Primärstudie"
+    },
+    {
+      "claim": "Die DGFP-Recruiting-Strukturen-Benchmark-Studie 2025 (736 befragte HR-Profis) stellt fest, dass Recruiting strukturierter, datengetriebener und technologischer wird, während starre Strukturen und knappe Ressourcen die Professionalisierung bremsen.",
+      "detail": "Bestätigt den Trend zu mehr ATS/Tooling-Einsatz auf Unternehmensseite, relativiert aber die KI-Screening-Geschwindigkeit (siehe Bitkom-Befund oben).",
+      "sources": [
+        "https://www.dgfp.de/aktuell/recruiting-strukturen-2025-recruiting-wird-strukturierter-datengetriebener-und-technologischer"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "71 Prozent der Berufseinsteiger:innen erleben regelmäßig 'Funkstille' im Bewerbungsprozess, 67 Prozent empfinden die Anforderungen an vermeintliche Einstiegspositionen als unrealistisch.",
+      "detail": "JobTeaser/Gen-Z-Lab-Studie 2025. Relevant für die Zielgruppen-Kalibrierung, falls das Produkt auch Berufseinsteiger adressiert; bestärkt den Bedarf an einem transparenten Status-Tracking im Produkt.",
+      "sources": [
+        "https://www.jobteaser.com/de/corporate/das-gen-z-lab/die-neuen-trends-fur-2025"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Anabin (KMK)",
+      "url": "https://anabin.kmk.org/",
+      "category": "Datenquelle",
+      "access": "Kostenlose Web-Datenbank, manuelle Recherche; kein offenes API bekannt",
+      "pricing": "Kostenlos (Stand 2025)",
+      "verdict": "empfohlen – als Pflicht-Check für Kandidaten mit ausländischem Abschluss vor Bewerbungsstart einbauen (manuelle Recherche/WebFetch, kein Scraping-API vorhanden)"
+    },
+    {
+      "name": "ZAB Zeugnisbewertung (Zentralstelle für ausländisches Bildungswesen)",
+      "url": "https://www.kmk.org/themen/anerkennung-auslaendischer-abschluesse.html",
+      "category": "SaaS",
+      "access": "Online-Antragsportal, mehrmonatige Bearbeitungszeit, keine API",
+      "pricing": "Gebührenpflichtig (Höhe in Recherche nicht ermittelt), Stand 2025",
+      "verdict": "empfohlen als Prozess-Hinweis in der Checkliste, nicht automatisierbar – Nutzer muss selbst beantragen"
+    },
+    {
+      "name": "Kununu",
+      "url": "https://www.kununu.com/",
+      "category": "Datenquelle",
+      "access": "Web-Plattform, kein offizielles Public-API für Drittanbieter bekannt; Abruf einzelner Firmenprofile per WebFetch möglich",
+      "pricing": "Für Bewerber kostenlos einsehbar",
+      "verdict": "optional – als Kontext-Info (Score, Antwortverhalten des Arbeitgebers) in der Prüf-Checkliste pro Bewerbung, nicht als Kernfunktion"
+    },
+    {
+      "name": "XING (New Work SE)",
+      "url": "https://www.xing.com/",
+      "category": "SaaS",
+      "access": "Web/App, offizielles Recruiting-API nur für zahlende Unternehmenskunden; Profildaten des eigenen Nutzers ggf. manuell exportierbar",
+      "pricing": "Basis kostenlos, Premium-Stufen kostenpflichtig (Preise nicht recherchiert)",
+      "verdict": "optional – Profil-Konsistenz-Check zwischen Lebenslauf und XING-Profil als Zusatzfeature, kein automatisiertes Scraping (ToS-Risiko)"
+    },
+    {
+      "name": "LinkedIn",
+      "url": "https://www.linkedin.com/",
+      "category": "SaaS",
+      "access": "Web/App, offizielles API stark eingeschränkt und nicht für Recruiting-Scraping durch Dritte vorgesehen; automatisiertes Scraping verstößt gegen die Nutzungsbedingungen",
+      "pricing": "Basis kostenlos, Recruiter Lite/Sales Navigator kostenpflichtig (Preise nicht recherchiert)",
+      "verdict": "vermeiden für automatisiertes Scraping/Auto-Posting – nur manuelle Profilpflege durch den Kandidaten empfehlen, ToS-Verstoß sonst riskant"
+    },
+    {
+      "name": "Bitkom Research",
+      "url": "https://bitkom-research.de/",
+      "category": "Datenquelle",
+      "access": "Kostenlose Pressemitteilungen/Studienberichte als PDF/Web",
+      "pricing": "Kostenlos einsehbar",
+      "verdict": "empfohlen als jährlich zu prüfende Referenzquelle für den tatsächlichen KI-Reifegrad deutscher HR-Abteilungen"
+    },
+    {
+      "name": "DGFP (Deutsche Gesellschaft für Personalführung)",
+      "url": "https://www.dgfp.de/",
+      "category": "Datenquelle",
+      "access": "Studien teils frei, teils Mitglieder-/Anfrage-gebunden",
+      "pricing": "Teilweise kostenlos, teils Download-Anfrage nötig (Stand 2025)",
+      "verdict": "optional – gute Quelle für jährliche Recruiting-Struktur-Benchmarks, kein technischer Integrationsnutzen"
+    },
+    {
+      "name": "softgarden Studien",
+      "url": "https://softgarden.com/de/ressourcen/studien/",
+      "category": "Datenquelle",
+      "access": "Kostenlose Studienberichte als Web/PDF",
+      "pricing": "Kostenlos",
+      "verdict": "empfohlen als regelmäßige Quelle für aktuelle KI-Adoptionszahlen bei Bewerbern und Recruitern"
+    },
+    {
+      "name": "IAB (Institut für Arbeitsmarkt- und Berufsforschung)",
+      "url": "https://iab-forum.de/",
+      "category": "Datenquelle",
+      "access": "Amtliche Forschungsberichte, kostenlos als Web/PDF",
+      "pricing": "Kostenlos",
+      "verdict": "empfohlen – belastbarste, nicht-kommerzielle Quelle für Einstellungskanäle und Arbeitsmarktdaten (Stellenerhebung), sollte gegenüber PR-Studien priorisiert werden"
+    },
+    {
+      "name": "Personio Recruiting",
+      "url": "https://www.personio.de/",
+      "category": "SaaS",
+      "access": "Kundenseitiges HR-/ATS-System; für den Bewerbungsagenten nur indirekt relevant (Zielsystem beim Arbeitgeber), kein Zugriff für Bewerberseite",
+      "pricing": "B2B-Lizenzmodell, nicht für Bewerber nutzbar",
+      "verdict": "kein Integrationsziel – relevant nur als Kontextwissen, wie Bewerberdaten beim Empfänger geparst werden (ATS-Formatierungsregeln beachten)"
+    }
+  ],
+  "recommendations": [
+    "Anschreiben nicht als Standardbaustein jeder Bewerbung erzeugen, sondern konditional: nur wenn die Stellenanzeige es explizit verlangt oder das Unternehmen/die Branche es klar erwarten lässt (Konzern, klassische Branche); bei Firmen mit bekanntem Verzicht (z. B. Otto, DB-Azubi) automatisch weglassen.",
+    "Wenn ein Anschreiben erzeugt wird: maximal eine Seite, die entscheidenden Aussagen in den ersten zwei bis drei Sätzen, da Recruiter im Schnitt nur Sekunden bis wenige Minuten investieren.",
+    "Persönliche AGG-relevante Angaben (Foto, Geburtsdatum, Familienstand) standardmäßig weglassen; nur auf explizite Nutzeranfrage und mit Warnhinweis einfügen.",
+    "Alle Bewerbungsdokumente pro Stelle zu genau einer PDF-Datei zusammenfassen (Reihenfolge: ggf. Deckblatt, Anschreiben, Lebenslauf, Zeugnisse neuestes zuerst), mit einer festen Dateiname-Konvention (Nachname_Dokumentart_Stellentitel) und Prüfung auf Dateigröße (Zielgröße deutlich unter 5 MB, ggf. Komprimierung der eingescannten Zeugnisse).",
+    "Optionales Feature: digitale Signatur (vom Nutzer bereitgestelltes Signaturbild) automatisch in Anschreiben und Lebenslauf einfügen, da weiterhin von der Mehrheit der Personaler implizit erwartet.",
+    "Anrede-Logik: Standard ist 'Sie' im Anschreiben-Fließtext, auch wenn die Stellenanzeige duzt; 'Du' nur bei eindeutig Du-geprägter Unternehmenskultur (z. B. Startup, explizite Aufforderung) und nach Nutzerfreigabe.",
+    "Gehaltsangabe, Eintrittstermin und Kündigungsfrist nur einfügen, wenn die Stellenanzeige danach fragt; Gehaltszahlen dürfen niemals vom Modell geschätzt/halluziniert werden, sondern müssen aus einem vom Nutzer gepflegten Profilfeld stammen oder aktiv erfragt werden (ggf. mit Marktdaten wie Robert-Half-Gehaltsübersicht als unverbindlicher Referenzpunkt, klar als Vorschlag markiert).",
+    "Lebenslauf konsequent klartext- und ATS-parsebar strukturieren (Standardüberschriften, Skills als Liste/Fließtext statt Grafik-Balken, keine Text-in-Bild-Elemente), da Personio/SAP SuccessFactors/Workday KI-Screening 2025/2026 ausbauen und unvollständig geparste Profile bei Active-Sourcing-Suchen unsichtbar bleiben – ohne dabei in Keyword-Stuffing zu verfallen (wird erkannt und abgewertet).",
+    "Kernfunktion 'echte Recherche' technisch verpflichtend machen (nicht optional): jede erzeugte Bewerbung muss mindestens ein bis zwei konkrete, recherchierte und im Text nachprüfbare Details zu Unternehmen/Team/Produkt/aktueller Nachricht enthalten, da 69 Prozent der Recruiter generische KI-Texte bereits als solche erkennen und schlechter bewerten.",
+    "Vor Kampagnenstart einen LinkedIn/XING-Profil-Konsistenz-Check als Vorstufe anbieten (manueller Abgleich, kein automatisiertes Scraping wegen ToS-Risiko), da über 85 Prozent der Recruiter dort aktiv suchen, bevor überhaupt eine Bewerbung eingeht.",
+    "Bei Kandidaten mit ausländischem Bildungsabschluss den Anabin-Status und ggf. den ZAB-Zeugnisbewertungs-Bedarf ganz am Anfang klären (Onboarding-Checkliste), nicht erst bei der ersten passenden Stelle, da die ZAB-Bearbeitung mehrere Monate dauert.",
+    "Bei nicht-deutschen Originalzeugnissen im Workflow abfragen, ob bereits eine beglaubigte (vereidigte) Übersetzung vorliegt; der Agent darf selbst höchstens einen Rohentwurf liefern und muss klar kennzeichnen, dass dieser keine rechtsgültige beglaubigte Übersetzung ersetzt.",
+    "Nachfass-Feature einbauen: Vorschlag (nicht automatischer Versand) einer freundlichen Status-Nachfrage nach 10-15 Werktagen ohne Rückmeldung, mit Zeitfenster-Empfehlung Dienstag bis Donnerstag 9-11 Uhr bzw. 14-16 Uhr, da 72 Prozent der Bewerber eine Absage binnen zwei Wochen erwarten, aber nur 32 Prozent der Arbeitgeber das einhalten.",
+    "Initiativbewerbungen als eigenständigen, optionalen Kanal neben dem Matching gegen offene Stellenanzeigen anbieten (mit Ansprechpartner-Recherche), da individualisierte Initiativbewerbungen Erfolgsquoten von 20-33 Prozent erzielen können.",
+    "Arbeitsmarktdaten (Fachkräfteindex, Branchen-Engpässe) als Kontextinformation in der Prüf-Checkliste anzeigen, aber nicht als hartes Filterkriterium im Matching verwenden, da sich die Lage laut Hays-Index quartalsweise stark verändert (z. B. Q4/2025 Einbruch, Q1/2026 IT-Erholung) und im Produkt regelmäßig aktualisiert, nicht hartcodiert werden sollte.",
+    "Kununu-Score und Arbeitgeber-Antwortverhalten des Zielunternehmens als optionale Kontextzeile in der täglichen Prüf-Checkliste ausgeben, da dies nachweislich Bewerbungsentscheidungen von Nutzern beeinflusst."
+  ],
+  "risks": [
+    "Zu generische, variablenbasierte Textbausteine ohne echte Recherche führen dazu, dass Bewerbungen als KI-generiert erkannt und laut Studienlage (69 Prozent der Recruiter) schlechter bewertet werden – widerspricht dem Kernversprechen des Produkts.",
+    "Fälschliches oder unreflektiertes Einfügen von AGG-sensiblen Daten (Foto, Geburtsdatum, Familienstand) kann Kandidaten unbewusst benachteiligen oder in seltenen Fällen rechtliche Fragen aufwerfen, wenn diese Angaben ungefragt hinzugefügt werden.",
+    "Automatisiertes Scraping von LinkedIn/XING-Profildaten Dritter (Ansprechpartner-Recherche) verstößt potenziell gegen die Nutzungsbedingungen dieser Plattformen und ist rechtlich und technisch riskant.",
+    "Der ZAB-Anerkennungsprozess für ausländische Abschlüsse dauert mehrere Monate; wird das im Produkt nicht früh genug kommuniziert, entsteht beim Nutzer eine falsche Erwartungshaltung an die Bewerbungsgeschwindigkeit.",
+    "Wachsendes Recruiter-Misstrauen gegenüber KI-generierten Unterlagen (72 Prozent bereits mit KI-Betrug konfrontiert) kann pauschal auch seriöse, KI-unterstützte Bewerbungen treffen – Transparenz-/Qualitätssicherung ist daher kein Nice-to-have.",
+    "Mehrere zitierte Kennzahlen (Sekunden-Prüfzeit, Nachfass-Prozentsätze, Initiativbewerbungs-Erfolgsquote) stammen aus Ratgeber-Blogs ohne klar erkennbare Primärstudie oder mit veraltetem Ursprungsjahr (z. B. Arbeitszeugnis-Studie von 2017) – als Produktparameter geeignet, aber nicht als belastbare Fakten in Nutzerkommunikation zitierbar.",
+    "Arbeitsmarkt- und Fachkräftemangeldaten sind 2025/2026 volatil (großer Quartalsrückgang beim Hays-Index Ende 2025, Erholung Anfang 2026); statisch hinterlegte Branchenpriorisierung veraltet schnell und sollte turnusmäßig aktualisiert werden.",
+    "Anbieterquellen zu ATS-Funktionen (Personio, SAP, activate-hr) haben einen kommerziellen Interessenkonflikt (Eigenmarketing) – Aussagen zu KI-Screening-Reichweite sollten stärker gegen unabhängige Quellen wie Bitkom/IAB geprüft werden, wo verfügbar."
+  ],
+  "open_questions_for_user": [
+    "Sollen AGG-sensible Angaben (Foto, Geburtsdatum, Familienstand) standardmäßig weggelassen werden, oder möchtest du sie für bestimmte Branchen/Länder optional pflegen können?",
+    "Liegt bei dir ein ausländischer Bildungsabschluss vor? Falls ja: Ist der Anabin-Status bereits bekannt bzw. wurde schon eine ZAB-Zeugnisbewertung beantragt?",
+    "Liegen deine relevanten Zeugnisse/Abschlüsse bereits als beglaubigte (vereidigte) deutsche oder englische Übersetzung vor, oder soll das System dies nur als offenen To-Do-Punkt in der Checkliste markieren?",
+    "Möchtest du, dass der Agent bei Stellenanzeigen mit Gehaltsabfrage automatisch eine Gehaltsspanne aus Marktdaten vorschlägt (zur Freigabe), oder soll er dich in jedem Einzelfall aktiv nach deiner Gehaltsvorstellung fragen?",
+    "Hast du eine digitale Signaturvorlage (Scan deiner Unterschrift), die automatisch in Anschreiben/Lebenslauf eingefügt werden soll?",
+    "Sollen Initiativbewerbungen (an Unternehmen ohne aktuell passende Stellenanzeige) Teil des täglichen Kontingents von ca. 10 Bewerbungen sein, oder als separates, optionales Feature behandelt werden?",
+    "Wie aktuell/gepflegt ist dein LinkedIn- bzw. XING-Profil – soll das System dich vor dem ersten Bewerbungslauf auf Inkonsistenzen zwischen Profil und Lebenslauf hinweisen?"
+  ],
+  "search_log": [
+    "StepStone Studie Anschreiben 2025 noch wichtig Bewerbung",
+    "Recruiting Trends 2025 Bamberg Monster Studie Bewerbung",
+    "HR Recruiter wie viele Sekunden Lebenslauf anschauen Studie",
+    "KI Bewerbung ChatGPT Recruiter Einstellung Studie 2025 Deutschland",
+    "Initiativbewerbung Erfolgsquote Deutschland Statistik",
+    "Deutsche Bahn Telekom Bewerbung ohne Anschreiben",
+    "Bewerbungsfoto 2025 noch üblich Diskriminierung AGG",
+    "Geburtsdatum Familienstand Lebenslauf 2025 AGG diskriminierungsfrei",
+    "softgarden Studie 2025 Bewerbung Recruiting Trends",
+    "Bewerbermanagementsystem Marktanteile Deutschland Personio SAP SuccessFactors Workday 2025",
+    "Fachkräftemangel 2026 Branchen IAB Bewerber pro Stelle Statistik",
+    "Einstellungskanäle Deutschland Anteil Jobbörse eigene Website Netzwerk Studie 2025",
+    "Bewerbung Reaktionszeit Unternehmen Tage Absage Studie 2025",
+    "Gehaltsangabe Bewerbung Pflicht Eintrittstermin Kündigungsfrist Anschreiben",
+    "Bewerbung Du oder Sie Anrede Stellenanzeige 2025",
+    "Bewerbung PDF eine Datei Dateiname Zusammenfassen Anhang",
+    "Anerkennung ausländischer Abschlüsse Deutschland Anabin Zeugnisbewertung Prozess 2025",
+    "Bitkom Studie KI Bewerber Recruiting 2025",
+    "LinkedIn XING Profil Bewerbung Bedeutung Recruiter Deutschland Studie 2025",
+    "Robert Half Gehaltsstudie 2026 Arbeitsmarkt Deutschland",
+    "Arbeitszeugnis Bedeutung Bewerbung wie oft verlangt Studie",
+    "Nachfassen nach Bewerbung telefonisch wann sinnvoll Tipps",
+    "ATS Bewerbermanagementsystem Keyword Matching Mythos Deutschland Realität",
+    "StepStone Studie November 2025 KI Jobsuche Bewerber",
+    "Sprachniveau Lebenslauf GER Niveau A1 B2 C1 angeben Bewerbung",
+    "Zeugnisse übersetzen beglaubigt Bewerbung ausländische Bewerber Deutschland",
+    "Kununu Arbeitgeberbewertung Einfluss Bewerbungsentscheidung Studie",
+    "Hays Fachkräfteindex 2025 2026 Arbeitsmarkt",
+    "Personio KI Matching Bewerber Screening Recruiting Funktion 2025",
+    "absolventa Studie 2025 Berufseinstieg Bewerbung Erwartungen",
+    "KI generierte Bewerbung erkennen Recruiter ablehnen Anzeichen",
+    "Portfolio Zertifikate Weiterbildung Stellenwert Bewerbung Lebenslauf 2025",
+    "Unterschrift Anschreiben digital nötig Bewerbung 2025",
+    "DGFP BPM Recruiting Trends Studie 2025 2026 Personalmanagement",
+    "IW Köln Studie Fachkräfteengpass 2025 2026",
+    "SAP SuccessFactors Workday KI Bewerber Vorauswahl Deutschland Nutzung Anteil Unternehmen",
+    "Otto Group Bewerbung ohne Anschreiben Unternehmen Liste",
+    "Indeed Hiring Lab Deutschland Arbeitsmarkt 2025 2026",
+    "New Work SE XING Arbeitsmarktreport 2025 Bewerber Studie"
+  ],
+  "verification_notes": [
+    "[verify-A 2026-09-08] StepStone-Anschreiben-Zahlen (51%/26%/15%) nur über meinbezirk.at (österreichisches Lokalportal) belegt - Herkunft/Land unklar, Confidence auf 'low' senken und Primärquelle stepstone.de nachprüfen.",
+    "[verify-A] Bitkom-Zahlen (1% KI-Screening, 852 Unternehmen), XING-Time-to-Hire 165 Tage und DGFP-Studie in dieser Session nicht verifizierbar (Egress-Sperre, Suchkontingent erschöpft) - im Masterplan als 'nicht unabhängig geprüft' kennzeichnen.",
+    "[verify-A] Rechtsangabe zum EU AI Act (Hochrisiko-Pflichten Recruiting erst ab 2.12.2027) ist bestätigt und sollte in de_culture-Kontext (KI-Screening-Adoption) mitgeführt werden."
+  ]
+}

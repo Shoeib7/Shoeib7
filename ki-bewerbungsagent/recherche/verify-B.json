@@ -1,0 +1,200 @@
+{
+  "group": "B",
+  "verdicts": [
+    {
+      "file": "business.json",
+      "claim": "Anthropic-Listenpreise Sept. 2026: Fable 5.1 $10/$50, Opus 5 $5/$25, Sonnet 5 $2/$10 (dauerhaft, keine Erhöhung zum 1.9.2026), Haiku 4.5 $1/$5 pro MTok",
+      "verdict": "confirmed",
+      "correction": "Zusätzlich bestätigt: Fable 5 und Mythos 5/5.1 ebenfalls $10/$50; Opus 4.5-4.8 $5/$25; Sonnet 4.5/4.6 $3/$15. Hinweis der Preisseite: Modelle ab Claude 4.7 nutzen einen neuen Tokenizer, der ca. 30% mehr Tokens für denselben Text erzeugt – die Token-Schätzungen in business.json sollten dafür einen Aufschlag einplanen.",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ]
+    },
+    {
+      "file": "business.json",
+      "claim": "Prompt-Caching: Cache-Write 1,25x (5 min) / 2x (1 h); Cache-Read 0,1x, bei Fable 5.1 und Mythos 5.1 nur 0,025x",
+      "verdict": "confirmed",
+      "correction": "Fable 5 (ohne .1) und Mythos 5 haben weiterhin 0,1x ($1/MTok); nur Fable 5.1 und Mythos 5.1 haben 0,025x ($0,25/MTok).",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ]
+    },
+    {
+      "file": "business.json",
+      "claim": "Web-Search-Tool $10 pro 1.000 Suchen zzgl. Tokenkosten; fehlgeschlagene Suchen werden nicht berechnet; Batch-API 50% Rabatt auf Tokens",
+      "verdict": "confirmed",
+      "correction": "Ergänzung: Das Web-Fetch-Tool ist ausdrücklich ohne Zusatzgebühr (nur Tokenkosten) – relevant für die Firmenrecherche (Impressum/Karriereseiten abrufen kostet keine $10/1.000).",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ]
+    },
+    {
+      "file": "business.json",
+      "claim": "Managed Agents: $0,08 pro Session-Laufzeitstunde (nur Status 'running'), Batch-Rabatt gilt nicht, inference_geo 'us' = 1,1x",
+      "verdict": "confirmed",
+      "correction": "Bestätigt auf Preisseite und Budgets-Seite; Laufzeit ersetzt die Code-Execution-Container-Abrechnung. Budgets-Seite: Session-Budget in ganzen US-Cent als String, Sessions pausieren (idle) bei Budgeterreichung; Deployments kopieren das Budget pro gestarteter Session. Managed-Agents-API benötigt Beta-Header 'managed-agents-2026-04-01'.",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/pricing",
+        "https://platform.claude.com/docs/en/managed-agents/budgets"
+      ]
+    },
+    {
+      "file": "business.json",
+      "claim": "Code-Execution-Tool kostenlos mit web_search_20260209+/web_fetch_20260209+; sonst 1.550 Freistunden/Org/Monat, danach $0,05/Stunde/Container, Mindestabrechnung 5 Minuten",
+      "verdict": "confirmed",
+      "correction": "",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ]
+    },
+    {
+      "file": "legal.json",
+      "claim": "Claude Fable 5.1 ist 'Covered Model' mit zwingender 30-Tage-Retention, nicht ZDR-fähig ohne Anthropic-Freigabe; 400-Fehler ohne aktivierte 30-Tage-Retention; bei Trust&Safety-Flag bis 2 Jahre",
+      "verdict": "confirmed",
+      "correction": "Covered Models sind Fable 5.1, Mythos 5.1, Fable 5 UND Mythos 5. Opus 5, Sonnet 5 und Haiku 4.5 sind nicht betroffen (nicht nur 'Sonnet/Haiku' wie in der Empfehlung). ZDR-Organisationen können 30-Tage-Retention pro Workspace aktivieren. Code Execution/Programmatic Tool Calling: Container-Daten bis 30 Tage, nicht ZDR-fähig.",
+      "sources": [
+        "https://platform.claude.com/docs/en/manage-claude/api-and-data-retention"
+      ]
+    },
+    {
+      "file": "legal.json",
+      "claim": "Anthropic API-Inputs/Outputs werden standardmäßig binnen 30 Tagen gelöscht",
+      "verdict": "partially_correct",
+      "correction": "Die zitierte Retention-Seite sagt: Konversationsinhalte (Prompts/Outputs) werden standardmäßig NICHT gespeichert; Ausnahme sind Covered Models (30 Tage) sowie zustandsbehaftete Features (Files, Batches, Code-Execution-Container bis 30 Tage). Die pauschale '30 Tage Standard'-Aussage stimmt nur für Covered Models und einzelne Features; die allgemeine kommerzielle Retention-Policy (privacy.claude.com) konnte nicht abgerufen werden.",
+      "sources": [
+        "https://platform.claude.com/docs/en/manage-claude/api-and-data-retention"
+      ]
+    },
+    {
+      "file": "legal.json",
+      "claim": "Anthropic Consumer Terms verbieten OAuth-Token-Nutzung aus Free/Pro/Max in Drittprodukten/Agent SDK; seit 5.4.2026 aktiv durchgesetzt (u.a. gegen 'OpenClaw'); nur Claude Code CLI ausgenommen",
+      "verdict": "unverifiable",
+      "correction": "Quellen (theregister.com, marketingagent.blog) am Egress-Proxy blockiert, WebSearch-Budget erschöpft. Datum '5.4.2026' und Name 'OpenClaw' bleiben unbelegt; Architekturempfehlung (Commercial-API-Key für Scheduled Runs) ist unabhängig davon sinnvoll.",
+      "sources": []
+    },
+    {
+      "file": "legal.json",
+      "claim": "Digital Omnibus: Hochrisiko-Pflichten Annex III von 2.8.2026 auf 2.12.2027 verschoben; Art. 50 Transparenzpflichten unverändert ab 2.8.2026",
+      "verdict": "unverifiable",
+      "correction": "kpmg.com, ai-act-law.eu und dejure.org am Egress-Proxy blockiert. Nicht widerlegt, aber auch nicht bestätigt; Status (Einigung vs. Veröffentlichung im Amtsblatt) sollte vor Verwendung als Fakt geprüft werden.",
+      "sources": []
+    },
+    {
+      "file": "legal.json",
+      "claim": "Bundesagentur-Jobsuche-API (bundesAPI): X-API-Key 'jobboerse-jobsuche', Endpunkte /pc/v6/jobs, /pc/v4/jobdetails/{refnr}, Logo-Endpunkt; keine Rate-Limits/Nutzungsbedingungen dokumentiert",
+      "verdict": "confirmed",
+      "correction": "Präzisierung: jobdetails erwartet den Base64-kodierten refnr (nicht den rohen refnr); Suche ist unter /pc/v6/jobs und /pc/v4/jobs dokumentiert; Basis-URL https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/. Repository nennt tatsächlich weder Lizenz noch Nutzungsbedingungen.",
+      "sources": [
+        "https://github.com/bundesAPI/jobsuche-api"
+      ]
+    },
+    {
+      "file": "legal.json",
+      "claim": "Gmail: 500 Empfänger/Tag (privat), 100 Empfänger/Mail, SMTP 100/Tag; Bulk-Sender-Pflichten ab 5.000 Mails/Tag",
+      "verdict": "unverifiable",
+      "correction": "support.google.com am Egress-Proxy blockiert; Zahlen entsprechen dem allgemein bekannten Stand (2024/2025), konnten aber nicht frisch geprüft werden.",
+      "sources": []
+    },
+    {
+      "file": "competitors.json",
+      "claim": "AIHawk: 30,3k Stars, Lizenzwechsel AGPL-3.0 → MIT am 2.9.2026, Wandel zum generischen Browser-Agent, invisible_playwright, MCP-Integration mit Claude Code/Gemini CLI",
+      "verdict": "confirmed",
+      "correction": "README: 'Everything distributed before 2 September 2026 was released under AGPL-3.0 and stays under it' – ältere Versionen bleiben AGPL. Job-Bewerbungs-Automatisierung wird nur noch über Medienberichte erwähnt, Beispiel im README ist Flugbuchung.",
+      "sources": [
+        "https://github.com/feder-cr/Jobs_Applier_AI_Agent_AIHawk"
+      ]
+    },
+    {
+      "file": "competitors.json",
+      "claim": "JobSpy: MIT, 4,3k Stars, Deutschland via country_indeed für Indeed/Glassdoor, LinkedIn rate-limitiert ca. ab Seite 10 pro IP, Proxies empfohlen",
+      "verdict": "confirmed",
+      "correction": "country_indeed-Wert ist exakt 'Germany' (in der Tabelle mit '*' = Glassdoor-fähig markiert).",
+      "sources": [
+        "https://github.com/speedyapply/JobSpy"
+      ]
+    },
+    {
+      "file": "competitors.json",
+      "claim": "ApplyPilot: AGPL-3.0, 1,6k Stars, 17.02.2026, 6-Stufen-Pipeline, Claude Code CLI + Playwright-MCP, Gemini Free-Tier, US-Boards + 48 Workday-Portale",
+      "verdict": "confirmed",
+      "correction": "Ergänzung: Discovery läuft über JobSpy; zusätzlich 30+ direkte Karriereseiten; Anforderungen Python 3.11+, Node 18+.",
+      "sources": [
+        "https://github.com/Pickle-Pixel/ApplyPilot"
+      ]
+    },
+    {
+      "file": "competitors.json",
+      "claim": "RenderCV: MIT, 17,5k Stars, YAML→PDF via Typst, 9 Themes, Python 3.12+, Locale-Support",
+      "verdict": "confirmed",
+      "correction": "",
+      "sources": [
+        "https://github.com/rendercv/rendercv"
+      ]
+    },
+    {
+      "file": "competitors.json",
+      "claim": "Reactive Resume: MIT, 42,3k Stars, KI-Integration OpenAI/Gemini/Anthropic Claude, 15 Templates, PDF/JSON/DOCX, Docker+PostgreSQL",
+      "verdict": "confirmed",
+      "correction": "Ergänzung: Seit v5.1.0 clientseitige PDF-Erzeugung via @react-pdf/renderer (kein Headless-Browser nötig); optional SeaweedFS als S3-Speicher.",
+      "sources": [
+        "https://github.com/amruthpillai/reactive-resume"
+      ]
+    },
+    {
+      "file": "competitors.json",
+      "claim": "StepStone-Studie 2025 (700 Beschäftigte + 160 HR, AT/DE): 58% nutzen KI, 72% professioneller, 63% weniger individuell, 68% weniger authentisch, 73% übertrieben, 80% bestenfalls mittelmäßig",
+      "verdict": "unverifiable",
+      "correction": "stepstone.at und leadersnet.de am Egress-Proxy blockiert; Prozentwerte nicht frisch prüfbar. Vor Zitierung im Masterplan Primärquelle manuell öffnen.",
+      "sources": []
+    },
+    {
+      "file": "business.json",
+      "claim": "Exa: 150 unauthentifizierte Suchen/Tag, $20 Startguthaben + $10/Monat, $7 pro 1.000 Suchen; Tavily: 1.000 Credits/Monat kostenlos, ab $30/Monat, $0,008/Credit",
+      "verdict": "unverifiable",
+      "correction": "Die angegebenen Quellen (github.com/exa-labs/exa-mcp-server, github.com/tavily-ai/tavily-mcp) enthalten KEINE Preisangaben – Quellenzuordnung fehlerhaft. Preise müssen gegen exa.ai/pricing bzw. tavily.com/pricing geprüft werden (beide hier nicht abrufbar).",
+      "sources": [
+        "https://github.com/exa-labs/exa-mcp-server",
+        "https://github.com/tavily-ai/tavily-mcp"
+      ]
+    },
+    {
+      "file": "business.json",
+      "claim": "Hetzner Preiserhöhung 15.6.2026 um 30-38%; CPX12 11,99€, CPX22 19,99€; CX22/CX32/CAX nicht mehr bestellbar; Brave Search API Free-Tier seit Feb. 2026 abgeschafft ($5 Monatsguthaben, $5/1.000)",
+      "verdict": "unverifiable",
+      "correction": "docs.hetzner.com, hetzner.com und implicator.ai am Egress-Proxy blockiert. Beide Preisaussagen vor Budgetierung manuell prüfen.",
+      "sources": []
+    },
+    {
+      "file": "company_research.json",
+      "claim": "Anthropic Web-Search-/Web-Fetch-Tool wird nutzungsbasiert pro Suche/Abruf zusätzlich zu Tokenkosten abgerechnet",
+      "verdict": "partially_correct",
+      "correction": "Nur Web Search kostet $10/1.000 Suchen; Web Fetch hat laut Preisseite KEINE Zusatzgebühr (nur Tokenkosten der abgerufenen Inhalte; max_content_tokens zur Begrenzung empfohlen). Code Execution ist in Kombination mit web_search_20260209+/web_fetch_20260209+ ebenfalls kostenlos.",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ]
+    },
+    {
+      "file": "company_research.json",
+      "claim": "§ 5 DDG (seit 14.5.2024) regelt Impressumspflicht; Nominatim-Policy max. 1 Anfrage/s mit Pflicht-User-Agent",
+      "verdict": "unverifiable",
+      "correction": "gesetze-im-internet.de, nominatim.org und operations.osmfoundation.org blockiert. Inhalte entsprechen dem bekannten Stand (DDG in Kraft seit 14.5.2024; Nominatim 1 req/s), aber ohne frische Quelle.",
+      "sources": []
+    }
+  ],
+  "suspicious_urls": [
+    "https://github.com/exa-labs/exa-mcp-server (existiert, enthält aber keine der in business.json zitierten Exa-Preisangaben)",
+    "https://github.com/tavily-ai/tavily-mcp (existiert, enthält aber keine der in business.json zitierten Tavily-Preisangaben)",
+    "https://platform.claude.com/docs/en/managed-agents/budgets (existiert und bestätigt $0,08/h – kein Problem, aber die Seite ist eine Budget-Doku, die Hauptquelle für Preise ist /about-claude/pricing)"
+  ],
+  "additions": [
+    "Web Fetch ist gebührenfrei (nur Tokenkosten) – für die Firmenrecherche (Impressum, Karriereseite) entstehen also keine $10/1.000-Kosten, nur Web Search kostet. Quelle: https://platform.claude.com/docs/en/about-claude/pricing",
+    "Neuer Tokenizer ab Claude 4.7 (inkl. Opus 5, Sonnet 5, Fable 5.x) erzeugt ca. 30% mehr Tokens für denselben Text – Kostenmodell in business.json entsprechend nach oben korrigieren. Quelle: https://platform.claude.com/docs/en/about-claude/pricing",
+    "Managed Agents: Session-Budget (hard cap in US-Cent) pro Session bzw. pro Deployment-Run setzbar; Session geht bei Erreichen in 'idle' (stop_reason budget_reached) statt zu terminieren – direkt nutzbar als Kostenbremse für den täglichen Lauf. Quelle: https://platform.claude.com/docs/en/managed-agents/budgets",
+    "Fast Mode (Research Preview) für Opus 5/Opus 4.8: $10/$50 pro MTok, nicht mit Batch kombinierbar – für das Projekt nicht nötig. Quelle: https://platform.claude.com/docs/en/about-claude/pricing",
+    "Covered Models umfassen auch Fable 5 und Mythos 5; Opus 5 ist NICHT Covered Model und damit ZDR-fähig – als Top-Modell für sensible Schritte eine Alternative zu Fable 5.1. Quelle: https://platform.claude.com/docs/en/manage-claude/api-and-data-retention",
+    "bundesAPI jobdetails: ID muss Base64-kodierter refnr sein. Quelle: https://github.com/bundesAPI/jobsuche-api",
+    "Reactive Resume rendert PDFs seit v5.1.0 clientseitig via @react-pdf/renderer – kein Headless-Chrome-Dienst mehr nötig. Quelle: https://github.com/amruthpillai/reactive-resume"
+  ],
+  "overall_reliability": "medium",
+  "notes": "Prüfumfeld stark eingeschränkt: WebSearch-Budget der Sitzung war bereits erschöpft (200/200), und rund 20 Domains (dejure.org, gesetze-im-internet.de, ai-act-law.eu, kpmg.com, theregister.com, support.google.com, stepstone.at, leadersnet.de, hetzner.com, docs.hetzner.com, implicator.ai, nominatim.org, osmfoundation.org, serpapi.com, press.roberthalf.com, bundesgerichtshof.de, support.claude.com) waren am Egress-Proxy gesperrt. Verifizierbar waren platform.claude.com und github.com. Ergebnis: Alle 11 dort geprüften Kernbehauptungen (Anthropic-Preise, Caching, Web Search, Managed Agents, Code Execution, Covered Models/ZDR, bundesAPI, AIHawk, JobSpy, ApplyPilot, RenderCV, Reactive Resume) wurden bestätigt – die Architektur-relevanten Anthropic-Zahlen in business.json und legal.json sind belastbar. Zwei Korrekturen: (1) Web Fetch ist kostenlos (company_research.json behauptet Abrechnung pro Abruf), (2) '30 Tage Standard-Retention' ist ungenau – Standard ist keine Speicherung von Konversationsinhalten, 30 Tage gelten für Covered Models und zustandsbehaftete Features. Eine fehlerhafte Quellenzuordnung: Exa-/Tavily-Preise in business.json sind mit MCP-Server-Repos belegt, die keine Preise enthalten. Rechtsfristen (Digital Omnibus), Anthropic-Consumer-Terms-Durchsetzung, Hetzner/Brave-Preise, Gmail-Limits und die StepStone-Prozentwerte bleiben unverifiziert (nicht widerlegt). company_research.json ist nach eigener Angabe komplett aus Trainingswissen entstanden und sollte insgesamt als 'low' behandelt werden. Insgesamt 26 Web-Aufrufe (davon 19 blockiert/leer)."
+}

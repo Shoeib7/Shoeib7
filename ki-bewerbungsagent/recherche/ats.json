@@ -1,0 +1,593 @@
+{
+  "dimension": "ATS-Systeme & KI-Screening (der \"Gegner\")",
+  "summary": "Der deutsche ATS-Markt ist laut DGFP-Benchmarkstudie 2025 (mit HTW Leipzig und Wollmilchsau, >700 Befragte) fragmentiert: nur vier Anbieter kommen auf einen Marktanteil über 5% - SAP/SuccessFactors, Softgarden, Personio und Rexx Systems. Das ist die wichtigste Priorisierung fuer unsere Scan- und Erkennungslogik: Personio, SAP SuccessFactors, Softgarden und Rexx Systems zuerst abdecken, internationale Tech-ATS (Workday, Greenhouse, Lever, SmartRecruiters) danach fuer Konzern-/Tech-Arbeitgeber.\n\nPersonio selbst hat entgegen verbreiteter Annahme (Stand 2026) noch KEIN natives KI-Ranking/Scoring von Bewerbungen - die Screening-Automatisierung laeuft ueber regelbasierte Knockout-Fragen im Bewerbungsformular, keine semantische CV-Analyse gegen die Stellenbeschreibung. Personio hat im April 2026 das Muenchner Recruiting-KI-Startup aurio uebernommen (Fokus Sourcing/Screening, Skills Intelligence), Rollout der Funktionen war zum Recherchezeitpunkt fuer 'spaeter im Jahr' angekuendigt, aber noch nicht ausgerollt - das bedeutet: unsere Architektur darf sich nicht auf ein bestimmtes Personio-KI-Verhalten verlassen, sondern muss das aktuelle regelbasierte Verhalten (Knockout-Fragen als harte Pass/Fail-Logik VOR Anschreiben-Generierung) robust behandeln und zugleich beobachtbar/aktualisierbar bleiben. Anders bei SAP SuccessFactors (Joule mit AI Units-Lizenz: Skills-Extraktion, Candidate-Job-Matching per Knowledge-Graph statt reinem Keyword-Match), Workday HiredScore (A-D-Grading, Herstellerangaben von 54% mehr Recruiter-Kapazitaet), SmartRecruiters SmartAssistant (1-5-Sterne Match Score aus ~14.000-Skills-Taxonomie, laut AI-Whitepaper keine automatisierten Ablehnungsentscheidungen) und Teamtailor Co-Pilot (nutzt OpenAI GPT-Modelle via Enterprise-API mit Zero Data Retention, screent gegen frei definierte Kriterien mit Begruendung) - hier lohnt sich staerker Skills-Taxonomie- und Intent-Matching statt reinem Keyword-Stuffing.\n\nCV-Parsing-Technologie ist im deutschen Markt stark auf Textkernel konzentriert (Nachfolger von Sovren, Fusion Dez. 2023): Personio, softgarden und d.vinci setzen alle auf Textkernel als Sub-Parser, iCIMS nutzt ebenfalls die Textkernel/Sovren-Engine. Fuer Formatregeln bedeutet das: saubere, text-basierte PDFs werden von modernen ATS (Workday, Greenhouse, Lever) zuverlaessig geparst - das Problem sind NICHT PDFs generell, sondern bildbasierte oder aus Design-Tools (Canva etc.) exportierte PDFs ohne echten Text-Layer. Konsistent ueber viele (allerdings ueberwiegend sekundaere Blog-)Quellen hinweg gilt: Tabellen, Mehrspalten-Layouts und Kopf-/Fusszeilen brechen das Parsing zuverlaessig und sollten fuer den Kern-Lebenslauf vermieden werden.\n\nDer oft zitierte Mythos '75% der Bewerbungen werden vom ATS automatisch abgelehnt' ist widerlegt: Ursprung ist ein Verkaufsargument der 2013 untergegangenen Firma Preptel ohne veroeffentlichte Methodik; eine Enhancv-Studie findet, dass 92% der Recruiter bestaetigen, ihr ATS lehne nicht automatisch nach Formatierung/Design ab. Der Hauptgrund fuer uebersehene Bewerbungen ist schiere Bewerbungsmenge. Das relativiert die Dringlichkeit von 'ATS-Hacks', bestaetigt aber die Bedeutung von sauberem Parsing UND echter Passung.\n\nEin aufkommendes Risiko ist Prompt Injection in Lebenslaeufen (versteckter Weisstext mit Anweisungen an KI-Screener): laut Greenhouse AI-in-Hiring-Report 2025 haben 41% von 1.200 befragten US-Bewerbern es schon versucht, aber nur ca. 1% der real eingereichten Resumes enthielten im ersten Halbjahr 2025 tatsaechlich Weisstext. Eine Studie von Juni 2026 zeigt, dass die Wirkung stark sinkt, sobald viele Kandidaten es gleichzeitig versuchen, und 65% der Hiring Manager geben an, Taeuschungsversuche per KI erkannt zu haben. Fuer unser Projekt ist das klar zu vermeiden: Entdeckungsrisiko, sinkende Wirksamkeit und Reputationsschaden widersprechen dem Leitsatz 'Qualitaet vor Quantitaet, echte Person statt Bot'.\n\nRechtlich verschiebt der EU AI Act Digital Omnibus (Regulation (EU) 2026/1744, in Kraft seit 27.7.2026) die Hochrisiko-Pflichten fuer eigenstaendige KI-Systeme nach Anhang III (inkl. Recruiting) vom 2.8.2026 auf den 2.12.2027 - betrifft aber primaer den ARBEITGEBER als Betreiber, nicht unseren kandidatenseitigen Agenten. Relevant fuer uns ist Art. 26 Abs. 7 KI-VO: Bewerber haben einen Informationsanspruch, ob sie einem Hochrisiko-KI-System unterliegen - das koennte der Agent recherchieren, um Erwartungen realistisch zu setzen. Fuer Test-Tooling empfiehlt sich eine kostenlose Zwei-Parser-Gegenprobe (Apache Tika, Apache-2.0-Lizenz, self-hosted, Version 3.3.0 vom 18.3.2026; und OpenResume-Parser, AGPL-3.0, 8.9k GitHub-Stars, PDF.js-basiert, nur PDF) statt kostenpflichtiger Dienste wie Jobscan ($49,95/Monat) oder Affinda (ab ca. $800/Monat, kein Free-Tier) - das passt besser zum Einzelentwickler-Budget im MVP.",
+  "findings": [
+    {
+      "claim": "Nur vier ATS-Anbieter haben in Deutschland einen Marktanteil ueber 5%.",
+      "detail": "DGFP-Benchmarkstudie 'Recruiting-Strukturen' 2025 (3. Auflage, mit HTW Leipzig und Wollmilchsau, >700 Befragte): SAP/SuccessFactors, Softgarden, Personio und Rexx Systems liegen ueber 5% Marktanteil, der Rest des Marktes ist stark fragmentiert. Konsequenz: Scan-/Erkennungslogik zuerst auf diese vier Anbieter auslegen.",
+      "sources": [
+        "https://www.dgfp.de/aktuell/recruiting-strukturen-2025-recruiting-wird-strukturierter-datengetriebener-und-technologischer"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Personio hat aktuell (2026) kein natives semantisches KI-Ranking/Scoring von Bewerbungen.",
+      "detail": "Die automatisierte Vorselektion basiert primaer auf regelbasierten Knockout-Fragen im Bewerbungsformular, nicht auf semantischer CV-gegen-Stellenbeschreibung-Analyse. Konsequenz: Fuer Personio-Zielunternehmen zaehlt korrektes Beantworten der Knockout-Fragen mehr als Keyword-Dichte.",
+      "sources": [
+        "https://community.personio.de/recruiting-2/ai-im-personio-recruiting-bereich-13294",
+        "https://trusted.de/personio"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Personio hat im April 2026 das Recruiting-KI-Startup aurio uebernommen.",
+      "detail": "Aurio (Muenchen) fokussiert auf Sourcing/Screening-Automatisierung und Skills Intelligence; Team wechselt in Personio Produkt/Engineering/Design. Personio hat 16.000 Kunden (>1,5 Mio Beschaeftigte in Europa), 9.000 nutzen die Recruiting-Funktion. Erste Features 'spaeter im Jahr' 2026 angekuendigt - zum Recherchezeitpunkt (Sept. 2026) noch nicht vollstaendig ausgerollt.",
+      "sources": [
+        "https://www.munich-startup.de/en/news/personio-acquires-recruiting-ai-startup-aurio",
+        "https://www.personio.com/about-personio/press/personio-profitability-acquisition-aurio/"
+      ],
+      "confidence": "high",
+      "info_date": "2026-04"
+    },
+    {
+      "claim": "Personio bietet (Stand community-Diskussion) keine vollautomatische Ablehnung nach frei definierten Muss-Kriterien, nur Knockout-Fragen im Formular.",
+      "detail": "Nutzer fragten aktiv nach automatischer Ablehnung bei Nichterfuellung von Muss-Kriterien der Stellenanzeige; laut Community-Antwort (2023) keine konkreten Erweiterungsplaene bekannt, nur stufenbasierte Automatisierungen (E-Mail bei Stage-Wechsel) angedacht ohne Zeitplan.",
+      "sources": [
+        "https://community.personio.de/recruiting-2/automatische-absage-6551"
+      ],
+      "confidence": "medium",
+      "info_date": "2023"
+    },
+    {
+      "claim": "Personio nutzt Textkernel als Sub-Dienstleister fuer CV-Parsing.",
+      "detail": "Opt-in-Feature: bei Aktivierung werden alle eingehenden Bewerbungen mit Lebenslauf automatisch geparst und ins strukturierte Bewerberprofil uebernommen. Beschleunigt Screening, ersetzt aber keine inhaltliche Bewertung.",
+      "sources": [
+        "https://support.personio.de/hc/en-us/articles/360010193018-CV-parsing-for-candidate-profiles"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "softgarden nutzt ebenfalls Textkernel (kostenpflichtiges Feature, aber Marketplace-Aktivierung selbst kostenlos).",
+      "detail": "Das Add-on 'Textkernel' muss von einem Administrator vorab kostenfrei ueber den softgarden-Marketplace aktiviert werden. Genauigkeit variiert je nach Formatierung/Sprache/Aufbau des Lebenslaufs.",
+      "sources": [
+        "https://support.softgarden.de/de/articles/680780-cv-parsing"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "d.vinci nutzt Textkernel als CV-Parser-Partner.",
+      "detail": "d.vinci setzt wie softgarden und Recruitee auf Textkernel fuer die CV-Parsing-Funktion im Bewerbermanagement.",
+      "sources": [
+        "https://www.dvinci.de/bms/cv-parsing-leichter-bewerben-dank-intelligenter-recruiting-technologie/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "iCIMS nutzt die Sovren/Textkernel-Parsing-Engine.",
+      "detail": "Sovren wurde am 30.11.2021 von Textkernel uebernommen, Markenfusion abgeschlossen am 14.12.2023. Sovren galt lange als der am weitesten verbreitete Parser der Branche - relevant fuer internationale Konzern-Bewerbungen ueber iCIMS.",
+      "sources": [
+        "https://www.textkernel.com/sovren/"
+      ],
+      "confidence": "medium",
+      "info_date": "2023"
+    },
+    {
+      "claim": "Textkernel-Parser erreicht laut Herstellerangaben >95% Genauigkeit bei den wichtigsten Datenfeldern, 29 Sprachen, ~2 Mrd. Dokumente/Jahr.",
+      "detail": "Nutzt zunehmend LLM-Technologie fuer detaillierte Kandidateninformationen und individuelle Parse-Anfragen. Marktfuehrer-Position im europaeischen/deutschen ATS-Oekosystem (Personio, softgarden, d.vinci, iCIMS).",
+      "sources": [
+        "https://developer.textkernel.com/Parser/master/",
+        "https://www.textkernel.com/de/produkte-loesungen/parser/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Greenhouse lehnt Bewerbungen nicht algorithmisch anhand eines Scores ab, aber Auto-Reject via Knockout-Fragen existiert.",
+      "detail": "Jede Ablehnung ist laut mehreren Ratgeberquellen eine manuelle Recruiter-Entscheidung; automatische Ablehnung/Weiterleitung ('Auto-Reject'/'Auto-Advance') ueber Knockout-Fragen (Visastatus, Zertifikate, Umzugsbereitschaft) ist jedoch nur in den Plus/Pro-Tarifen verfuegbar - viele Arbeitgeber nutzen also gar keine automatische Ablehnung.",
+      "sources": [
+        "https://www.jobscan.co/blog/greenhouse-ats-what-job-seekers-need-to-know/",
+        "https://notchresume.com/resources/greenhouse-job-application.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Workday-Parsing ist NLP-basiert und autofillt strukturierte Felder, komplexe Layouts gelten als Hauptfehlerquelle.",
+      "detail": "Kandidaten muessen jedes vorausgefuellte Feld pruefen/korrigieren. Eine Branchenquelle nennt (unbelegte) >60% Parsing-Fehlerquote bei komplexen Layouts in Enterprise-Systemen wie Workday - Zahl stammt aus SEO-Ratgeberblog, keine Primaerquelle gefunden.",
+      "sources": [
+        "https://resumeoptimizerpro.com/blog/workday-resume-format",
+        "https://applyarc.com/blog/workday-ats-resume-optimization"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "SAP SuccessFactors Joule bietet mit AI-Units-Lizenz Skills-Extraktion, Candidate-Job-Matching und Stack-Ranking ueber einen Knowledge-Graph statt reinem Keyword-Match.",
+      "detail": "Voraussetzung: AI-Units-Lizenz und die neue 'Candidate Workbench' fuer Recruiting. 2025 kam ein 'Suggest Skills'-Button hinzu, der Kandidaten zusaetzliche relevante Skills vorschlaegt. Konsequenz: bei SF-Arbeitgebern zaehlt semantische Skills-Passung staerker als reine Keyword-Wiederholung.",
+      "sources": [
+        "https://community.sap.com/t5/human-capital-management-blog-posts-by-sap/successfactors-ai-ai-based-skill-matching-in-recruiting-set-up-and-hints/ba-p/13984884",
+        "https://leverx.com/newsroom/ai-recruiting-in-sap-successfactors"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "SmartRecruiters SmartAssistant vergibt einen 1-5-Sterne Match Score anhand einer Skills-Taxonomie von ca. 14.000 Skills.",
+      "detail": "Score ist recruiter-seitig, Kandidaten sehen ihn nicht. Laut SmartRecruiters-AI-Whitepaper trifft der Score keine automatisierten Ablehnungs-/Einstellungsentscheidungen, sondern dient nur der Priorisierung.",
+      "sources": [
+        "https://www.smartrecruiters.com/recruiting-software/ai-recruiting-technology/",
+        "https://atsverification.com/ats/smartrecruiters/"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Workday HiredScore vergibt ein A-D-Grading fuer Candidate-Job-Match und bietet Talent-Rediscovery aus Altbewerbern/CRM/internen Mitarbeitern.",
+      "detail": "Herstellerangaben nennen 54% mehr Recruiter-Kapazitaet und 57% weniger Screening-Zeit - unabhaengig nicht verifizierte Marketingzahlen. Relevant fuer grosse internationale Arbeitgeber auf Workday.",
+      "sources": [
+        "https://www.workday.com/en-us/products/talent-management/ai-recruiting.html",
+        "https://www.workday.com/content/dam/web/en-us/documents/datasheets/hiredscore-ai-recruiting.pdf"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Teamtailor Co-Pilot screent Kandidaten per OpenAI-GPT-Modellen (Enterprise API, Zero Data Retention) gegen frei definierte Kriterien mit Begruendung.",
+      "detail": "Output pro Kriterium: Haken/Kreuz/'unknown' plus schriftliche Begruendung; Kandidaten koennen nach Anzahl erfuellter Kriterien sortiert werden; manuelles Override moeglich; Re-Screening laeuft automatisch bei Datenaenderungen. Das ist der explizit dokumentierteste LLM-Screening-Layer eines deutschen/europaeischen ATS in dieser Recherche.",
+      "sources": [
+        "https://support.teamtailor.com/en/articles/10209597-co-pilot-candidate-screening",
+        "https://support.teamtailor.com/en/articles/8403166-co-pilot-ai-features-overview"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "EU AI Act Digital Omnibus verschiebt Hochrisiko-Pflichten fuer Annex-III-Systeme (inkl. Recruiting) vom 2.8.2026 auf den 2.12.2027.",
+      "detail": "Fuer Annex-I-eingebettete Systeme (Medizinprodukte, Maschinen, Fahrzeuge) gilt neu der 2.8.2028. Regulation (EU) 2026/1744 wurde am 24.7.2026 im Amtsblatt veroeffentlicht und trat am 27.7.2026 in Kraft.",
+      "sources": [
+        "https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/",
+        "https://compliancehub.wiki/eu-digital-omnibus-ai-act-deadline-deferral-annex-iii-2027/"
+      ],
+      "confidence": "high",
+      "info_date": "2026-07"
+    },
+    {
+      "claim": "Trotz Verschiebung der Hochrisiko-Pflichten bleiben Art.-50-Transparenzpflichten, GPAI-Pflichten (seit 8/2025) und das Art.-5-Verbot bestimmter Praktiken (seit 2/2025) zum 2.8.2026 unveraendert in Kraft.",
+      "detail": "Wichtig fuer die rechtliche Einordnung: nicht der gesamte AI Act wurde verschoben, nur die Hochrisiko-Konformitaetspflichten fuer eigenstaendige Systeme.",
+      "sources": [
+        "https://www.joneswalker.com/en/insights/blogs/ai-law-blog/yes-august-2-still-matters-the-eu-approved-a-high-risk-ai-delay-but-most-trans.html?id=102nbon"
+      ],
+      "confidence": "high",
+      "info_date": "2026-07"
+    },
+    {
+      "claim": "Art. 26 Abs. 7 KI-VO verpflichtet Arbeitgeber, Beschaeftigte und deren Vertretung ueber den Einsatz von Hochrisiko-KI im Bewerbungsprozess zu informieren; das ist nicht identisch mit dem deutschen Mitbestimmungsrecht nach § 87 Abs. 1 Nr. 6 BetrVG.",
+      "detail": "Beide Pflichten ergaenzen sich: § 87 BetrVG erfordert Mitbestimmung des Betriebsrats bei Verhaltens-/Leistungskontrolle, Art. 26 Abs. 7 verlangt zusaetzlich EU-rechtlich vorgelagerte Information/Konsultation vor Inbetriebnahme. Fuer unseren Agenten relevant als moegliches Recherchefeld ('nutzt Unternehmen X Hochrisiko-KI im Bewerbungsprozess').",
+      "sources": [
+        "https://www.bitkom.org/sites/main/files/2026-02/bitkom-leitfaden-kuenstliche-intelligenz-und-mitbestimmung.pdf",
+        "https://www.anwalt.de/rechtstipps/ki-im-bewerbungsverfahren-ab-2026-was-ai-act-dsgvo-und-betrvg-verlangen-277758.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Der Mythos '75% aller Bewerbungen werden automatisch vom ATS abgelehnt' ist widerlegt und stammt aus einer unbelegten 2012-Verkaufsbehauptung der 2013 untergegangenen Firma Preptel.",
+      "detail": "Keine Methodik, keine Stichprobengroesse je veroeffentlicht. Eine Enhancv-Studie findet: 92% der befragten Recruiter bestaetigen, dass ihr ATS Bewerbungen NICHT automatisch anhand Formatierung/Design/Content-Match-Score ablehnt. 68% der Recruiter hoerten die Zahl zuerst von Bewerbern in Social Media, 20% von Karrierecoaches/Resume-Services. Hauptgrund fuer uebersehene Bewerbungen ist zudem die schiere Bewerbungsmenge (gefragte Stellen ziehen hunderte bis tausende Bewerbungen binnen weniger Tage an), nicht algorithmische Ablehnung.",
+      "sources": [
+        "https://blog.theinterviewguys.com/ats-resume-rejection-myth/",
+        "https://www.hr.com/en/app/blog/2026/04/ats-rejection-myth-debunked-92-of-recruiters-confi_mntajhyq.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Moderne ATS (Workday, Greenhouse, Lever) parsen textbasierte PDFs zuverlaessig; das eigentliche Problem sind bildbasierte oder aus Design-Tools exportierte PDFs ohne echten Text-Layer, nicht PDF als Format an sich.",
+      "detail": "Empfehlung mehrerer Ratgeberquellen: PDF aus Word/Google Docs exportieren statt aus Design-Tools (Canva etc.); .docx gilt weiterhin als 'sicherste' Variante fuer aeltere/kleinere Systeme. Keine Primaerquelle/Herstellerdokumentation gefunden, Konsens aus SEO-Karriereblogs.",
+      "sources": [
+        "https://www.resumemate.io/blog/pdf-vs-docx-for-resumes-in-2025-what-recruiters-ats-really-prefer/"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Tabellen, Mehrspalten-Layouts und Kopf-/Fusszeilen brechen ATS-Parsing konsistent ueber viele Quellen hinweg.",
+      "detail": "Tabellen: Zeilen-/Spalteninhalte werden oft in falscher Reihenfolge extrahiert. Mehrspalten-Layouts: linke und rechte Spalte vermischen sich unvorhersehbar. Kopf-/Fusszeilen: werden von vielen ATS ignoriert oder verworfen (Kontaktdaten in der Fusszeile gehen oft verloren). Konsens ueber mehrere unabhaengige Blog-Quellen, aber keine Herstellerdokumentation als Primaerbeleg.",
+      "sources": [
+        "https://jobwizard.ai/blog/how-to-optimize-your-resume-for-ats-systems-in-2026-872842",
+        "https://www.atsresumeai.com/blog/ats-resume-formatting-guide"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "ATS lassen sich haeufig ueber Karriere-URL-Muster erkennen.",
+      "detail": "Beispiele: boards.greenhouse.io/{company}, jobs.lever.co/{company}, {company}.recruitee.com, {company}.jobs.personio.de, careers.smartrecruiters.com/{company}, Workday-Muster {company}.wd{N}.myworkdayjobs.com/{board}. Teamtailor ist bewusst schwerer automatisiert erkennbar, da die oeffentliche Career-Site-API einen Token/Key erfordert statt frei lesbar zu sein.",
+      "sources": [
+        "https://apify.com/webdata_labs/greenhouse-lever-ashby-jobs-scraper",
+        "https://apify.com/santamaria-automations/career-site-jobs-scraper"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "softgarden-Kunden-Karriereseiten laufen typischerweise unter dem Subdomain-Muster {company}.career.softgarden.de.",
+      "detail": "Beleg ist softgardens eigene Karriereseite unter diesem Muster; ein systematisches, ueber viele Kunden bestaetigtes Muster wurde in dieser Recherche nicht separat verifiziert.",
+      "sources": [
+        "https://softgarden.career.softgarden.de/en/"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Fuer rexx systems, d.vinci, onlyfy one und JOIN.com konnte in dieser Recherche KEIN einheitliches, kundenuebergreifendes URL-Subdomain-Muster belegt werden.",
+      "detail": "rexx-Karriereseiten liegen z.T. unter eigener Firmendomain mit /jobs/-Pfad (Beispiel: rexx-systems.com/jobs/), d.vinci wirbt mit SEO-optimierten eigenen (White-Label-)Karriereseiten fuer Google for Jobs - das deutet auf staerkere Individualisierung pro Kunde hin statt auf ein festes Erkennungsmuster wie bei Greenhouse/Lever/Personio/Workday.",
+      "sources": [
+        "https://www.rexx-systems.com/jobs/",
+        "https://www.dvinci.de/docs20/d.vinci_Whitepaper_Karrierewebsite.pdf"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Prompt-Injection-Versuche (versteckter Weisstext mit Anweisungen an KI-Screener) in Lebenslaeufen sind verbreitet angekuendigt, aber selten tatsaechlich umgesetzt und mit sinkender Wirksamkeit bei Verbreitung.",
+      "detail": "Greenhouse AI-in-Hiring-Report 2025: 41% von 1.200 befragten US-Bewerbern gaben an, es versucht zu haben, aber nur ca. 1% der real eingereichten Resumes enthielten im ersten Halbjahr 2025 tatsaechlich Weisstext. Eine Studie von Juni 2026 (arxiv 2606.27287) zeigt: der Ranking-Vorteil kollabiert, sobald viele Bewerber es gleichzeitig versuchen. 65% der Hiring Manager gaben an, KI-gestuetzte Taeuschungsversuche erkannt zu haben, 22% davon konkret versteckte Prompt-Injections. Konsequenz fuer unser System: explizit NICHT einsetzen - Entdeckungsrisiko, sinkende Wirksamkeit bei Verbreitung, Reputationsschaden und Widerspruch zum Leitsatz 'Qualitaet vor Quantitaet, echte Person statt Bot'.",
+      "sources": [
+        "https://blog.theinterviewguys.com/job-seekers-are-hiding-secret-text-in-their-resumes/",
+        "https://arxiv.org/pdf/2606.27287"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-06"
+    },
+    {
+      "claim": "Mehrere 2024-2026 Studien zeigen konsistente demografische Verzerrungen (Name/Ethnie/Geschlecht) bei LLM-basiertem Resume-Screening.",
+      "detail": "Beispiele: FAIRE (arxiv 2504.01420, GPT-4 zeigt indirekte Praeferenz bei implizit erkennbarer Ethnie), 'Silicon Ceiling' (Armstrong et al. 2024, GPT-3.5 bevorzugt White-Male-Namen), arxiv 2501.04316 (Allocational Fairness), eine 2026-Studie mit 22 LLMs findet durchgehende Bevorzugung weiblich klingender Namen ueber 70 Berufe hinweg. Relevant, weil ATS-KI-Layer (Teamtailor Co-Pilot via GPT, SF Joule, Workday HiredScore) selbst auf LLM-/ML-Technologie basieren, deren Fairness nicht in unserer Kontrolle liegt.",
+      "sources": [
+        "https://arxiv.org/pdf/2504.01420",
+        "https://peerj.com/articles/cs-3628/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "KI-Adoption im Recruiting in Deutschland ist je nach Studie uneinheitlich, aber insgesamt eher moderat und unter dem EU-Durchschnitt.",
+      "detail": "Bitkom New Work Studie 2025: 34% der deutschen Unternehmen nutzen KI irgendwo im HR-Kontext, aber nur 11% recruiting-spezifisch (EU-Schnitt: 22%). Andere Quelle: 45% nutzen generative KI noch gar nicht im Recruiting; ~20% der Personalabteilungen vs. ~47% bei externen Personalvermittlern setzen KI im Recruiting ein. Automatisiertes CV-Screening wird von rund 31% der KI-nutzenden Unternehmen eingesetzt.",
+      "sources": [
+        "https://www.yena.ai/de/blog/ki-im-recruiting-studie-dach-2026"
+      ],
+      "confidence": "low",
+      "info_date": "2025-2026"
+    },
+    {
+      "claim": "Ein Bewerbungsfoto ist in Deutschland rechtlich freiwillig (AGG 2006), wird aber laut Branchenquellen von 65-70% der Arbeitgeber 2025/26 weiterhin faktisch erwartet.",
+      "detail": "Erwartung besonders in Banking/Finance/Recht/Beratung/Versicherung/Mittelstand; in IT, Startups und modernen Konzernen zunehmend optional. Studien zeigen zugleich ein Diskriminierungsrisiko: klassisch attraktivere Fotos korrelieren mit mehr Einladungen unabhaengig von Qualifikation. Konsequenz: Foto-Entscheidung sollte konfigurierbar sein, nicht hartkodiert.",
+      "sources": [
+        "https://skill-sprinters.de/blog/karriere/bewerbungsfoto-2026-ja-oder-nein/",
+        "https://www.meinestelle.de/magazin/bewerbung-mit-oder-ohne-foto-was-heute-gilt-2026"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Apache Tika ist unter Apache License 2.0 verfuegbar, aktuelle Version 3.3.0 (18.3.2026); Version-2.x-Reihe erreichte im April 2025 End-of-Life.",
+      "detail": "Parst u.a. PDF, DOCX, XLS, MSG und ueber 1.000 weitere Dateitypen, extrahiert Text plus strukturierte Metadaten. Laeuft als tika-app-JAR oder als tika-server REST-Dienst. Version 4.0.0 (Alpha/Beta) bringt Markdown-Output als Standard und Vision-Language-Model-Parser.",
+      "sources": [
+        "https://github.com/apache/tika",
+        "https://github.com/apache/tika/blob/main/CHANGES.txt"
+      ],
+      "confidence": "high",
+      "info_date": "2026-03"
+    },
+    {
+      "claim": "OpenResume ist ein Open-Source-PDF-Resume-Parser (AGPL-3.0, ~8.9k GitHub-Stars) auf Basis von PDF.js, nur fuer PDF, ohne oeffentliche API, lokal via npm oder Docker lauffaehig.",
+      "detail": "Bietet auf der eigenen Website einen 'ATS-Readability'-Check und einen dokumentierten (aber im README nicht im Detail beschriebenen) Parsing-Algorithmus. Geeignet als kostenloses lokales Test-Tool vor Versand einer Bewerbung.",
+      "sources": [
+        "https://github.com/xitanggg/open-resume"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "pyresparser ist ein Python-basierter Resume-Parser (spaCy + NLTK) fuer PDF/DOCX mit ~959 GitHub-Stars und 33 offenen Issues, Wartungsstatus unklar.",
+      "detail": "Extrahiert Name, E-Mail, Telefonnummer, Skills, Berufserfahrung, Ausbildung, Firmennamen. DOC-Dateien benoetigen unter Linux/macOS zusaetzlich die textract-Bibliothek. Auf Windows nur PDF/DOCX moeglich.",
+      "sources": [
+        "https://github.com/OmkarPathak/pyresparser"
+      ],
+      "confidence": "medium",
+      "info_date": "2024"
+    },
+    {
+      "claim": "Affinda bietet 2026 keinen produktionstauglichen Self-Service-Free-Tier fuer die Resume-Parser-API; Preise beginnen bei ca. $800/Monat.",
+      "detail": "Konsumbasierte Abrechnung, teils mit ~$0,70-0,80 pro Parse genannt je nach Quelle; nur Sales-Demo statt Self-Service-Trial. Ueber den Eden-AI-Marktplatz ist Affinda dagegen bereits ab $0,070/Datei zugaenglich. Fuer den MVP eines Einzelentwicklers ungeeignet als direkte Vollversion, aber ueber Eden AI guenstig testbar.",
+      "sources": [
+        "https://www.g2.com/products/resume-parser-by-affinda/pricing",
+        "https://www.edenai.co/post/best-resume-parser-apis"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Eden AI buendelt mehrere Resume-Parser (Affinda, SenseLoaf, Klippa, Extracta, OpenAI GPT-4o) hinter einer einheitlichen API mit vergleichbaren Pro-Datei-Preisen ab $0,04.",
+      "detail": "Affinda $0,070/Datei, SenseLoaf $0,045/Datei, Klippa $0,100/Seite, Extracta $0,100/Seite, OpenAI GPT-4o $0,040/Seite. Kein dediziertes kostenloses Kontingent dokumentiert, aber ein Free-Plan zum Testen/Vergleichen vor Produktivbetrieb.",
+      "sources": [
+        "https://www.edenai.co/post/best-resume-parser-apis"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Jobscan bietet einen dauerhaft kostenlosen Plan mit 5 Resume-Scans/Monat; Premium kostet $49,95/Monat oder $89,95 pro Quartal (~$29,98/Monat).",
+      "detail": "Resume Worded kostet $49/Monat bzw. ~$19/Monat bei Jahresabrechnung, mit begrenztem kostenlosem Scoring. Beide Tools sind primaer auf den US-/englischsprachigen Markt ausgelegt, nicht spezifisch auf Deutsch.",
+      "sources": [
+        "https://pitchmeai.com/blog/jobscan-pricing-plans",
+        "https://jobsolv.com/directory/jobscan"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Der Community-Fork 'webappanalyzer' fuehrt die Wappalyzer-Technologie-Fingerprints als Open-Source-Projekt fort, nachdem Wappalyzer im August 2023 privat wurde.",
+      "detail": "JSON-Fingerprints liegen unter src/technologies/, Kategorisierung ueber numerische IDs; ob es eine dedizierte Recruiting-/ATS-Kategorie gibt und wie granular Anbieter wie Personio/softgarden/rexx erkannt werden, konnte in dieser Recherche nicht abschliessend geklaert werden - erfordert direkte Pruefung der Technologie-JSON-Dateien im Repository.",
+      "sources": [
+        "https://github.com/enthec/webappanalyzer"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Personio Recruiting (jobs.personio.de / jobs.personio.com)",
+      "url": "https://www.personio.com/product/recruiting/",
+      "category": "Jobquelle",
+      "access": "Keine offizielle oeffentliche Such-API; Karriereseiten unter {company}.jobs.personio.de sind serverseitig gerendert und scrapbar.",
+      "pricing": "Enterprise-SaaS, Preise nicht oeffentlich gelistet (2026).",
+      "verdict": "empfohlen als primaeres Scan-Ziel - groesster Einzelmarktanteil unter belegten DE-ATS-Anbietern (DGFP 2025)."
+    },
+    {
+      "name": "SAP SuccessFactors Recruiting",
+      "url": "https://www.sap.com/products/hcm/recruiting-software.html",
+      "category": "SaaS",
+      "access": "Karriereseiten meist auf company-eigener Domain oder career{N}.sapsf.com eingebettet; Joule-KI-Schicht optional (AI-Units-Lizenz) und nicht von aussen erkennbar.",
+      "pricing": "Enterprise-Lizenzmodell, nicht oeffentlich.",
+      "verdict": "empfohlen als Scan-Ziel, aber Ansprache/Anschreiben sollte Skills-Taxonomie- statt reine Keyword-Optimierung beruecksichtigen (Joule-Matching)."
+    },
+    {
+      "name": "Softgarden",
+      "url": "https://softgarden.com/en/",
+      "category": "Jobquelle",
+      "access": "Career-Sites unter {company}.career.softgarden.de, serverseitig gerendertes HTML, zuverlaessig extrahierbar.",
+      "pricing": "SaaS, Preise nicht oeffentlich recherchiert.",
+      "verdict": "empfohlen als Scan-Ziel (Top-4-Marktanteil DE)."
+    },
+    {
+      "name": "Workday (myworkdayjobs.com)",
+      "url": "https://www.myworkdayjobs.com/",
+      "category": "Jobquelle",
+      "access": "URL-Muster {company}.wd{N}.myworkdayjobs.com/{board}; JSON-API im Hintergrund oft ueber Netzwerk-Tab identifizierbar.",
+      "pricing": "n/a (Jobseite selbst kostenlos einsehbar).",
+      "verdict": "empfohlen fuer internationale/Konzern-Arbeitgeber in DE."
+    },
+    {
+      "name": "Greenhouse (boards.greenhouse.io)",
+      "url": "https://www.greenhouse.io/",
+      "category": "Jobquelle",
+      "access": "URL-Muster boards.greenhouse.io/{company}; z.T. offizielle Job-Board-API verfuegbar.",
+      "pricing": "n/a fuer Kandidatenseite.",
+      "verdict": "empfohlen fuer Tech-/Startup-Arbeitgeber."
+    },
+    {
+      "name": "Lever (jobs.lever.co)",
+      "url": "https://www.lever.co/",
+      "category": "Jobquelle",
+      "access": "URL-Muster jobs.lever.co/{company}; Postings-API teils oeffentlich dokumentiert.",
+      "pricing": "n/a fuer Kandidatenseite.",
+      "verdict": "empfohlen fuer Tech-/Startup-Arbeitgeber."
+    },
+    {
+      "name": "SmartRecruiters",
+      "url": "https://www.smartrecruiters.com/",
+      "category": "Jobquelle",
+      "access": "URL-Muster careers.smartrecruiters.com/{company}; oeffentliche Postings-API vorhanden.",
+      "pricing": "n/a fuer Kandidatenseite.",
+      "verdict": "empfohlen als sekundaeres Scan-Ziel."
+    },
+    {
+      "name": "Teamtailor",
+      "url": "https://www.teamtailor.com/",
+      "category": "Jobquelle",
+      "access": "Career-Sites unter career.teamtailor.com bzw. {company}.teamtailor.com; oeffentliche Job-API erfordert laut Recherche einen Token/Key, daher schwerer automatisiert zu scrapen als Greenhouse/Lever.",
+      "pricing": "n/a fuer Kandidatenseite.",
+      "verdict": "optional - technischer Zugriff aufwendiger als bei anderen ATS."
+    },
+    {
+      "name": "rexx systems",
+      "url": "https://www.rexx-systems.com/",
+      "category": "Jobquelle",
+      "access": "Kein einheitliches Subdomain-Muster belegt; teils /jobs/-Pfad auf Firmendomain.",
+      "pricing": "n/a.",
+      "verdict": "optional - Erkennung erfordert vermutlich manuelle Kuration oder HTML-Fingerprinting statt reinem URL-Regex."
+    },
+    {
+      "name": "d.vinci",
+      "url": "https://www.dvinci.de/",
+      "category": "Jobquelle",
+      "access": "Wirbt mit SEO-optimierten White-Label-Karriereseiten (Google for Jobs) auf Kundendomains - kein zentrales Erkennungsmuster gefunden.",
+      "pricing": "n/a.",
+      "verdict": "optional - gleiche Einschraenkung wie rexx systems."
+    },
+    {
+      "name": "onlyfy one",
+      "url": "https://onlyfy.com/",
+      "category": "Jobquelle",
+      "access": "Fusion aus XING E-Recruiting und Prescreen; kein belegtes einheitliches URL-Muster in dieser Recherche gefunden.",
+      "pricing": "n/a.",
+      "verdict": "optional - weitere technische Recherche noetig."
+    },
+    {
+      "name": "JOIN.com",
+      "url": "https://join.com/",
+      "category": "Jobquelle",
+      "access": "Multiposting-Tool fuer KMU; kein belegtes einheitliches URL-Muster gefunden.",
+      "pricing": "Fuer Arbeitgeber teils kostenlose Basisstufe (nicht im Detail recherchiert).",
+      "verdict": "optional - relevant fuer KMU-Stellen, Erkennung noch ungeklaert."
+    },
+    {
+      "name": "Textkernel Extract! / Parser",
+      "url": "https://www.textkernel.com/de/produkte-loesungen/parser/",
+      "category": "API",
+      "access": "REST/SOAP-API, Zugangsdaten ueber Textkernel-Vertrieb, keine oeffentlichen Selbstbedienungs-Preise gefunden.",
+      "pricing": "Enterprise, nicht oeffentlich (2026).",
+      "verdict": "vermeiden fuer eigenen Einsatz (zu teuer/Enterprise-only fuer Einzelentwickler-MVP) - aber wichtig als Referenz, WELCHE Parsing-Engine die Ziel-ATS (Personio, softgarden, d.vinci, iCIMS) real einsetzen."
+    },
+    {
+      "name": "Affinda Resume Parser",
+      "url": "https://www.affinda.com/",
+      "category": "API",
+      "access": "REST-API, API-Key nach Registrierung; Python/weitere SDKs vorhanden.",
+      "pricing": "Ab ca. $800/Monat fuer 6.000 Parses, kein Self-Service-Free-Tier direkt bei Affinda (Stand 2026); guenstiger ueber Eden AI ab $0,070/Datei.",
+      "verdict": "vermeiden als Direktkunde im MVP - stattdessen ueber Eden AI testen falls ueberhaupt benoetigt."
+    },
+    {
+      "name": "Eden AI (Resume-Parser-Aggregator)",
+      "url": "https://www.edenai.co/",
+      "category": "API",
+      "access": "Eine REST-API fuer mehrere Parser-Provider (Affinda, SenseLoaf, Klippa, Extracta, OpenAI GPT-4o); Free-Plan zum Testen/Vergleichen.",
+      "pricing": "Ab $0,040/Seite (GPT-4o) bis $0,100/Seite (Klippa/Extracta), kein dediziertes Freikontingent dokumentiert (2026).",
+      "verdict": "optional - guter guenstiger Einstieg, um verschiedene Parser am eigenen Lebenslauf zu vergleichen, bevor man committet."
+    },
+    {
+      "name": "Apache Tika (inkl. tika-server)",
+      "url": "https://tika.apache.org/",
+      "category": "Bibliothek",
+      "access": "Self-hosted Java-Bibliothek/REST-Server (tika-app.jar oder tika-server), keine externe API/Kosten.",
+      "pricing": "Kostenlos, Apache License 2.0.",
+      "verdict": "empfohlen als kostenloses lokales Gegenpruef-Tool: zeigt, was ein einfacher generischer Parser aus dem erzeugten PDF/DOCX extrahiert."
+    },
+    {
+      "name": "OpenResume Parser",
+      "url": "https://github.com/xitanggg/open-resume",
+      "category": "Bibliothek",
+      "access": "Lokal via npm oder Docker (localhost:3000), kein Cloud-Zugriff/API.",
+      "pricing": "Kostenlos, AGPL-3.0.",
+      "verdict": "empfohlen als zweites kostenloses lokales Test-Tool speziell fuer PDF-ATS-Lesbarkeit (nutzt PDF.js)."
+    },
+    {
+      "name": "pyresparser",
+      "url": "https://github.com/OmkarPathak/pyresparser",
+      "category": "Bibliothek",
+      "access": "Python-Bibliothek, lokal, benoetigt spaCy-Modell (en_core_web_sm) und NLTK-Daten.",
+      "pricing": "Kostenlos, Open Source.",
+      "verdict": "optional - unklare Maintenance (33 offene Issues), primaer englischsprachig trainiert; als dritte Referenzmeinung moeglich, aber nicht kritischer Pfad."
+    },
+    {
+      "name": "Jobscan",
+      "url": "https://www.jobscan.co/",
+      "category": "SaaS",
+      "access": "Webbasiertes Tool, Login erforderlich.",
+      "pricing": "Kostenloser Plan: 5 Scans/Monat; Premium $49,95/Monat oder $89,95/Quartal (~$29,98/Monat, 2026).",
+      "verdict": "optional - primaer US-/Englisch-fokussiert, als externer Vergleichsmassstab fuer Keyword-Matching nutzbar, aber kostenpflichtig fuer regelmaessigen Betrieb."
+    },
+    {
+      "name": "Resume Worded",
+      "url": "https://resumeworded.com/",
+      "category": "SaaS",
+      "access": "Webbasiertes Tool, Login erforderlich.",
+      "pricing": "$49/Monat bzw. ~$19/Monat jaehrlich, begrenztes kostenloses Scoring (2026).",
+      "verdict": "optional - aehnliche Einschraenkung wie Jobscan."
+    },
+    {
+      "name": "webappanalyzer (Wappalyzer-Community-Fork)",
+      "url": "https://github.com/enthec/webappanalyzer",
+      "category": "Bibliothek",
+      "access": "Open-Source-JSON-Fingerprint-Datenbank unter src/technologies/, nutzbar zur eigenen Implementierung eines Technologie-/ATS-Detektors.",
+      "pricing": "Kostenlos, Open Source.",
+      "verdict": "optional - als Grundlage fuer einen eigenen ATS-Erkennungsbaustein pruefen, ob/wie granular Personio/softgarden/rexx/d.vinci dort erfasst sind (in dieser Recherche nicht abschliessend geklaert)."
+    }
+  ],
+  "recommendations": [
+    "Bewerbungs-PDFs immer aus einem Generator mit echtem Text-Layer erzeugen (z.B. HTML/CSS-zu-PDF-Renderer, WeasyPrint, LaTeX, ReportLab), NIE aus Screenshots/Bildern - moderne Grossanbieter-ATS (Workday, Greenhouse, Lever) parsen saubere Text-PDFs ebenso zuverlaessig wie DOCX; DOCX zusaetzlich vorhalten fuer den Fall, dass ein Formular es explizit verlangt.",
+    "Layout-Hardregeln fuer den Kern-Lebenslauf: einspaltig, keine Tabellen fuer Kerninhalte, keine Kopf-/Fusszeile fuer Kontaktdaten, Standard-Abschnittsueberschriften auf Deutsch (Berufserfahrung, Ausbildung, Kenntnisse) - Konsens ueber mehrere Quellen zu Parsing-Bruch bei Tabellen/Spalten/Headern.",
+    "Marktabdeckung priorisieren: Personio, SAP SuccessFactors, Softgarden, Rexx Systems zuerst (einzige DE-Anbieter mit belegtem Marktanteil >5%, DGFP 2025), danach Workday/Greenhouse/Lever/SmartRecruiters fuer internationale/Tech-Arbeitgeber; rexx/d.vinci/onlyfy/JOIN erfordern wegen fehlender URL-Muster eher manuelle Kuration statt automatischer Erkennung.",
+    "ATS-Erkennung als Regex-Set implementieren (Personio *.jobs.personio.de|.com, Workday *.wd\\d+.myworkdayjobs.com, Greenhouse boards.greenhouse.io/*, Lever jobs.lever.co/*, softgarden *.career.softgarden.de, SmartRecruiters careers.smartrecruiters.com/*, Teamtailor *.teamtailor.com) plus Fallback auf HTML-Fingerprinting (webappanalyzer-Technologiedatenbank pruefen) fuer Systeme ohne festes URL-Muster.",
+    "Fuer Personio-Zielunternehmen: Knockout-Fragen des Bewerbungsformulars als harte Pass/Fail-Logik VOR der Anschreiben-Generierung abbilden (Arbeitserlaubnis, Gehaltsvorstellung, Verfuegbarkeit) - aktuell (2026) entscheidet dort noch keine semantische KI, sondern reine Regelabfrage.",
+    "Fuer SAP-SuccessFactors-/Workday-HiredScore-/SmartRecruiters-Zielunternehmen: staerker auf Skills-Taxonomie und Formulierungsnaehe zur Original-Stellenanzeige statt auf reines Keyword-Stuffing optimieren, da diese Systeme laut Herstellerangaben Knowledge-Graph-/Skills-Matching nutzen.",
+    "Kostenlose lokale Zwei-Parser-Gegenprobe (Apache Tika + OpenResume-Parser) als Pre-Send-Check einbauen, statt kostenpflichtiger Dienste (Jobscan/Resume Worded/Affinda) im MVP zu abonnieren - passt besser zum Einzelentwickler-Budget und deckt die zwei wichtigsten Fehlerarten ab (generischer Text-Extraktor vs. PDF.js-basierter ATS-Simulator).",
+    "Prompt-Injection/Hidden-Text-Tricks explizit NICHT implementieren - Studienlage zeigt sinkende Wirksamkeit bei Verbreitung, Entdeckungsrisiko (65% der Hiring Manager erkennen KI-Taeuschung) und Widerspruch zum Leitsatz 'Qualitaet vor Quantitaet, echte Person statt Bot'.",
+    "Bewerbungsfoto als Nutzer-konfigurierbare Option behandeln (nicht hartkodieren): Standardempfehlung ohne Foto bzw. als separates Anhangs-Element ausserhalb des Kern-Text-PDFs, mit Hinweis auf branchenabhaengige Erwartung (Finance/Mittelstand oft ja, IT/Startup oft optional) und AGG-Diskriminierungsrisiko.",
+    "Optional als Recherche-/Transparenz-Feature: pruefen, ob ein Zielunternehmen laut oeffentlich verfuegbaren Informationen Hochrisiko-KI im Bewerbungsprozess einsetzt (Anknuepfung an Art. 26 Abs. 7 KI-VO Informationsanspruch), um Erwartungen realistisch zu setzen - kein Blocker fuer den MVP, aber als spaetere Ausbaustufe sinnvoll.",
+    "Format-/Keyword-Regeln im System als 'living document' mit Versionierung fuehren und regelmaessig (z.B. quartalsweise) gegen neue Quellen abgleichen, da ATS-Anbieter KI-Features schnell aendern (Beispiel Personio/aurio-Rollout 2026 zum Recherchezeitpunkt noch nicht abgeschlossen)."
+  ],
+  "risks": [
+    "Marktanteils- und Adoptionszahlen stammen ueberwiegend aus Sekundaerquellen (Blogs, Presseartikel); die DGFP-Studie selbst wurde nicht im Volltext eingesehen, nur zitiert - Prozentangaben koennten ungenauer oder veralteter sein als dargestellt.",
+    "ATS-Anbieter aendern KI-Features schnell und undokumentiert (Beispiel: Personio/aurio-Integration zum Recherchezeitpunkt September 2026 angekuendigt, aber laut Quellen noch nicht vollstaendig ausgerollt) - URL-Muster und Scoring-Verhalten erfordern periodische Nachpflege, sonst veralten die Erkennungsregeln.",
+    "Viele 'ATS bricht bei Tabellen/Spalten/Headern'-Aussagen stammen aus SEO-/Karriereratgeber-Blogs ohne Herstellerdokumentation oder eigene Testmethodik als Beleg - sollte im Projekt selbst empirisch mit Tika/OpenResume gegengetestet werden, bevor Regeln als 'belegt' gelten.",
+    "Fuer mehrere relevante deutsche ATS (rexx, d.vinci, onlyfy, JOIN, teils Recruitee) fehlen belegte URL-Erkennungsmuster - automatische Erkennung bleibt fuer diese Anbieter lueckenhaft und erfordert manuelle Kuration oder aufwendigeres HTML-Fingerprinting.",
+    "Automatisiertes Scannen/Scraping von Karriereseiten und Bewerbungsformularen kann gegen Nutzungsbedingungen einzelner Plattformen verstossen (z.B. Teamtailor erschwert bewusst API-Zugriff ohne Token) - juristische Pruefung (Terms of Service, ggf. § 202a/202b StGB-Grenzfragen bei aggressiverem Scraping) wurde in dieser Recherche nicht durchgefuehrt.",
+    "LLM-Bias-Studien zeigen, dass KI-Screening-Layer selbst nach Name/Ethnie/Geschlecht diskriminieren koennen - das betrifft auch, wie ausgehende Texte unseres Agenten von einer nachgelagerten Arbeitgeber-KI bewertet werden, und liegt ausserhalb unserer Kontrolle.",
+    "Kandidatenseitige Nutzung generativer KI zur Bewerbungserstellung kann bei manchen Arbeitgebern selbst als Warnsignal gelten (65% der Hiring Manager geben an, KI-Nutzung/Taeuschung zu erkennen) - Balance zwischen Effizienzgewinn und 'klingt nicht wie ein Bot' (Projektanforderung) ist nicht trivial und sollte laufend qualitativ ueberprueft werden."
+  ],
+  "open_questions_for_user": [
+    "Sollen fuer Zielunternehmen mit unklarem/fehlendem ATS-URL-Muster (rexx, d.vinci, onlyfy, JOIN) automatisch beide Formate (PDF und DOCX) erzeugt werden, oder reicht primaer PDF mit DOCX nur auf explizite Formularanforderung?",
+    "Soll der Agent aktiv recherchieren, ob ein Zielunternehmen laut oeffentlichen Quellen Hochrisiko-KI im Bewerbungsprozess einsetzt (Art. 26 Abs. 7 KI-VO Informationsanspruch), um das im Anschreiben oder Erwartungsmanagement zu beruecksichtigen, oder ist das fuer den Kandidaten nicht relevant?",
+    "Ist ein Bewerbungsfoto fuer die Zielbranche(n) des Kandidaten grundsaetzlich erwuenscht (z.B. Finance/Mittelstand) oder soll der Agent es grundsaetzlich weglassen (AGG-konform, IT/Startup-ueblich)? Soll das pro Bewerbung neu entschieden werden?",
+    "Ist Budget fuer kostenpflichtige Parsing-/Scan-Tools (Jobscan, Eden AI, ggf. Textkernel-Zugang ueber eine ATS-Partnerschaft) vorgesehen, oder soll das MVP strikt auf kostenlosen/Open-Source-Tools (Apache Tika, OpenResume) aufbauen?"
+  ],
+  "search_log": [
+    "Bewerbermanagementsystem Marktanteile Deutschland 2025 Personio Softgarden rexx d.vinci",
+    "Personio Recruiting KI Kandidaten Ranking \"Personio Intelligence\" Recruiting Funktionen",
+    "EU AI Act Digital Omnibus high-risk delay 2 August 2026 recruitment Annex III status",
+    "\"75% of resumes\" rejected by ATS myth origin debunked",
+    "Textkernel CV parsing integration Personio Softgarden rexx d.vinci partner",
+    "Affinda resume parser API pricing free tier 2026",
+    "Workday HiredScore candidate grading how it works 2025",
+    "detect which ATS a company uses URL patterns myworkdayjobs greenhouse lever personio softgarden teamtailor",
+    "SAP SuccessFactors Recruiting Joule AI candidate screening skills matching 2025",
+    "Greenhouse resume parsing technology which parser ATS knockout questions auto-reject",
+    "softgarden Lebenslauf Parsing CV-Parser Technologie Bewerberranking",
+    "ATS resume format PDF vs DOCX columns tables headers parsing test evidence 2025",
+    "DGFP \"Recruiting-Strukturen\" 2025 Bewerbermanagementsystem Anbieter Marktanteil \"ueber 5\"",
+    "Personio uebernimmt aurio Recruiting KI Matching 2026",
+    "rexx systems Recruitment CV Parsing Anbieter Textkernel OR Daxtra OR \"eigene\" Lebenslauf auslesen",
+    "onlyfy one Prescreen CV-Parsing Technologie Bewerber Matching KI XING",
+    "Teamtailor AI candidate ranking \"Co-pilot\" screening features 2025",
+    "Recruitee CV parsing Textkernel candidate profile \"Recruitee\" parser",
+    "JOIN.com Bewerbermanagement KI Kandidaten Bewertung CV Parsing",
+    "Workday Recruiting resume parsing engine vendor autofill",
+    "SmartRecruiters SmartAssistant candidate match score how it works Textkernel OR Sovren",
+    "Wappalyzer \"applicant tracking\" OR \"recruitment\" technology category detect ATS careers page",
+    "Lever ATS resume parsing Sovren OR Textkernel OR Daxtra vendor",
+    "Jobscan pricing 2026 Resume Worded pricing free scans limit",
+    "Oracle Taleo iCIMS resume parsing vendor Daxtra Sovren Textkernel",
+    "KI-Verordnung Art. 26 Abs. 7 Arbeitnehmer Information Recruiting Betriebsrat § 87 BetrVG",
+    "GitHub jfr/textkernel Ruby client (Abruf)",
+    "GitHub xitanggg/open-resume (Abruf)",
+    "GitHub OmkarPathak/pyresparser (Abruf)",
+    "GitHub enthec/webappanalyzer (Abruf)",
+    "GitHub textkernel/tx-java (Abruf)",
+    "GitHub affinda/affinda-python (Abruf)",
+    "HireVue Eightfold Phenom Paradox Deutschland Kunden Einsatz KI Recruiting 2025 2026",
+    "resume white text prompt injection ATS LLM screening \"ignore previous instructions\" hack 2025",
+    "LLM resume screening bias study name ranking GPT 2024 2025 research",
+    "Personio Bewerbungsformular Knockout-Fragen automatische Absage Recruiting",
+    "softgarden teamtailor recruitee join.com career page URL pattern",
+    "Apache Tika PDF DOCX parser license version 2025 2026 tika-server",
+    "Bewerbungsfoto Lebenslauf Deutschland 2025 2026 Empfehlung weglassen Recruiter Diskriminierung",
+    "d.vinci rexx systems onlyfy Karriereseite Bewerbungslink URL Domain Muster",
+    "Coveto BITE Concludis Bewerbermanagementsystem Deutschland Funktionen Marktanteil",
+    "Recruiting Trends 2026 Studie Unternehmen Deutschland KI Einsatz Bewerberauswahl Prozent",
+    "Eden AI resume parser pricing free credits 2026 Affinda HireAbility comparison",
+    "join.com Bewerbungsformular URL onlyfy.jobs Bewerbungslink Muster ATS Erkennung"
+  ],
+  "verification_notes": [
+    "[verify-A 2026-09-08] EU-AI-Act-Omnibus (Reg. (EU) 2026/1744, ABl. 24.7.2026, Annex III → 2.12.2027, Annex I → 2.8.2028) bestätigt.",
+    "[verify-A] KORREKTUR Apache Tika: 4.0.0 ist am 18.8.2026 final erschienen (Alpha 4.5., Beta 29.6.2026); '3.3.0 aktuell' ist veraltet. 4.1.0 in Arbeit.",
+    "[verify-A] KORREKTUR webappanalyzer: Kategorie 101 'Recruitment & staffing' existiert mit Fingerprints für Personio, Greenhouse, Lever, Recruitee, SmartRecruiters, Teamtailor, onlyfy Application Manager; Workday nur als CRM (Kat. 53); KEINE Fingerprints für softgarden, rexx, d.vinci, SAP SuccessFactors, JOIN.",
+    "[verify-A] DGFP-Marktanteilsaussage (4 ATS >5%) nicht verifizierbar (dgfp.de blockiert); vor Architekturentscheidung direkt prüfen.",
+    "[verify-A] Personio/aurio-Übernahme in dieser Session nicht geprüft (Egress-Sperre)."
+  ]
+}

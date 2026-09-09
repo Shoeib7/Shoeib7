@@ -1,0 +1,612 @@
+{
+  "dimension": "Bewerbung ueber Portale & Formular-Automatisierung",
+  "summary": "Der deutsche Bewerbungsmarkt laeuft technisch ueber zwei getrennte Formular-Welten: (1) unternehmenseigene ATS-Karriereseiten (Personio, SAP SuccessFactors, Workday, Softgarden, d.vinci, rexx systems, BITE) und (2) Plattform-Schnellbewerbungen (StepStone Schnellbewerbung/Connect, Indeed Apply, LinkedIn Easy Apply, XING Sofort bewerben, JOIN). Beide Welten unterscheiden sich stark in Automatisierbarkeit und Risiko. ATS-Formulare sind meist serverseitig gerendert, ohne aggressive Bot-Abwehr, mit klar strukturierten Feldern (Pflichtfeld-Flags, Datei-Upload max. 10 MB bei Personio, DSGVO-Checkbox als Pflicht-Opt-in) und lassen sich mit Playwright zuverlaessig ausfuellen. Kritischer Sonderfall: SAP SuccessFactors 'Quick Apply' und Workday erzwingen eine Kontoerstellung (E-Mail+Passwort, teils MFA) pro Arbeitgeber-Instanz (*.myworkdayjobs.com) - es gibt kein einheitliches Bewerber-Konto ueber Firmen hinweg, was pro-Firma-Automatisierung erschwert und Session-/Passwort-Management noetig macht. Workday hat zudem einen dokumentiert schlechten CV-Parser (Quelle: Branchenblogs/Vendor-Content, mit Vorsicht zu lesen) und gilt als besonders zeitaufwendig auszufuellen - ein Automatisierungs-Kandidat mit hohem Nutzenpotenzial, aber technisch am schwierigsten wegen Cloudflare-aehnlicher Bot-Abwehr auf manchen Workday-Instanzen.\n\nPlattform-Schnellbewerbungen (LinkedIn Easy Apply, Indeed Apply, XING Sofort bewerben) sind bewusst so gebaut, dass sie NICHT von Dritt-Software automatisiert werden sollen: Alle drei Plattformen verbieten in ihren Nutzungsbedingungen explizit Bots, Skripte, Browser-Erweiterungen und automatisierte Zugriffe (LinkedIn User Agreement Abschnitt zu 'Prohibited Software'; Indeed 'no robot, spider, scraper... without express written permission'; StepStone verbietet Scraping/Bot-Nutzung zur Vortaeuschung menschlicher Aktivitaet). LinkedIn erkennt Automatisierung aktiv (Rechenzentrums-IPs, unnatuerliche Geschwindigkeit >50 Bewerbungen/Minute, generische Antworten, navigator.webdriver-Flag) und sanktioniert gestuft: 24-48h-Sperre beim ersten Verstoss, bei Wiederholung dauerhafte Kontoloeschung; Erfolgsquote von Einsprueche wird in einer Quelle mit unter 10% beziffert (Sekundaerquelle, mit Vorsicht zu werten). Rechtlich ist die zivilrechtliche Seite (Vertragsverletzung/Hausrecht/Kontosperrung) das eigentliche Risiko, nicht Strafrecht - das Berufungsgerichtsurteil hiQ v. LinkedIn (9th Circuit, 2019/2022) hat zwar den strafrechtlichen CFAA-Vorwurf fuer das Scrapen oeffentlicher Daten entschaerft, der Fall endete aber 2022 in einem Vergleich, in dem hiQ das Scraping komplett einstellen und Code/Daten loeschen musste - ein Beleg dafuer, dass Plattformen zivilrechtlich (Vertragsbruch, Unterlassung) trotzdem erfolgreich durchgreifen koennen.\n\nFuer unseren Use Case (EIN Kandidat, ca. 10 Bewerbungen/Tag, Qualitaet vor Quantitaet) ist Vollautomatisierung auf LinkedIn/Indeed/XING ohnehin unnoetig riskant fuer wenig Zeitgewinn - das Sperrrisiko trifft das persoenliche Karriere-Profil des Nutzers, nicht ein Wegwerf-Konto. Empfehlung: Co-Pilot-Muster statt Vollautomatisierung. Ein Playwright-Skript mit persistentem Chrome-Profil (echtes Nutzerprofil, echte Cookies, kein Headless-Modus) fuellt das Formular sichtbar vor - Anschreiben-Text, Lebenslauf-Upload, Standardantworten aus einem Profil-JSON (Gehaltsvorstellung, Kuendigungsfrist, Arbeitserlaubnis, Umzugsbereitschaft, fruehester Eintritt, 'Wie haben Sie von uns erfahren') - und der Nutzer prueft und klickt selbst auf 'Absenden'. Das umgeht das ToS-Verbot automatisierter *Uebermittlung* fast vollstaendig (der Mensch sendet), reduziert Bot-Erkennungsrisiko drastisch (kein automatisierter Klick-Endpunkt, reales Nutzerprofil/reale IP) und passt zum Qualitaetsanspruch des Projekts, weil jede Bewerbung ohnehin vom Nutzer gegengelesen werden soll (Checklisten-Anforderung aus dem Auftrag). Wichtiger technischer Fallstrick: Der offizielle Playwright MCP Server (microsoft/playwright-mcp) unterstuetzt Datei-Uploads (Lebenslauf-PDF) laut GitHub Issue #31 nicht zuverlaessig ueber die MCP-Tool-Schnittstelle; ein eigenes Playwright-Skript (direkte API, page.setInputFiles()) statt des MCP-Servers ist fuer den Upload-Schritt robuster und sollte fuer den Kern-Workflow bevorzugt werden, waehrend MCP fuer Navigation/Lesen praktisch bleibt. Chrome-Erweiterungen wie Simplify Copilot, Teal oder LazyApply sind fuer die Formular-Erkennung interessant (Simplify wirbt mit Unterstuetzung fuer 100+ ATS inkl. Workday/Greenhouse/Lever/iCIMS/Taleo/SmartRecruiters), aber Blackbox-Produkte ohne offizielle ATS-Partnerschaft, mit Zugriff auf Bewerberdaten Dritter (Datenschutz-Risiko) und ohne Audit-Moeglichkeit fuer unseren Anwendungsfall - nicht empfohlen als Kernkomponente, allenfalls zur Inspiration der Feld-Mapping-Logik. Fuer neue Agent-Frameworks (browser-use, Stagehand, Skyvern, Claude Computer-Use/Browser-Tool) gilt: technisch maechtig und gut dokumentiert, aber alle fuegen eine zusaetzliche Abstraktions- und Kostenschicht (LLM-Ticks pro Aktion, teils Cloud-Gebuehren) hinzu, die fuer 10 Bewerbungen/Tag mit vorher bekannten, stabilen Formularen (Personio, SuccessFactors, Workday) nicht noetig ist - deterministisches Playwright mit vordefinierten Selektoren pro Portal-Typ ist guenstiger, robuster und einfacher zu debuggen. Diese Frameworks lohnen sich eher als Fallback fuer unbekannte/individuelle Firmenformulare, bei denen kein Selektoren-Set vorliegt. Nachweis-Pipeline: Screenshot der Bestaetigungsseite direkt nach Absenden, Erfassung einer eventuellen Tracking-/Referenz-ID aus der Bestaetigungsseite oder -E-Mail, und Ablage der Eingangsbestaetigungs-Mail sind Standardpraxis (auch von Jobcentern als Nachweis akzeptiert) und sollten fester Bestandteil jeder Bewerbung im System sein.",
+  "findings": [
+    {
+      "claim": "Personio erlaubt individuell konfigurierbare Pflichtfelder im Bewerbungsformular; der Lebenslauf-Upload-Slot ist fix im System vorhanden, kann aber als Pflicht- oder Kann-Feld geschaltet werden.",
+      "detail": "Unternehmen waehlen im Karriereseiten-Editor die abgefragten Attribute per Drag&Drop und markieren Pflichtangaben. CV-Upload ist ein festes Systemfeld (nicht entfernbar), dessen Pflichtstatus konfigurierbar ist. Zusaetzliche Dokumentkategorien (z.B. Zeugnisse) koennen unter Settings > Recruiting > Career page > Application form settings aktiviert werden. Konsequenz: unser Formularerkenner darf sich nicht auf ein festes Feldschema verlassen, sondern muss Pflicht-Markierungen (meist Sternchen/Hinweis) pro Karriereseite live auslesen.",
+      "sources": [
+        "https://support.personio.de/hc/en-us/articles/8758636857629-Set-up-the-Personio-career-page",
+        "https://community.personio.de/recruiting-2/lebenslauf-auf-karriereseite-ausblenden-5638"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Personio begrenzt hochgeladene Bewerberdokumente auf 10 MB pro Datei.",
+      "detail": "Direkte Konsequenz fuer unsere PDF-Generierung: erzeugte Anschreiben/Lebenslauf-PDFs muessen unter diesem Limit bleiben (in der Praxis meist unkritisch, 1-3 MB typisch, aber bei eingebetteten Bildern/Grafik-Layouts pruefen).",
+      "sources": [
+        "https://support.personio.de/hc/en-us/articles/360017288378-Manage-candidate-documents"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Personio bietet eine Recruiting API (v1 und v2 mit unterschiedlichen Credentials), mit der externe Bewerbungsformulare Kandidatendaten direkt einspeisen koennen.",
+      "detail": "Die API dient primaer der Integration eigener/dritter Karriereseiten mit Personio als Backend, nicht dem automatisierten Absenden als Bewerber. Fuer unser Szenario (wir sind Bewerber, nicht Personio-Kunde) irrelevant fuer den Versand, aber relevant falls wir spaeter offizielle Application-APIs von ATS-Anbietern fuer Statusabfragen nutzen wollen.",
+      "sources": [
+        "https://support.personio.de/hc/en-us/articles/360000314338-Overview-of-the-Personio-Recruiting-API"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "SAP SuccessFactors 'Quick Apply' verlangt vom Bewerber die Erstellung eines Kontos (E-Mail + Passwort) bevor die eigentliche Bewerbung abgeschickt werden kann.",
+      "detail": "Alle Bewerbungsfelder werden dabei auf einem Bildschirm angezeigt; das Kandidatenprofil wird bei jedem weiteren Besuch vorausgefuellt/synchronisiert (gleiche Firmeninstanz). Konsequenz: pro SuccessFactors-Arbeitgeber muss unser Agent ein Konto anlegen und Zugangsdaten sicher verwalten (Passwort-Tresor pro Portal-Instanz), nicht nur einmalig global.",
+      "sources": [
+        "https://learning.sap.com/courses/sap-successfactors-recruiting-candidate-experience-administration-de/describing-sap-successfactors-recruiting",
+        "https://help.sap.com/docs/successfactors-recruiting/setting-up-and-maintaining-sap-successfactors-recruiting/candidate-profile-creation"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Im SAP SuccessFactors Candidate Profile sind alle Felder des Profilbildschirms Pflichtfelder, um einen Kandidaten erfolgreich anzulegen.",
+      "detail": "Das bedeutet ein vollstaendiges strukturiertes Profil (Ausbildung, Erfahrung etc.) muss vorab im Profil-JSON unseres Agenten vorliegen, nicht nur CV+Anschreiben - sonst bricht die Kontoerstellung ab.",
+      "sources": [
+        "https://help.sap.com/docs/successfactors-recruiting/setting-up-and-maintaining-sap-successfactors-recruiting/candidate-profile-creation"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Workday erzwingt pro Arbeitgeber-Instanz (Subdomain *.myworkdayjobs.com) ein separates Kandidatenkonto; es gibt keine plattformweite Verknuepfung ueber Firmen hinweg.",
+      "detail": "Jede Bewerbung muss mit derselben E-Mail wie das jeweilige Workday-Konto verknuepft sein; Passwortregeln sind meist streng (Gross-/Kleinschreibung, Zahlen, Sonderzeichen), teils mit E-Mail-Verifizierung oder 2FA. Fuer unser System: Zugangsdatenverwaltung pro Firma noetig, kein Wiederverwenden eines einzigen Workday-Logins.",
+      "sources": [
+        "https://jobwizard.ai/blog/why-does-workday-keep-asking-me-to-make-a-new-account-for-every-company",
+        "https://dn9tckvz2rpxv.cloudfront.net/sci/pdf/Workday-FAQ.pdf"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Workdays Lebenslauf-Parser gilt in Nutzerberichten als unzuverlaessig; Bewerbungen dauern dadurch laenger und Abbruchraten sind hoch.",
+      "detail": "Ein zitierter Bericht (Simplify, Anbieter-eigene Studie, mit Vorsicht zu werten) nennt bis zu 70% weniger abgeschlossene Bewerbungen bei Workday-Arbeitgebern verglichen mit einfacheren Prozessen; weitere Quelle nennt 60% Abbruchquote bei langen Online-Formularen generell. Konsequenz: Workday ist der Portal-Typ mit dem hoechsten Automatisierungsnutzen pro eingesparter Zeit, aber auch mit dem groessten technischen Aufwand (viele Einzelfelder, ggf. Bot-Abwehr).",
+      "sources": [
+        "https://jobwizard.ai/blog/how-to-check-resume-parsing-problems-before-uploading-to-workday",
+        "https://blog.fastapply.co/how-to-beat-workday-applications-in-2026-the-ats-everyone-hates-and-how-to-autofill-it"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Softgarden-Formulare sind auf Bewerbung in unter 5 Minuten optimiert, unterstuetzen Business-Network-Bewerbung (XING/LinkedIn) und CV-Parsing aus PDF-Upload.",
+      "detail": "Mobile-optimiert, DSGVO-konform beworben (zertifizierte Server). Fuer Automatisierung guenstig: kurze, klar strukturierte Formulare mit Standard-Feldsatz.",
+      "sources": [
+        "https://softgarden.com/de/bewerbermanagement-software-ats/",
+        "https://softgarden.com/de/magazin/presse/bewerbungsmanagement-fuer-bewerber/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "d.vinci-Formulare unterstuetzen automatisiertes Ausfuellen ueber XING- oder LinkedIn-Profil-Import.",
+      "detail": "Reduziert manuelle Feldeingabe fuer Bewerber, die ein gepflegtes XING/LinkedIn-Profil haben - relevant als Bootstrap-Quelle fuer unser eigenes Profil-JSON, falls der Kandidat sein XING/LinkedIn-Profil aktuell haelt.",
+      "sources": [
+        "https://www.dvinci.de/bewerbermanagement-software/"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "rexx systems Recruiting wird laut Anbieterangabe von ueber 500 Kunden mit rund 4 Millionen Bewerbungsprozessen pro Jahr europaweit genutzt und bietet Multiposting auf 500+ Jobboersen.",
+      "detail": "Zielgruppe: mittelstaendische bis grosse Organisationen mit standardisierten Prozessen. Bewerbungsformular ist teils frei gestaltbar, teils schematisiert - Formularstruktur kann also je nach Kunde variieren, kein 100% einheitliches Muster wie bei Personio.",
+      "sources": [
+        "https://trusted.de/rexx-systems-bewerbermanagement",
+        "https://www.personalmanagement.info/angebote/de/software/recruiting/detail/rexx-bewerbermanagement-e-recruiting/"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "BITE Bewerbermanager unterstuetzt Ein-Klick-Bewerbung aus XING-/LinkedIn-Profil, WhatsApp-Bewerbung und einen Chatbot-Bewerbungsweg; Hosting und Entwicklung laut Anbieter ausschliesslich in Deutschland, ISO 27001/9001 zertifiziert.",
+      "detail": "BITE (Ulm) positioniert sich explizit als 'Made in Germany'-ATS mit alternativen Bewerbungskanaelen jenseits des klassischen Formulars (WhatsApp, Chatbot) - fuer unseren Agenten ein Sonderfall, der ggf. eigene Automatisierungslogik jenseits von Formular-Feldern braucht.",
+      "sources": [
+        "https://www.b-ite.de/bewerbermanager.html",
+        "https://trusted.de/bite-bewerbermanager"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "StepStone bietet eine 'Schnelle Bewerbung' ohne Anschreiben (nur CV als PDF) sowie eine wiederverwendbare One-Click-Bewerbung, bei der Kontaktdaten/Dokumente einmalig gespeichert und bei Folgebewerbungen erneut genutzt werden.",
+      "detail": "StepStone Connect (Recruiter-seitiges Produkt) automatisiert den Datentransfer der Bewerbung ins jeweilige ATS des Arbeitgebers nach Klick. Fuer Kandidaten heisst das: die 'Schnellbewerbung' kann ohne individualisiertes Anschreiben laufen, was unserem Qualitaetsanspruch (individuelles Anschreiben) leicht widerspricht - hier muss unser Agent aktiv das optionale Anschreiben-Feld nutzen statt den Schnellweg ohne Anschreiben zu waehlen.",
+      "sources": [
+        "https://www.stepstone.de/magazin/artikel/bewerbung-per-app",
+        "https://stellenpakete.de/blogartikel/one-click-bewerbung/",
+        "https://stepstone.de/e-recruiting/produkte/connect"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Indeed Apply zeigt das Formular direkt auf der Indeed-Plattform (kein Redirect zur Firmen-Karriereseite), mit Pflichtfeldern (mit Sternchen markiert) und arbeitgeberdefinierbaren Zusatzfragen ('application questions').",
+      "detail": "Bewerber nutzen ein zuvor angelegtes Indeed-Profil mit hochgeladenen Dokumenten; ein Indeed-Konto ist fuer Lebenslauf-Upload/-Verwaltung erforderlich. Indeed konvertiert hochgeladene Lebenslaeufe (.doc/.docx/.pdf/.txt/.rtf) automatisch in PDF zur einheitlichen Anzeige.",
+      "sources": [
+        "https://de.indeed.com/recruiting/bewerben",
+        "https://www.indeed.com/help/job-seekers/articles/4408783727629-uploading-a-resume-file-to-your-profile"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "LinkedIn Easy Apply verlangt Lebenslauf-Upload zwingend nur, wenn der Nutzer NICHT eingeloggt ist; eingeloggt kann das LinkedIn-Profil selbst als Bewerbung dienen (Resume optional). Manche Stellenanzeigen zeigen statt 'Easy Apply' nur 'Apply' und leiten dann auf die externe Firmen-Karriereseite (oft Workday/Personio/Greenhouse) weiter.",
+      "detail": "Unser Agent muss also erkennen: Easy Apply (LinkedIn-intern, ToS-kritisch bei Automatisierung) vs. externer Redirect (dann greift die Automatisierungslogik des jeweiligen Ziel-ATS, nicht LinkedIn-spezifische Regeln).",
+      "sources": [
+        "https://www.jobscan.co/blog/linkedin-easy-apply-employers/",
+        "https://www.linkedin.com/help/linkedin/answer/a510363"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "XING 'Sofort bewerben' uebertraegt per Klick Name, Kontaktdaten, bisherige Positionen und Qualifikationen direkt aus dem XING-Profil an den Arbeitgeber.",
+      "detail": "Funktioniert nur gut bei gepflegtem XING-Profil; kein individuelles Anschreiben im Kern-Flow vorgesehen - unser Agent muesste das Anschreiben separat/zusaetzlich einreichen, falls das Formular das erlaubt.",
+      "sources": [
+        "https://www.youngcapital.de/bewerbungstipps/xing-bewerbung",
+        "https://stellenpakete.de/blogartikel/adieu-bewerbungsformular-ist-das-xing-profil-die-neue-bewerbungsmappe/"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "JOIN (join.com) ist ein kostenloses ATS fuer KMU mit RESTful API v2 (Token-Auth) und integrierter K.O.-Fragen-Funktion (Screening-Fragen im Formular).",
+      "detail": "JOIN verbindet Stellenanzeigen-Verteilung mit ATS in einem Tool; API dient v.a. der Arbeitgeberseite (Job-/Kandidatendaten abrufen), nicht dem automatisierten Bewerber-Versand.",
+      "sources": [
+        "https://help.join.com/german/join-api/api-documentation",
+        "https://join.com/en/features/screening"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "LinkedIns Nutzungsbedingungen (User Agreement, 'Prohibited Software'-Klausel) verbieten explizit Crawler, Bots, Browser-Plugins und -Erweiterungen, die Aktivitaeten auf LinkedIn automatisieren, einschliesslich Datenkopie und automatisiertem Zugriff; die aktive Bot-Erkennung stuetzt sich dabei u.a. auf Rechenzentrums-IP-Adressen, unnatuerlich hohe Bewerbungsgeschwindigkeit (genannt: 50+/Minute) und generische statt individuelle Antworten.",
+      "detail": "Eine zitierte Sekundaerquelle nennt konkret Section 8.2 und ein gestuftes Sanktionsschema (24-48h Sperre beim ersten Verstoss, dauerhafte Loeschung bei Wiederholung) - dieses konkrete Paragraphenzitat ist NICHT direkt aus dem LinkedIn-Originaldokument verifiziert und daher mit niedriger Konfidenz zu werten, die grundsaetzliche Verbotsaussage aber durch mehrere Quellen gedeckt. Tools mit residentieller IP (eigener Rechner/Heimnetz statt Cloud-Server) und menschentypischem Tempo mit zufaelligen Pausen gelten laut Quellen als schwerer erkennbar - deckt sich mit unserer Co-Pilot-Empfehlung (Ausfuehrung auf dem PC des Nutzers, kein Cloud-Server mit Rechenzentrums-IP).",
+      "sources": [
+        "https://connectsafely.ai/articles/is-linkedin-automation-safe-tos-scraping-guide-2026",
+        "https://magicalapi.com/blog/linkedin-tools-insights/is-it-legal-to-scrape-linkedin/",
+        "https://www.autoapplymax.com/blog/linkedin-auto-apply-bot",
+        "https://www.liftmycv.com/blog/how-to-auto-apply-linkedin-jobs-ai/"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "StepStones Nutzungsbedingungen verbieten Scraping/vergleichbare Techniken sowie automatisierte Tools (Bots, Bot-Netze, Skripte, Apps, Plugins, Erweiterungen), die Nutzeraktivitaeten vortaeuschen oder Inhalte fuer andere Zwecke erfassen.",
+      "detail": "Direktes Zitat/Ableitung aus den StepStone-Nutzungsbedingungen (Stand 27.04.2022) - relevant, weil unser Agent StepStone-Stellenanzeigen zwar lesen/anzeigen (Recherche), aber Formular-Absenden nicht ohne Weiteres vollautomatisch durchfuehren sollte.",
+      "sources": [
+        "https://www.stepstone.de/ueber-stepstone/nutzungsbedingungen-2022-03/"
+      ],
+      "confidence": "medium",
+      "info_date": "2022"
+    },
+    {
+      "claim": "Indeeds Nutzungsbedingungen verbieten die Nutzung von 'robot, spider, scraper oder anderen automatisierten Mitteln' ohne ausdrueckliche schriftliche Erlaubnis sowie explizit die Automatisierung des Indeed-Apply-Prozesses ausserhalb offizieller Indeed-Partner-Tools.",
+      "detail": "Bedeutet: ein selbstgebautes Skript, das den Indeed-Apply-Button klickt und automatisch absendet, verstoesst gegen die ToS, unabhaengig davon ob nur die eigene Bewerbung des Nutzers betroffen ist.",
+      "sources": [
+        "https://www.indeed.com/legal",
+        "https://www.loopcv.pro/guides/is-it-legal-to-automate-job-applications/"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Das Berufungsurteil hiQ Labs v. LinkedIn (9th Circuit, 2019, bestaetigt 2022) stellte fest, dass automatisiertes Abrufen oeffentlich zugaenglicher Profildaten wahrscheinlich nicht gegen den US Computer Fraud and Abuse Act (CFAA) verstoesst - der Rechtsstreit endete jedoch Ende 2022 in einem privaten Vergleich, in dem hiQ das Scraping vollstaendig einstellen und saemtliche daraus gewonnenen Daten/Code loeschen musste.",
+      "detail": "Lehre fuer unser Projekt: Auch wenn ein strafrechtlicher CFAA-Vorwurf in den USA fuer reines Datenlesen schwer durchsetzbar ist, kann eine Plattform zivilrechtlich (Vertragsverletzung der Nutzungsbedingungen, Unterlassungsanspruch, Kontosperrung) trotzdem effektiv gegen Automatisierung vorgehen - das eigentliche Risiko fuer unseren Nutzer ist der Verlust des eigenen LinkedIn-Kontos/Netzwerks, nicht eine Klage.",
+      "sources": [
+        "https://www.eff.org/deeplinks/2019/09/victory-ruling-hiq-v-linkedin-protects-scraping-public-data",
+        "https://www.zwillgen.com/alternative-data/hiq-v-linkedin-wrapped-up-web-scraping-lessons-learned/"
+      ],
+      "confidence": "medium",
+      "info_date": "2022"
+    },
+    {
+      "claim": "Nach deutschem Datenschutzrecht (DSGVO-Grundsatz der Freiwilligkeit) darf eine Einwilligungs-Checkbox (z.B. Datenschutzerklaerung im Bewerbungsformular) niemals vorausgefuellt sein - Opt-in muss eine bewusste, aktive Handlung der betroffenen Person sein.",
+      "detail": "Fuer unseren Co-Pilot-Ansatz bedeutet das: der Agent darf die DSGVO-Einwilligungs-Checkbox im Formular zwar vorbereiten/anzeigen, das finale Anklicken sollte aber im Zweifel dem Menschen ueberlassen oder zumindest so gestaltet werden, dass es eine bewusste, dokumentierte Handlung im Namen des Nutzers ist (nicht 'blind' automatisiert) - passt zum ohnehin vorgesehenen Human-Review-Schritt vor dem Absenden.",
+      "sources": [
+        "https://www.anwaltskanzlei-online.de/en/2018/07/12/dsgvo-checkbox-bei-kontaktformular-notwendig/",
+        "https://www.datenschutz-janolaw.de/info-faq/informationen/dsgvo/einwilligung.html"
+      ],
+      "confidence": "low",
+      "info_date": "2024"
+    },
+    {
+      "claim": "Cloudflare Turnstile und aehnliche Bot-Abwehrsysteme erkennen automatisierte Browser primaer ueber navigator.webdriver/Headless-Marker, TLS/JA4-Fingerprinting der Handshake-Reihenfolge sowie Verhaltenssignale (Mausbewegung, Timing zwischen Aktionen).",
+      "detail": "Standard-Playwright/Selenium im Headless-Modus wird zuverlaessig erkannt. 'Patchright' (gepatchter Playwright-Fork, nutzt echtes Chrome statt Chromium-Build) reduziert einige dieser Signale, ist aber keine Garantie gegen JA4-basierte TLS-Erkennung, die seit 2026 laut Quellen breit von Cloudflare/AWS eingesetzt wird.",
+      "sources": [
+        "https://www.zenrows.com/blog/playwright-cloudflare-bypass",
+        "https://dev.to/claudeprime/how-to-bypass-bot-detection-with-patchright-playwright-fork-2men",
+        "https://medium.com/@238rodionova/bypassing-cloudflare-in-2026-tls-fingerprinting-explained-463993b4f474"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "reCAPTCHA v3 vergibt einen Score 0.0-1.0 basierend auf Verhaltenssignalen und stark auf IP-Reputation (Cloud-Provider-IPs wie AWS/GCP liefern typischerweise 0.1-0.2, residentielle ISP-IPs 0.7-0.9 bei sonst identischer Browser-Konfiguration); hCaptcha verlaesst sich seit 2026 zusaetzlich zunehmend auf vorgelagerte Verhaltens-/Intent-Analyse statt nur auf die sichtbare Challenge, wodurch klassische Bypass-Methoden (reine Bild-Loeser) an Wirksamkeit verlieren.",
+      "detail": "Direkte Konsequenz: unser Automatisierungs-Setup sollte auf dem lokalen Rechner des Nutzers (residentielle IP) laufen, nicht auf einem Cloud-Server, wenn reCAPTCHA/hCaptcha-geschuetzte Formulare betroffen sind (eher kleinere Firmenkarriereseiten, seltener bei ATS-Standardformularen). Empfehlung aus den Quellen: Captcha-Ausloesung von vornherein vermeiden (residentielle IP, echtes Browser-Fingerprint, menschliches Timing) statt Captcha aktiv zu loesen - Loesungs-Dienste (z.B. 2captcha) sind fuer unseren Anwendungsfall ohnehin abzulehnen (siehe Risiken).",
+      "sources": [
+        "https://blog.crawlex.net/blog/recaptcha-v3-scoring/",
+        "https://proxyhat.com/blog/how-recaptcha-v3-scoring-works",
+        "https://pixelscan.net/blog/hcaptcha-bypass/"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Der offizielle Playwright MCP Server (microsoft/playwright-mcp) unterstuetzte Datei-Uploads (input[type=file]) laut GitHub Issue #31 (Maerz 2025) nicht zuverlaessig ueber die Standard-MCP-Tools; das Issue wurde zwar durch PR #52 referenziert/geschlossen, der aktuelle Funktionsumfang ist im Detail nicht dokumentiert und sollte vor Produktiveinsatz selbst verifiziert werden.",
+      "detail": "Fuer unseren Kern-Workflow (Lebenslauf-PDF hochladen) ist das ein Show-Stopper-Risiko, wenn wir uns ausschliesslich auf den MCP-Server verlassen. Empfehlung: fuer den Upload-Schritt ein eigenes Playwright-Skript mit page.setInputFiles()/locator.setInputFiles() (funktioniert nativ und zuverlaessig, auch headless) statt MCP-Tool-Aufrufen nutzen, MCP optional fuer Navigation/Exploration.",
+      "sources": [
+        "https://github.com/microsoft/playwright-mcp/issues/31",
+        "https://qaskills.sh/blog/playwright-file-upload-setinputfiles"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "ATS-Knockout-Fragen (bindaere Ja/Nein- oder Dropdown-Filter zu Arbeitserlaubnis, Gehaltsvorstellung, Verfuegbarkeit/Kuendigungsfrist) disqualifizieren Bewerber vor jeder menschlichen Pruefung, wenn falsch beantwortet.",
+      "detail": "Unser Profil-JSON mit Standardantworten muss diese Felder zwingend abdecken und pro Bewerbung ggf. leicht anpassen (z.B. Eintrittstermin = Kuendigungsfrist + Puffer); ein generischer Platzhalter-Wert reicht nicht, weil Knockout-Logik oft harte Ausschlusskriterien des Arbeitgebers abbildet.",
+      "sources": [
+        "https://quickcv.io/blog/ats-knockout-questions",
+        "https://www.onapply.de/recruiting-wissen/k-o-fragen"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Ein Playwright-Kontext mit persistentem User-Data-Directory (echtes, dauerhaftes Chrome-Profil statt Inkognito/frischer Kontext) erhaelt Cookies/Sessions ueber mehrere Läufe hinweg und wird von der Playwright-API direkt unterstuetzt (launchPersistentContext).",
+      "detail": "Technische Grundlage fuer den Co-Pilot-Ansatz: ein dauerhaftes Profil pro Portal (insb. LinkedIn/XING/Workday-Konten) reduziert wiederholte Logins/Captchas und sieht fuer Bot-Erkennung 'menschlicher' aus als ein staendig neu erstellter Kontext.",
+      "sources": [
+        "https://playwright.dev/python/docs/api/class-browsertype",
+        "https://playwright.dev/docs/api/class-browsertype"
+      ],
+      "confidence": "high",
+      "info_date": "2025"
+    },
+    {
+      "claim": "browser-use (Python, Open Source, 100.000+ GitHub Stars) treibt intern Playwright an, laesst aber ein LLM anhand des Seitenzustands entscheiden, was geklickt/eingegeben wird - keine festen CSS-Selektoren noetig; seit Oktober 2025 SOC 2 Type II zertifiziert.",
+      "detail": "Cloud-Preismodell: 0,01 USD Task-Initialisierung + 20% Aufschlag auf die verwendeten LLM-Token-Kosten + Browsernutzungszeit. Fuer bekannte, stabile Formulare (Personio, SuccessFactors) ist der LLM-pro-Aktion-Ansatz teurer und langsamer als ein deterministisches Skript; sinnvoll als Fallback fuer unbekannte/individuelle Firmenformulare ohne vorgefertigte Selektoren.",
+      "sources": [
+        "https://github.com/browser-use/browser-use",
+        "https://browser-use.com/pricing",
+        "https://docs.browser-use.com/cloud/v1/pricing"
+      ],
+      "confidence": "medium",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Stagehand (Browserbase) bietet die Primitiven act/extract/observe/agent fuer sprachgesteuerte Browser-Automatisierung, funktioniert lokal mit jedem Chromium-Browser kostenlos; Cloud-Zusatzfeatures (Captcha-Loesung, Residential-Proxies, Session-Replay) sind an den kostenpflichtigen Browserbase-Dienst gekoppelt.",
+      "detail": "Stagehand v3 (2026) ist laut Anbieterangabe 44% schneller bei iframe-/Shadow-DOM-Interaktionen als Vorgaenger - relevant, weil manche Bewerbungsformulare (insb. eingebettete Workday/SuccessFactors-Widgets) in iframes liegen.",
+      "sources": [
+        "https://www.browserbase.com/blog/stagehand-v3",
+        "https://docs.stagehand.dev/v3/first-steps/introduction"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Skyvern erzielte laut Anbieterangabe 85,85% auf dem WebVoyager-Formular-Benchmark und bewirbt Job-Bewerbungsautomatisierung explizit als Top-Anwendungsfall ('Jobs Agent'); Kernengine ist per Docker selbst hostbar (kostenlos), Cloud-Tarife: Free / Hobby 29 USD/Monat / Pro 149 USD/Monat / Enterprise individuell, zusaetzlich 0,05 USD pro Ausfuehrungsschritt im Cloud-Plan.",
+      "detail": "Kombiniert Computer Vision + LLM-Reasoning, wodurch es robuster gegen UI-Aenderungen sein soll als reine Selektor-Skripte. Fuer unseren Einzel-Nutzer-Fall (ca. 10 Bewerbungen/Tag) waere Self-Hosting via Docker die kosteneffiziente Option, falls Skyvern ueberhaupt eingesetzt wird.",
+      "sources": [
+        "https://www.skyvern.com/blog/launching-skyverns-jobs-agent-automate-job-applications-with-ai-2/",
+        "https://www.firecrawl.dev/blog/best-browser-agents"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Der 'Job Application Assistant'/'job-apply-plugin' (Open-Source Claude-Code-Plugin, GitHub neonwatty) automatisiert LinkedIn Easy Apply, Greenhouse, Ashby, Lever, Rippling und Workday mit mehreren Human-in-the-Loop-Stopps (Login/Captcha/MFA, sensible Fragen wie Gehalt/Visa, finale Review vor Absenden) und speichert Bewerberprofile ausschliesslich lokal (~/.job-apply/, empfohlen chmod 700), niemals an einen Plugin-Dienst hochgeladen.",
+      "detail": "Die Projekt-Dokumentation selbst weist darauf hin, dass die ATS-Workflows 'unverified' sind und sich aendern koennen, und dass blockierte iframes/Custom-Widgets/Captchas nicht ueberwunden werden koennen. Gutes Referenzmuster fuer unsere eigene Co-Pilot-Architektur (lokale Profildaten, expliziter Stopp vor Submit), aber kein direkt einsatzbereites Produkt fuer den deutschen Markt (keine deutschen ATS wie Personio/SuccessFactors/Softgarden genannt).",
+      "sources": [
+        "https://github.com/neonwatty/job-apply-plugin"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Simplify Copilot (Chrome-Erweiterung) wirbt mit 1 Million+ Nutzern und Unterstuetzung fuer 100+ ATS-Systeme, darunter Workday, Greenhouse, Lever, iCIMS, Taleo, SmartRecruiters - ohne dokumentierte offizielle Partnerschaft mit diesen ATS-Anbietern.",
+      "detail": "Als Browser-Erweiterung liest/schreibt Simplify direkt im DOM der jeweiligen ATS-Seite - technisch aehnlich riskant wie eigene Automatisierung, aber ohne Transparenz ueber die interne Logik oder Datenverarbeitung Dritter. Kein Beleg fuer konkrete Konto-Sperrungen durch diese Erweiterung in den Suchergebnissen gefunden.",
+      "sources": [
+        "https://simplify.jobs/copilot",
+        "https://chromewebstore.google.com/detail/simplify-copilot-autofill/pbanhockgagggenencehbnadejlgchfc"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "LazyApply (Chrome-Erweiterung fuer Massen-Auto-Apply auf LinkedIn/Indeed/ZipRecruiter) wird in mehreren unabhaengigen Testberichten mit signifikantem Konto-Sperrrisiko, sehr niedriger Rueckmeldequote (ein Testbericht nennt 0,5% bei 200 Bewerbungen) und geringer Einspruchs-Erfolgsquote (unter 10% laut einer Quelle) beschrieben.",
+      "detail": "Nutzt die reale IP des Nutzers (kein IP-Rotationsschutz eingebaut), wodurch LinkedIns Geschwindigkeits-basierte Erkennung leicht anschlaegt. Klarer Negativbeleg fuer 'Masse statt Klasse' und Bestaetigung, dass Vollautomatisierung auf LinkedIn dem Leitsatz 'Qualitaet vor Quantitaet' unseres Projekts widerspricht.",
+      "sources": [
+        "https://scale.jobs/blog/lazyapply-risk-profile-banned-linkedin",
+        "https://scoutify.com/blog/lazyapply-review/"
+      ],
+      "confidence": "low",
+      "info_date": "2026"
+    },
+    {
+      "claim": "Teal (kostenlose Chrome-Erweiterung) kombiniert Autofill fuer Bewerbungsformulare mit einem Bewerbungs-Tracker (40+ Jobboersen) - fokussiert staerker auf Organisation/Tracking als auf Massen-Automatisierung.",
+      "detail": "Kein Hinweis in den Suchergebnissen auf aggressive Massenversand-Funktion wie bei LazyApply; naeher an unserem Co-Pilot-Gedanken (Vorausfuellen, Mensch entscheidet), aber ebenfalls eine Blackbox-Erweiterung ohne Audit-Moeglichkeit fuer unseren produktiven Einsatz.",
+      "sources": [
+        "https://www.tealhq.com/tool/job-search-chrome-extension",
+        "https://chromewebstore.google.com/detail/teal-job-search-companion/opafjjlpbiaicbbgifbejoochmmeikep"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Screenshots von Bestaetigungsseiten und E-Mail-Eingangsbestaetigungen (als PDF/Screenshot) werden u.a. von Jobcentern als anerkannter Nachweis einer erfolgten Bewerbung akzeptiert.",
+      "detail": "Fuer unsere Nachweis-Pipeline (Anforderung aus dem Auftrag) heisst das: nach jedem Absenden automatisch Screenshot der Bestaetigungsseite erzeugen, Tracking-/Referenz-ID (falls angezeigt) extrahieren und die Eingangsbestaetigungs-Mail archivieren/verknuepfen - ein etabliertes, akzeptiertes Nachweisformat, kein Sonderbau noetig.",
+      "sources": [
+        "https://bewerbungsflow.de/blog/bewerbungsnachweise-fuers-jobcenter"
+      ],
+      "confidence": "low",
+      "info_date": "2025"
+    },
+    {
+      "claim": "Claude's 'Browser Use'/Computer-Use-Tool wird nach Standard-Tool-Use-Preisen abgerechnet (Token-basiert je nach Modell), nicht als separater Fixpreis.",
+      "detail": "Fuer die Architekturentscheidung heisst das: Kosten pro automatisierter Bewerbung skalieren mit Modellwahl und Anzahl der Bildschirm-/Werkzeugaufrufe - bei 10 Bewerbungen/Tag mit mehreren Formularfeldern pro Bewerbung koennen sich Computer-Use-basierte Ansaetze (Screenshot-Loop) teurer summieren als ein deterministisches Playwright-Skript mit gezielten Aktionen.",
+      "sources": [
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/browser-use-tool"
+      ],
+      "confidence": "medium",
+      "info_date": "2026"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Personio Recruiting / Karriereseite",
+      "url": "https://www.personio.de/funktionen/stellenausschreibung/karriereseite/",
+      "category": "ATS/Formular-Plattform",
+      "access": "Formular direkt auf {firma}.jobs.personio.de; keine offizielle Bewerber-Absende-API; optionale Recruiting-API (v1/v2) fuer Arbeitgeber-seitige Integration.",
+      "pricing": "Enterprise-SaaS, arbeitgeberseitig lizenziert; fuer Bewerber kostenlos.",
+      "verdict": "empfohlen als primaeres Automatisierungsziel - stabiles, gut dokumentiertes Formularschema, keine aggressive Bot-Abwehr bekannt."
+    },
+    {
+      "name": "SAP SuccessFactors Recruiting",
+      "url": "https://help.sap.com/docs/successfactors-recruiting",
+      "category": "ATS/Formular-Plattform",
+      "access": "Kontoerstellung (E-Mail+Passwort) pro Arbeitgeber-Instanz erforderlich fuer Quick Apply; keine offene Bewerber-API.",
+      "pricing": "Enterprise-SaaS; fuer Bewerber kostenlos.",
+      "verdict": "optional - automatisierbar, aber Passwort-/Konto-Management pro Firma noetig; hoeherer Integrationsaufwand als Personio."
+    },
+    {
+      "name": "Workday (myworkdayjobs.com)",
+      "url": "https://www.workday.com/",
+      "category": "ATS/Formular-Plattform",
+      "access": "Separates Kandidatenkonto pro Arbeitgeber-Instanz, teils MFA/E-Mail-Verifizierung, teils Cloudflare-aehnliche Bot-Abwehr auf einzelnen Instanzen.",
+      "pricing": "Enterprise-SaaS; fuer Bewerber kostenlos.",
+      "verdict": "riskant, aber hoher Zeitgewinn - nur mit Co-Pilot-Muster (sichtbarer Browser, residentielle IP, Mensch klickt Submit) automatisieren, nicht vollautomatisch/headless."
+    },
+    {
+      "name": "Softgarden Bewerbermanagement",
+      "url": "https://softgarden.com/de/bewerbermanagement-software-ats/",
+      "category": "ATS/Formular-Plattform",
+      "access": "Formular auf Firmenkarriereseite; Business-Network-Bewerbung (XING/LinkedIn) und CV-Parsing aus PDF.",
+      "pricing": "SaaS, arbeitgeberseitig; Preise nicht oeffentlich (2025).",
+      "verdict": "empfohlen als Automatisierungsziel - kurzes, standardisiertes Formular laut Anbieterangabe."
+    },
+    {
+      "name": "d.vinci Bewerbermanagement",
+      "url": "https://www.dvinci.de/bewerbermanagement-software/",
+      "category": "ATS/Formular-Plattform",
+      "access": "Formular auf Firmenkarriereseite; XING-/LinkedIn-Profil-Import zum automatisierten Ausfuellen.",
+      "pricing": "SaaS, arbeitgeberseitig; Preise nicht oeffentlich.",
+      "verdict": "optional - wenig oeffentliche technische Details zum genauen Formularschema, Feld-Mapping muss empirisch pro Karriereseite ermittelt werden."
+    },
+    {
+      "name": "rexx systems Recruiting",
+      "url": "https://www.rexx-systems.com/",
+      "category": "ATS/Formular-Plattform",
+      "access": "Formular auf Firmenkarriereseite, Struktur variiert je Kunde (frei gestaltbar oder schematisiert).",
+      "pricing": "SaaS, arbeitgeberseitig; Preise nicht oeffentlich.",
+      "verdict": "optional - kein einheitliches Formularschema wie bei Personio, daher pro Firma eigenes Feld-Mapping noetig."
+    },
+    {
+      "name": "BITE Bewerbermanager",
+      "url": "https://www.b-ite.de/bewerbermanager.html",
+      "category": "ATS/Formular-Plattform",
+      "access": "Klassisches Formular, XING/LinkedIn One-Click, WhatsApp-Bewerbung, Chatbot-Weg.",
+      "pricing": "SaaS, arbeitgeberseitig; Preise nicht oeffentlich.",
+      "verdict": "optional - alternative Kanaele (WhatsApp/Chatbot) erfordern Sonderlogik ausserhalb des Standard-Formular-Automatisierers."
+    },
+    {
+      "name": "StepStone (Schnellbewerbung / Connect)",
+      "url": "https://www.stepstone.de/",
+      "category": "Jobquelle",
+      "access": "Plattform-internes Formular; Nutzungsbedingungen verbieten Bots/Scraping/Automatisierung explizit.",
+      "pricing": "Fuer Bewerber kostenlos.",
+      "verdict": "vermeiden bei Vollautomatisierung - nur Co-Pilot (Mensch klickt Absenden), ToS-Verstoss sonst wahrscheinlich."
+    },
+    {
+      "name": "Indeed Apply",
+      "url": "https://de.indeed.com/",
+      "category": "Jobquelle",
+      "access": "Plattform-internes Formular via Indeed-Konto; ToS verbietet automatisierten Zugriff/robot/scraper ohne Erlaubnis sowie Automatisierung von Indeed Apply ausserhalb offizieller Partner-Tools.",
+      "pricing": "Fuer Bewerber kostenlos.",
+      "verdict": "vermeiden bei Vollautomatisierung - nur Co-Pilot-Muster, explizites ToS-Verbot der Apply-Automatisierung."
+    },
+    {
+      "name": "LinkedIn Easy Apply",
+      "url": "https://www.linkedin.com/",
+      "category": "Jobquelle",
+      "access": "Plattform-internes Formular, teils direkt aus Profil; User Agreement verbietet Bots/Erweiterungen/automatisierte Aktivitaet; aktive Bot-Erkennung (IP, Tempo, Sprachmuster).",
+      "pricing": "Fuer Bewerber kostenlos (Basic).",
+      "verdict": "vermeiden bei Vollautomatisierung - hoechstes Risiko fuer das persoenliche Karriere-Netzwerk des Nutzers; nur Co-Pilot mit residentieller IP und langsamem, sichtbarem Ablauf."
+    },
+    {
+      "name": "XING Sofort bewerben",
+      "url": "https://www.xing.com/",
+      "category": "Jobquelle",
+      "access": "Plattform-internes One-Click-Formular aus XING-Profil.",
+      "pricing": "Fuer Bewerber kostenlos (Basic).",
+      "verdict": "optional - aehnliches Risiko wie LinkedIn, aber geringere Nutzerbasis/geringere Datenlage zu Sperrpraxis; Co-Pilot-Muster bevorzugen."
+    },
+    {
+      "name": "JOIN (join.com)",
+      "url": "https://join.com/",
+      "category": "ATS/Formular-Plattform",
+      "access": "Formular auf Firmenkarriereseite/eingebettetem Widget; API v2 primaer fuer Arbeitgeberseite (Token-Auth).",
+      "pricing": "Fuer Arbeitgeber teilweise kostenlos (KMU-Fokus); fuer Bewerber kostenlos.",
+      "verdict": "empfohlen als Automatisierungsziel - v.a. bei KMU verbreitet, einfache Formularstruktur laut Anbieterangabe."
+    },
+    {
+      "name": "Playwright (Python/Node, direkte API)",
+      "url": "https://playwright.dev/",
+      "category": "Bibliothek",
+      "access": "Open Source (Apache 2.0), lokal installierbar, persistente Browser-Kontexte (launchPersistentContext), page.setInputFiles() fuer Datei-Upload.",
+      "pricing": "Kostenlos.",
+      "verdict": "empfohlen als Kern-Automatisierungsschicht - deterministisch, zuverlaessiger Datei-Upload, volle Kontrolle ueber Headless/Headed und Profil-Persistenz."
+    },
+    {
+      "name": "Playwright MCP (microsoft/playwright-mcp)",
+      "url": "https://github.com/microsoft/playwright-mcp",
+      "category": "MCP-Server",
+      "access": "MCP-Tool-Interface fuer Claude Code/Claude Desktop; nutzt Accessibility-Tree statt Vision; Datei-Upload laut Issue #31 (Stand Maerz 2025) eingeschraenkt/unklar - vor Einsatz verifizieren.",
+      "pricing": "Kostenlos (Open Source).",
+      "verdict": "optional/ergaenzend - gut fuer Navigation/Exploration/Debugging waehrend der Entwicklung, fuer den produktiven Upload-Schritt eigenes Playwright-Skript bevorzugen."
+    },
+    {
+      "name": "browser-use",
+      "url": "https://github.com/browser-use/browser-use",
+      "category": "Bibliothek",
+      "access": "Open Source (Python), treibt Playwright per LLM-Entscheidung an; Cloud-API optional.",
+      "pricing": "Bibliothek kostenlos; Cloud: 0,01 USD Task-Init + 20% Aufschlag auf LLM-Tokenkosten + Browserzeit (Stand 2025/2026).",
+      "verdict": "optional - guter Fallback fuer unbekannte Firmenformulare ohne festes Selektoren-Set, fuer Kernportale (Personio, SuccessFactors) unnoetig teuer/langsam."
+    },
+    {
+      "name": "Stagehand (Browserbase)",
+      "url": "https://docs.stagehand.dev/",
+      "category": "Bibliothek",
+      "access": "Open Source, lokal mit jedem Chromium-Browser nutzbar; Cloud-Zusatzfeatures (Captcha-Loesung, Residential-Proxy) ueber kostenpflichtiges Browserbase.",
+      "pricing": "Bibliothek kostenlos; Browserbase-Plaene ab ca. 20-99 USD/Monat oder individuell (Stand 2026).",
+      "verdict": "optional - relevant v.a. wenn Formulare in iframes/Shadow-DOM eingebettet sind (z.B. manche SuccessFactors/Workday-Widgets)."
+    },
+    {
+      "name": "Skyvern",
+      "url": "https://www.skyvern.com/",
+      "category": "SaaS",
+      "access": "Self-hosted via Docker (kostenlos) oder Cloud-API; Computer-Vision + LLM-Reasoning statt reiner Selektoren; bewirbt Job-Bewerbungen explizit als Anwendungsfall.",
+      "pricing": "Free/Hobby 29 USD/Monat/Pro 149 USD/Monat/Enterprise individuell; Cloud zusaetzlich 0,05 USD pro Schritt (Stand 2026).",
+      "verdict": "optional - interessant als robuster Fallback bei UI-Aenderungen, fuer 10 Bewerbungen/Tag mit bekannten Portalen aber teurer/komplexer als noetig."
+    },
+    {
+      "name": "Claude Computer Use / Browser-Use-Tool",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/browser-use-tool",
+      "category": "API",
+      "access": "Teil der Claude API (Tool Use); steuert Bildschirm/Browser per Screenshot-Loop; Standard-Token-Pricing.",
+      "pricing": "Nach Modell-Tokenpreis abgerechnet, kein separater Fixpreis (Stand 2026).",
+      "verdict": "optional - maechtig fuer visuelle/unbekannte UIs, fuer strukturierte Formularfelder ist ein Playwright-Skript guenstiger und schneller."
+    },
+    {
+      "name": "job-apply-plugin (Claude Code Plugin, neonwatty)",
+      "url": "https://github.com/neonwatty/job-apply-plugin",
+      "category": "CLI",
+      "access": "Open Source Claude-Code-Plugin; lokale Profilspeicherung (~/.job-apply/); Human-in-the-Loop-Stopps vor Login/Captcha und vor Submit.",
+      "pricing": "Kostenlos (Open Source); erfordert Claude-Zugang/Codex Browser.",
+      "verdict": "empfohlen als Referenzarchitektur - Human-in-the-Loop-Muster und lokale Datenhaltung direkt uebernehmbar; deckt aber keine deutschen ATS ab, muesste erweitert werden."
+    },
+    {
+      "name": "Simplify Copilot",
+      "url": "https://simplify.jobs/copilot",
+      "category": "SaaS",
+      "access": "Chrome-Erweiterung, DOM-basiertes Autofill auf 100+ ATS laut Eigenangabe.",
+      "pricing": "Kostenlos nutzbar (Grundfunktionen), Details 2025/2026 nicht vollstaendig recherchiert.",
+      "verdict": "vermeiden als Kernkomponente - Blackbox, Datenverarbeitung durch Dritten, kein Audit moeglich; allenfalls als Inspiration fuer Feld-Mapping-Heuristiken."
+    },
+    {
+      "name": "LazyApply",
+      "url": "https://www.lazyapply.com/",
+      "category": "SaaS",
+      "access": "Chrome-Erweiterung, Massen-Auto-Apply auf LinkedIn/Indeed/ZipRecruiter, keine IP-Rotation.",
+      "pricing": "Kostenpflichtiges Abo (genaue Preise nicht recherchiert).",
+      "verdict": "vermeiden - dokumentiertes Konto-Sperrrisiko, widerspricht dem Qualitaets-Leitsatz des Projekts."
+    },
+    {
+      "name": "Teal",
+      "url": "https://www.tealhq.com/",
+      "category": "SaaS",
+      "access": "Kostenlose Chrome-Erweiterung, Autofill + Bewerbungs-Tracker auf 40+ Jobboersen.",
+      "pricing": "Kostenlos.",
+      "verdict": "vermeiden als Kernkomponente (Blackbox), aber als persoenliches Zusatz-Tool fuer den Nutzer selbst unproblematisch/optional."
+    }
+  ],
+  "recommendations": [
+    "Co-Pilot statt Vollautomatisierung als Standardmodus fuer alle Plattform-Schnellbewerbungen (LinkedIn Easy Apply, Indeed Apply, XING Sofort bewerben, StepStone Schnellbewerbung): Playwright mit persistentem Chrome-Profil (launchPersistentContext, kein Headless), laeuft auf dem Rechner des Nutzers (residentielle IP), Agent fuellt alle Felder inkl. Lebenslauf-Upload und Anschreiben vor, Nutzer prueft die Checkliste und klickt selbst 'Absenden'.",
+    "Fuer ATS-Karriereseiten ohne aktive Bot-Abwehr (Personio, Softgarden, JOIN, tendenziell d.vinci/rexx) kann der Absende-Klick ebenfalls vom Menschen ausgeloest werden, aber ein hoeherer Automatisierungsgrad (bis kurz vor Submit vollautomatisch, inkl. mehrerer Bewerbungen im Batch) ist vertretbar, da hier kein explizites ToS-Verbot wie bei LinkedIn/Indeed/StepStone vorliegt.",
+    "SAP SuccessFactors und Workday jeweils mit eigenem Zugangsdaten-Tresor pro Arbeitgeber-Instanz behandeln (nicht global), da beide Systeme kontobasiert pro Firma sind; Passwortverwaltung z.B. ueber lokalen verschluesselten Store, keine Klartext-Ablage.",
+    "Datei-Upload (Lebenslauf-PDF) ausschliesslich ueber direktes Playwright-Skript (page.setInputFiles) implementieren, nicht ueber den Playwright-MCP-Server, bis dessen Upload-Unterstuetzung im aktuellen Release verifiziert ist.",
+    "Profil-JSON mit Standardantworten fest im System verankern: Gehaltsvorstellung (als Spanne + Zielwert), Kuendigungsfrist, fruehestes Eintrittsdatum, Arbeitserlaubnis-Status, Umzugsbereitschaft, 'Wie haben Sie von uns erfahren' - da diese Felder in praktisch jedem Formular (ATS wie Plattform) als Pflicht- oder Knockout-Frage vorkommen.",
+    "Nach jedem Absenden automatisch Screenshot der Bestaetigungsseite speichern, Tracking-/Referenz-ID extrahieren (falls vorhanden) und mit der spaeter eintreffenden Eingangsbestaetigungs-E-Mail verknuepfen - als Teil der taeglichen Review-Checkliste und als Nachweis-Ordner pro Bewerbung.",
+    "Auf LinkedIn/Indeed/XING keine Massen-Tools wie LazyApply/Simplify als Kernkomponente einsetzen; falls Easy-Apply-Automatisierung ueberhaupt gewuenscht ist, nur mit sehr geringer Frequenz (deutlich unter 10/Tag auf diesen Plattformen), menschlichem Timing (zufaellige Pausen, keine Skriptgeschwindigkeit) und ausschliesslich vom eigenen Nutzer-Rechner aus.",
+    "Fuer unbekannte/individuelle Firmenkarriereseiten ohne vorgefertigtes Selektoren-Set einen LLM-gestuetzten Fallback (browser-use oder Stagehand, lokal betrieben) vorsehen statt den gesamten Automatisierungs-Stack darauf aufzubauen - Kernportale deterministisch, Randfaelle LLM-gestuetzt.",
+    "DSGVO-Einwilligungs-Checkbox im Formular nicht vom Agenten automatisch anklicken/vorausfuellen lassen, sondern als expliziten, sichtbaren letzten Schritt im Human-Review belassen (passt zum ohnehin vorgesehenen Checklisten-Review vor Versand)."
+  ],
+  "risks": [
+    "Konto-Sperrung auf LinkedIn/Indeed/XING bei erkannter Automatisierung trifft das echte, langfristige Karriere-Profil und Netzwerk des Nutzers - nicht nur ein Wegwerf-Konto; Wiederherstellung/Einspruch hat laut Quellen geringe Erfolgsquote.",
+    "Workday-Instanzen mit Cloudflare-aehnlicher Bot-Abwehr koennen bei zu aggressiver/headless Automatisierung dauerhaft blockieren (IP-Reputation), was auch legitime spaetere manuelle Bewerbungen des Nutzers erschweren kann.",
+    "Zivilrechtliche Ansprueche (Unterlassung, Vertragsstrafe) durch Plattformbetreiber sind trotz guenstigerer strafrechtlicher Lage (hiQ-Praezedenzfall, nur US-Recht) nicht ausgeschlossen und in Deutschland/EU rechtlich nicht identisch geprueft.",
+    "Datei-Upload-Luecke im offiziellen Playwright-MCP-Server kann zu stillen Fehlschlaegen fuehren, wenn nicht explizit mit eigenem Skript abgesichert - Risiko unvollstaendiger Bewerbungen ohne Lebenslauf.",
+    "Automatisiertes Anklicken der DSGVO-Einwilligungs-Checkbox ohne echten, bewussten Nutzerbezug ist datenschutzrechtlich angreifbar (Freiwilligkeitsgrundsatz) und sollte vermieden werden.",
+    "Chrome-Erweiterungen Dritter (Simplify, LazyApply, Teal) verarbeiten Bewerberdaten (Lebenslauf, Kontaktdaten) auf fremden Servern ausserhalb unserer Kontrolle - Datenschutz- und Vertraulichkeitsrisiko, falls als Kernkomponente genutzt.",
+    "Captcha-Loesungsdienste (2captcha o.ae.) sind fuer diesen Anwendungsfall ethisch/rechtlich riskant, da sie aktiv Anti-Bot-Massnahmen des Formularbetreibers umgehen - nicht empfohlen, auch wenn technisch verfuegbar.",
+    "Unterschiedliche Formularschemata pro ATS-Anbieter (fixe vs. frei konfigurierbare Felder bei z.B. rexx/d.vinci) erfordern kontinuierliche Pflege der Selektoren-/Feld-Mapping-Bibliothek - Wartungsaufwand nicht einmalig, sondern laufend."
+  ],
+  "open_questions_for_user": [
+    "Soll LinkedIn/XING Easy-Apply/Sofort-bewerben ueberhaupt automatisiert werden (auch nur als Co-Pilot), oder soll der Nutzer diese Bewerbungen grundsaetzlich manuell abschliessen, um jedes Restrisiko fuer das bestehende LinkedIn-Netzwerk auszuschliessen?",
+    "Soll fuer SAP SuccessFactors/Workday pro Arbeitgeber ein neues Bewerber-Konto automatisch angelegt werden (inkl. automatisch generiertem Passwort im Tresor), oder soll die Kontoerstellung immer manuell vom Nutzer erfolgen?",
+    "Gibt es beim Nutzer bereits ein gepflegtes XING- und/oder LinkedIn-Profil, das als Datenquelle fuer das Profil-JSON (Standardantworten, Werdegang) dienen kann, oder muss dieses Profil komplett neu aus dem Lebenslauf abgeleitet werden?",
+    "Wie soll mit Firmenkarriereseiten umgegangen werden, die weder zu den hier recherchierten ATS-Anbietern gehoeren noch offensichtlich Personio/SuccessFactors/Workday-URLs verwenden (individuelle Eigenentwicklungen) - LLM-Fallback automatisch versuchen oder grundsaetzlich als 'manuell zu bearbeiten' markieren?"
+  ],
+  "search_log": [
+    "Personio Karriereseite Bewerbungsformular Pflichtfelder Lebenslauf Upload",
+    "SAP SuccessFactors Recruiting Bewerbung Account erstellen Pflicht Candidate Profile",
+    "Workday Bewerbung Account Erstellung erforderlich \"create account\" job application",
+    "Softgarden Bewerbungsformular Bewerbermanagement Funktionen 2025",
+    "d.vinci Bewerbermanagementsystem Formular Bewerbung Recruiting",
+    "rexx systems Bewerbermanagement Bewerbungsformular Recruiting",
+    "BITE Bewerbermanagementsystem ATS Formular Recruiting",
+    "StepStone Schnellbewerbung Express-Bewerbung Funktion Bewerber",
+    "Indeed Apply Schnellbewerbung Bewerbungsformular Felder",
+    "LinkedIn Easy Apply Automatisierung Account gesperrt Bot Erkennung",
+    "XING \"Sofort bewerben\" Bewerbungsprozess Profil",
+    "JOIN join.com Bewerbungsformular API Bewerbermanagement",
+    "Playwright MCP server browser automation Claude",
+    "browser-use Python library agent web automation 2025",
+    "Stagehand browserbase AI browser automation framework",
+    "Skyvern AI browser agent form filling pricing",
+    "Claude computer use browser automation job application pricing",
+    "Simplify Chrome extension autofill job application ban",
+    "LazyApply auto apply extension review LinkedIn ban risk",
+    "Teal Chrome extension job application tracker autofill",
+    "Cloudflare Turnstile Bot-Erkennung Playwright Umgehung Detection",
+    "reCAPTCHA v3 detection headless browser automation score",
+    "hCaptcha bot detection bypass automation legal",
+    "LinkedIn Nutzungsbedingungen automatisierte Bewerbung Scraping verboten Terms of Service",
+    "Playwright persistent context CDP Chrome extension profile automation human in the loop",
+    "ATS Knockout-Fragen Gehaltsvorstellung Kündigungsfrist Arbeitserlaubnis Bewerbungsformular",
+    "StepStone Nutzungsbedingungen automatisierte Bewerbung API Scraping verboten",
+    "Indeed Nutzungsbedingungen Terms of Service automation bots prohibited",
+    "Personio Recruiting API Bewerbung erstellen automatisiert",
+    "Workday captcha Cloudflare bot detection job application automation reddit",
+    "\"Job Application Assistant\" Claude Code Skill Workday Greenhouse LinkedIn Easy Apply mcpmarket",
+    "DSGVO Einwilligung Checkbox Bewerbungsformular automatisiert ausfüllen",
+    "Workday resume parsing schlecht Kritik Bewerber Erfahrung Formular ausfüllen dauert lange",
+    "n8n Bewerbung automatisieren Workflow Jobsuche Deutschland",
+    "Bewerbungsbestätigung Screenshot Nachweis Tracking Bewerbungsstatus E-Mail Eingangsbestätigung",
+    "Chrome extension automation detected fingerprinting job portal Cloudflare Bewerbung Deutschland 2026",
+    "AGB Verstoß Automatisierung eigene Bewerbung rechtliche Folgen Deutschland Hausrecht Vertragsstrafe",
+    "Playwright MCP file upload set_input_files Dateiupload Formular",
+    "Skyvern job application automation platform banned detected",
+    "browser-use cloud pricing API cost per task",
+    "Indeed Resume Upload PDF Formatierung Datenschutz Bewerber Account erforderlich",
+    "LinkedIn \"Apply with profile\" resume required company career site redirect",
+    "LinkedIn cease desist lawsuit automation tool company hiQ Labs precedent",
+    "StepStone \"1-Klick-Bewerbung\" OR \"Direktbewerbung\" Profil Prozess",
+    "microsoft/playwright-mcp GitHub Issue #31 (WebFetch)",
+    "neonwatty/job-apply-plugin GitHub README (WebFetch)"
+  ],
+  "verification_notes": [
+    "[verify-A 2026-09-08] KORREKTUR Playwright MCP: aktuelles README (npm @playwright/mcp 0.0.80) dokumentiert das Tool browser_file_upload (paths: absolute Dateipfade, mehrere Dateien möglich, via File-Chooser). Issue #31 (März 2025) ist überholt; Upload ist kein Show-Stopper mehr. Eigenes setInputFiles-Skript bleibt als robuste Alternative empfehlenswert.",
+    "[verify-A] Workday-Kandidatenkonto-, SuccessFactors- und Personio-10-MB-Aussagen in dieser Session nicht verifizierbar (Egress-Sperre).",
+    "[verify-A] Tika-Hinweis aus ats.json gilt auch hier: für Parsing-Tests Tika 4.0.0 verwenden."
+  ]
+}

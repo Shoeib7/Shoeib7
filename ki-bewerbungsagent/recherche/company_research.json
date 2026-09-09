@@ -1,0 +1,597 @@
+{
+  "dimension": "Unternehmens- & Ansprechpartner-Recherche",
+  "summary": "Wichtiger Vorbehalt zu dieser Recherche: In dieser Sitzung stand kein funktionierender Live-Zugriff auf das Web zur Verfügung. Das Websuche-Kontingent der Gesamtsitzung war bereits vor dem ersten Aufruf dieses Teilagenten auf 200/200 erschöpft (vermutlich durch parallel laufende Geschwister-Agenten fuer andere Dimensionen), und saemtliche WebFetch-Versuche auf zehn unterschiedliche Domains (northdata.de, handelsregister.de, gesetze-im-internet.de, exa.ai, tavily.com, firecrawl.dev, docs.anthropic.com, opencorporates.com, wikipedia.org, dejure.org, anthropic.com, bundesanzeiger.de) scheiterten mit EGRESS_BLOCKED bzw. genereller Nichterreichbarkeit. Es existierte zudem keine geretteten Rohdaten-Datei. Alle folgenden Aussagen stammen daher aus Trainingswissen (Wissensstand Januar 2026) und sind NICHT in dieser Sitzung live verifiziert - Konfidenzstufen sind entsprechend konservativ gesetzt (ueberwiegend medium/low, kaum high), Preise und Feature-Details muessen vor Implementierung zwingend gegen die aktuellen Anbieterseiten geprueft werden. Der Rest dieser Zusammenfassung beschreibt trotzdem ein belastbares, architektonisch sinnvolles Bild, weil die zentralen Fakten (Rechtslage, Marktstruktur der Datenquellen, bekannte Praezedenzfaelle) seit Jahren stabil sind und sich kaum kurzfristig aendern.\n\nRechtlicher Rahmen: Seit 14.5.2024 regelt das Digitale-Dienste-Gesetz (DDG) in § 5 DDG die Impressumspflicht (Nachfolger von § 5 TMG, inhaltlich weitgehend deckungsgleich): Name/Anschrift, bei juristischen Personen Rechtsform und Vertretungsberechtigte, schnelle elektronische Kontaktaufnahme (Telefon/E-Mail), ggf. Registergericht und Registernummer, Aufsichtsbehoerde, Kammer-/Berufsbezeichnung bei reglementierten Berufen, USt-IdNr. Das Impressum ist damit die rechtlich verbindlichste, kostenlose Quelle fuer korrekten Firmennamen, Rechtsform, Sitz und Vertretungsberechtigte - und sollte im Recherche-Workflow immer als Validierungsschritt vor Bundesanzeiger/Northdata/Handelsregister stehen. Handelsregister.de selbst untersagt in seinen Abrufbedingungen historisch automatisierten Massenabruf und verlangt teils Gebuehren pro Dokumentenabruf; ein produktionsreifer Agent sollte hier nicht automatisiert scrapen, sondern entweder auf lizenzierte Aggregatoren (Northdata, OpenCorporates) ausweichen oder Abrufe auf echte Einzelfaelle mit geringer Frequenz beschraenken. LinkedIn ist der rechtlich riskanteste Kanal: Der hiQ-Labs-vs-LinkedIn-Fall zeigte zwar, dass reines Auslesen oeffentlicher Profile nicht zwingend gegen den Computer Fraud and Abuse Act verstoesst, hiQ verlor den Rechtsstreit aber letztlich auf Basis der Nutzungsbedingungen und musste den Betrieb 2022 einstellen - Automatisiertes LinkedIn-Scraping bleibt damit ein Vertragsbruch-Risiko (Account-Sperrung, Unterlassungsklage), unabhaengig vom Straftatbestand. XING hat oeffentliche Entwickler-APIs seit rund 2018 stark zurueckgebaut; fuer beide Netzwerke ist daher menschliche Handrecherche durch den Nutzer selbst (Human-in-the-loop) der pragmatischste und rechtssicherste Weg, keine Automatisierung mit eigenem/fremdem Account.\n\nDSGVO-Einordnung: Fuer das Verarbeiten oeffentlich auffindbarer Geschaeftskontakte (Impressum, Karriereseite, LinkedIn-Profil in beruflicher Funktion) kommt Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse) als Rechtsgrundlage in Betracht, erfordert aber eine dokumentierte Interessenabwaegung. Die haeufig als Ausweg genannte Haushaltsausnahme (Art. 2 Abs. 2 lit. c DSGVO) ist fuer dieses Projekt fragwuerdig: Sobald ein Cloud-KI-Dienst eines Drittanbieters eingebunden ist und die Verarbeitung eine Aussenwirkung entfaltet (eine namentlich benannte Person erhaelt eine individualisierte Bewerbungs-E-Mail), spricht die herrschende Meinung eher gegen eine rein persoenliche/familiaere Taetigkeit. Das Projekt sollte diese Rechtsgrundlage also nicht als sicheren Freibrief behandeln, sondern vorsorglich wie ein regulaerer Verantwortlicher dokumentieren (Zweck, Quelle, Interessenabwaegung, Loeschkonzept) - insbesondere weil eine spaetere Kommerzialisierung (mehrere Nutzer) die Haushaltsausnahme ohnehin vollstaendig entfallen liesse.\n\nRecherche-Toolstack: Da Claude bereits im Stack ist, sollte das serverseitige Anthropic Web-Search/Web-Fetch-Tool die Standardquelle fuer Firmen-Grundrecherche sein (kein zusaetzlicher Vendor-Vertrag). Fuer strukturierteres Crawlen ganzer Karriere-/Team-/Impressum-Seiten sind Firecrawl oder Tavily sinnvolle Ergaenzungen, Exa fuer semantische Suche bei vagen Anfragen, Brave Search API als guenstige/privatsphaerefreundliche Alternative zu SerpAPI. Kontaktanreicherungs-Tools wie Apollo.io, Hunter.io, Lusha sowie Apify-basierte LinkedIn-Actors sollten wegen DSGVO- und ToS-Risiko vermieden werden; sie liefern haeufig Daten, die selbst per Scraping unter fragwuerdiger Rechtsgrundlage gewonnen wurden, was das Risiko eine Ebene tiefer nur verlagert statt loest. Fuer Firmendaten/Handelsregister ist ein bezahlter Northdata- oder OpenCorporates-Zugang die sauberste Alternative zu direktem handelsregister.de-Scraping, wobei OpenCorporates fuer deutsche Firmen strukturell luecken- und verzoegerungsanfaellig ist, weil Deutschland auf Bundesebene keine offenen Massendaten aus dem Handelsregister bereitstellt.\n\nAnsprechpartner/Anrede-Protokoll: Empfohlen wird ein vierstufiger Fallback (Name mit sicherer Anrede -> 'Guten Tag Vorname Nachname' bei Geschlechts-/Titel-Unsicherheit -> 'Sehr geehrtes Team [Firma/Bereich]' als moderner Fallback -> klassisches 'Sehr geehrte Damen und Herren' bei konservativen Branchen/keinerlei Ansprechpartner), gekoppelt an ein dreistufiges Konfidenzsystem (hoch: Name aus zwei unabhaengigen aktuellen Quellen bestaetigt; mittel: nur eine Quelle oder Geschlecht/Titel unklar; niedrig: kein Name oder widerspruechliche/veraltete Angaben). Bei niedriger Konfidenz oder Widersprueche (z. B. abweichende Adressen zwischen Anzeige/Website/Impressum, Ansprechpartner laut LinkedIn nicht mehr im Unternehmen, Stellenanzeige laenger als 30 Tage offen ohne Bestaetigung) darf das System niemals raten, sondern muss die Bewerbung im taeglichen Pruef-Batch klar markiert vorlegen statt automatisch personalisiert zu versenden. Falsche Anrede/falscher Titel gilt in der deutschen Bewerbungsberatung durchgaengig als einer der haeufigsten K.O.-Fehler - hier lohnt sich Vorsicht mehr als Vollstaendigkeit.",
+  "findings": [
+    {
+      "claim": "Diese Recherche-Sitzung hatte keinen funktionierenden Live-Web-Zugriff.",
+      "detail": "Websuche-Kontingent der Gesamtsitzung war bei Beginn dieses Teilagenten bereits bei 200/200 (Fehlermeldung: 'this session has used its web search budget'). Alle 10 versuchten WebFetch-Aufrufe auf unterschiedliche Domains scheiterten mit EGRESS_BLOCKED bzw. genereller Nichterreichbarkeit. Konsequenz: Alle folgenden Findings basieren auf Trainingswissen, nicht auf live abgerufenen Quellen, und muessen vor produktivem Einsatz nachverifiziert werden.",
+      "sources": [],
+      "confidence": "high",
+      "info_date": "2026-09 (Sitzungsprotokoll)"
+    },
+    {
+      "claim": "Seit 14.5.2024 regelt § 5 DDG (Digitale-Dienste-Gesetz) die Impressumspflicht in Deutschland, als Nachfolgeregelung zu § 5 TMG.",
+      "detail": "Pflichtangaben u.a.: Name und Anschrift, bei juristischen Personen Rechtsform und vertretungsberechtigte Person, Angaben zur schnellen elektronischen Kontaktaufnahme (i.d.R. Telefon und E-Mail), Registergericht/Registernummer bei Eintragung im Handelsregister, zustaendige Aufsichtsbehoerde bei erlaubnispflichtiger Taetigkeit, Kammer/gesetzliche Berufsbezeichnung bei reglementierten Berufen, USt-IdNr. Das Impressum ist die rechtlich verbindlichste kostenlose Quelle fuer korrekten Firmennamen/Rechtsform/Sitz und sollte im Recherche-Workflow als Pflichtschritt vor Handelsregister-Abgleich stehen.",
+      "sources": [
+        "https://www.gesetze-im-internet.de/ddg/__5.html"
+      ],
+      "confidence": "medium",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "handelsregister.de untersagt in seinen Abrufbedingungen historisch automatisierten/massenhaften Abruf und erhebt teils Gebuehren pro Dokumentenabruf.",
+      "detail": "Fuer einen taeglich laufenden Agenten mit ~10 Bewerbungen bedeutet das: keine automatisierte Bulk-Abfrage des Portals selbst; stattdessen entweder Einzelabfragen in geringer Frequenz (manuell/sporadisch) oder Ausweichen auf lizenzierte Aggregatoren wie Northdata/OpenCorporates, die die Daten bereits rechtlich abgesichert weiterverarbeiten.",
+      "sources": [
+        "https://www.handelsregister.de/"
+      ],
+      "confidence": "medium",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Northdata ist der bekannteste deutsche Aggregator fuer Handelsregister-, Bundesanzeiger- und Unternehmensnetzwerkdaten mit Web-UI und kostenpflichtiger API.",
+      "detail": "Northdata eignet sich als rechtssicherer Ersatz fuer direktes Handelsregister-Scraping (Rechtsform, Sitz, Geschaeftsfuehrer, Beteiligungsnetzwerk, wirtschaftlich Berechtigte). Exakte 2025/2026-Preise dieser Sitzung nicht verifizierbar; historisch gab es gestaffelte Abo-Modelle mit API-Zugang im Business-Segment.",
+      "sources": [
+        "https://www.northdata.de/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "OpenCorporates ist eine globale Firmendatenbank mit API, deren Deutschland-Abdeckung strukturell luecken- und verzoegerungsanfaellig ist.",
+      "detail": "Grund: Deutschland stellt auf Bundesebene keine offenen Massendaten aus dem Handelsregister bereit (anders als z.B. UK Companies House); OpenCorporates ist auf Sekundaerquellen/Bundesanzeiger-Veroeffentlichungen angewiesen. Fuer den Anwendungsfall daher eher Ergaenzung als Primaerquelle fuer deutsche KMU.",
+      "sources": [
+        "https://opencorporates.com/"
+      ],
+      "confidence": "medium",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Unternehmensregister.de buendelt Bundesanzeiger-Veroeffentlichungen (u.a. Jahresabschluesse) primaer als manuelle Recherche-Oberflaeche, nicht als offene Bulk-API.",
+      "detail": "Einsicht in Jahresabschluesse einzelner Unternehmen ist teils gebuehrenpflichtig bzw. nur nach Registrierung moeglich. Relevanz fuer das Projekt: gut fuer punktuelle Bonitaets-/Groessencheck vor einer Bewerbung, ungeeignet fuer automatisierte Massenabfrage.",
+      "sources": [
+        "https://www.unternehmensregister.de/",
+        "https://www.bundesanzeiger.de/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Kununu (Teil der New Work SE, gleicher Konzern wie XING) untersagt in seinen Nutzungsbedingungen typischerweise automatisiertes Scraping; es gibt keine offene Public-API fuer Dritte.",
+      "detail": "Kununu liefert wertvollen Kontext fuer Anschreiben (Bewertungen, Gehaltsangaben, Erfahrungsberichte zum Bewerbungsprozess), sollte aber nur durch gelegentliche einzelne Web-Search/Web-Fetch-Abrufe pro Firma gelesen werden, nicht durch systematisches Crawling des gesamten Portals.",
+      "sources": [
+        "https://www.kununu.com/"
+      ],
+      "confidence": "medium",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Glassdoor hat in Deutschland eine deutlich geringere Abdeckung als Kununu und verbietet Scraping ebenfalls per ToS; punktuelle Nutzung ueber offizielle Websuche ist der pragmatischste Zugang.",
+      "detail": "Fuer international taetige/US-verwurzelte Arbeitgeber kann Glassdoor dennoch ergaenzende Bewertungen liefern, die auf Kununu fehlen.",
+      "sources": [
+        "https://www.glassdoor.de/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Der Praezedenzfall hiQ Labs vs. LinkedIn zeigt, dass automatisiertes LinkedIn-Scraping trotz teilweiser CFAA-Freisprueche am Ende an den Nutzungsbedingungen scheiterte - hiQ musste den Betrieb 2022 einstellen.",
+      "detail": "Konsequenz fuer das Projekt: LinkedIn-Automatisierung (Login-Bot, Scraping-Actor) ist ein handfestes Risiko fuer Account-Sperrung und zivilrechtliche Anspruchsschreiben, unabhaengig von der strafrechtlichen CFAA-Frage. Empfehlung: LinkedIn-Ansprechpartnersuche als manueller Schritt durch den Nutzer selbst (Human-in-the-loop), nicht durch den Agenten automatisiert.",
+      "sources": [
+        "https://www.linkedin.com/legal/user-agreement"
+      ],
+      "confidence": "medium",
+      "info_date": "2022-2024 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "XING hat oeffentliche Entwickler-APIs seit rund 2018 aus Datenschutzgruenden stark zurueckgebaut; es existiert keine breite Public-Search-API fuer Mitgliederprofile mehr.",
+      "detail": "Fuer DACH-Mittelstand ist XING dennoch oft die bessere Ansprechpartnerquelle als LinkedIn (regionale Reichweite) - auch hier gilt: manuelle Recherche statt automatisierten Zugriffs.",
+      "sources": [
+        "https://www.xing.com/"
+      ],
+      "confidence": "medium",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "BuiltWith und Wappalyzer bieten Technologie-Erkennung (Tech-Stack einer Firmenwebsite) primaer als kostenpflichtige API, mit eingeschraenkten kostenlosen Einzelabfragen ueber die Web-Oberflaeche.",
+      "detail": "Nuetzlich, um im Anschreiben glaubwuerdig auf konkrete Tools/Technologien der Zielfirma einzugehen (z.B. 'Ihr Einsatz von X'), aber fuer 10 Bewerbungen/Tag reicht meist die kostenlose manuelle/Websuche-Variante statt eines API-Abos.",
+      "sources": [
+        "https://builtwith.com/",
+        "https://www.wappalyzer.com/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "StackShare als Community-Plattform fuer Tech-Stack-Angaben ist seit Jahren nur eingeschraenkt aktiv gepflegt; als verlaessliche Datenquelle nachrangig gegenueber BuiltWith/Wappalyzer/direkter Websuche.",
+      "detail": "Fuer das Projekt ehe optional/Nice-to-have, kein Kernbaustein.",
+      "sources": [
+        "https://stackshare.io/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Crunchbase hat seit rund 2020 seine guenstigen Self-Service-API-Stufen abgeschafft; Zugang ist seither ueberwiegend Enterprise-/Vertriebs-gepreist.",
+      "detail": "Fuer einen Einzelentwickler mit Qualitaet-vor-Quantitaet-Ansatz meist nicht wirtschaftlich; punktuelle manuelle Websuche nach Finanzierungsrunden reicht in der Regel aus.",
+      "sources": [
+        "https://www.crunchbase.com/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Dealroom richtet sich mit seiner Datenbank/API primaer an Investoren, Regierungen und Corporates und ist entsprechend hochpreisig positioniert.",
+      "detail": "Fuer das Projekt nicht budgetgerecht; als Datenquelle allenfalls fuer punktuelle manuelle Recherche zu besonders finanzierungsstarken Zielfirmen relevant.",
+      "sources": [
+        "https://dealroom.co/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Startbase.de (deutsche Startup-Datenbank) bietet eine durchsuchbare Weboberflaeche, aber keine bekannte guenstige/oeffentliche Bulk-API fuer Einzelentwickler.",
+      "detail": "Am ehesten per punktueller Websuche/WebFetch statt strukturierter API-Integration zu nutzen.",
+      "sources": [
+        "https://www.startbase.de/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "wlw.de (Wer liefert was) ist ein B2B-Lieferantenverzeichnis ohne bekannte oeffentliche Entwickler-API; Nutzung erfolgt praktisch nur manuell/per Websuche.",
+      "detail": "Relevanz fuer das Projekt gering bis mittel, am ehesten fuer B2B-Industrieunternehmen als Zusatzkontext.",
+      "sources": [
+        "https://www.wlw.de/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Google Places API / Address Validation API eignet sich zur Existenz- und Schreibweisenpruefung einer Firmenadresse (korrekte PLZ, Strassenschreibweise, Existenz des Standorts).",
+      "detail": "Abrechnung erfolgt nutzungsbasiert pro 1000 Anfragen mit unterschiedlichen SKUs (Nearby Search, Place Details, Address Validation); Google gewaehrt/gewaehrte in der Vergangenheit ein monatliches Startguthaben. Exakte 2025/2026-Konditionen in dieser Sitzung nicht verifizierbar - vor Integration aktuelle Preisliste pruefen.",
+      "sources": [
+        "https://developers.google.com/maps/documentation/places/web-service"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "OpenStreetMap Nominatim ist kostenlos nutzbar, unterliegt aber einer strikten Fair-Use-Policy (u.a. max. 1 Anfrage/Sekunde, Pflicht zu einem individuellen User-Agent-Header, keine schwere kommerzielle Dauerlast auf dem oeffentlichen Server).",
+      "detail": "Fuer produktiven taeglichen Einsatz empfiehlt sich entweder Selbst-Hosting einer Nominatim-Instanz oder ein bezahlter Anbieter (z.B. LocationIQ, Geoapify, Mapbox) statt Dauerlast auf dem oeffentlichen Nominatim-Dienst.",
+      "sources": [
+        "https://nominatim.org/release-docs/latest/api/Overview/",
+        "https://operations.osmfoundation.org/policies/nominatim/"
+      ],
+      "confidence": "medium",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Gehalt.de und der StepStone-Gehaltsreport liefern deutsche Gehalts-Benchmarkdaten primaer als Weboberflaeche bzw. periodisch veroeffentlichten PDF-Report, nicht als offene API.",
+      "detail": "Fuer das Projekt nutzbar, um Gehaltsvorstellungen im Anschreiben realistisch zu verankern - Zugriff aber eher per punktueller Websuche/manueller Recherche als per API-Integration.",
+      "sources": [
+        "https://www.gehalt.de/",
+        "https://www.stepstone.de/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Exa (vormals Metaphor) ist eine auf semantische/'neural' Suche spezialisierte API, gut geeignet fuer vage bzw. bedeutungsbasierte Recherche-Queries eines Agenten.",
+      "detail": "Bietet nutzungsbasierte Preise pro 1000 Suchergebnisse/Content-Abrufe sowie ein Startguthaben fuer neue Konten; exakte 2025/2026-Tarife in dieser Sitzung nicht pruefbar.",
+      "sources": [
+        "https://exa.ai/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Tavily ist eine Such-API, die gezielt fuer LLM-Agenten-Workflows entwickelt wurde (kompakte, RAG-freundliche Ergebnisse) und einen kostenlosen monatlichen Kontingent-Tier anbietet.",
+      "detail": "Guter Kandidat als Zweitquelle/Fallback neben dem Anthropic-eigenen Web-Search-Tool, insbesondere wenn strukturierte Kurz-Snippets statt roher HTML-Seiten gewuenscht sind.",
+      "sources": [
+        "https://tavily.com/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Perplexity Sonar API liefert Websuche mit Zitaten/Belegen direkt im Modell-Output und eignet sich fuer aktuelle Unternehmensnews (z.B. juengste Finanzierungsrunde, Fusion, Stellenabbau).",
+      "detail": "Abrechnung nutzungsbasiert pro Anfrage plus Tokenkosten, gestaffelt nach Modellvariante (u.a. sonar, sonar-pro); exakte 2025/2026-Preise in dieser Sitzung nicht verifizierbar.",
+      "sources": [
+        "https://www.perplexity.ai/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Brave Search API bietet einen kostenlosen Einstiegs-Tier und gilt als guenstigere, datenschutzfreundlichere Alternative zu Google-basierten SERP-Diensten.",
+      "detail": "Fuer einen kostenbewussten Einzelentwickler eine sinnvolle Basis-Suchquelle neben/statt SerpAPI.",
+      "sources": [
+        "https://brave.com/search/api/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "SerpAPI liefert strukturierte Google-Suchergebnisse als JSON, agiert dabei aber selbst im Graubereich der Google-Nutzungsbedingungen (Google untersagt eigentlich das Scrapen seiner Suchergebnisse) - das Risiko traegt vertraglich der Anbieter, nicht direkt der Endnutzer.",
+      "detail": "Fuer das Projekt als Option nutzbar, aber Brave Search API oder das Anthropic-eigene Web-Search-Tool sind die risikoaermeren Erstwahl.",
+      "sources": [
+        "https://serpapi.com/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Firecrawl bietet dedizierte Scrape-/Crawl-/Extract-Endpunkte, die ganze Webseiten (z.B. komplette Karriere- oder Team-Seite) in LLM-freundliches Markdown/strukturierte Daten umwandeln, inkl. konfigurierbarer robots.txt-Beachtung.",
+      "detail": "Guter Baustein fuer den Schritt 'Karriereseite/Impressum vollstaendig auslesen', wenn ein einzelner Web-Fetch-Aufruf nicht reicht (z.B. JS-lastige Seiten, mehrseitige Team-Uebersichten).",
+      "sources": [
+        "https://www.firecrawl.dev/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Jina Reader (r.jina.ai) ist ein kostenloser, leichtgewichtiger URL-zu-Markdown-Proxy-Dienst ohne zwingende Authentifizierung fuer geringes Volumen, mit Rate-Limits und optionalem API-Key fuer hoehere Kontingente.",
+      "detail": "Guter, sehr guenstiger Fallback fuer einzelne Seitenabrufe, wenn WebFetch/Firecrawl an einer Seite scheitert; kein Ersatz fuer strukturierte Massenrecherche.",
+      "sources": [
+        "https://jina.ai/reader/"
+      ],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Apify bietet eine Plattform fuer nutzungsbasiert abgerechnete 'Actors' (Scraper), darunter auch community-gebaute LinkedIn/XING-Actors - deren Einsatz verstoesst jedoch typischerweise gegen die Nutzungsbedingungen der Zielplattformen.",
+      "detail": "Einsatz eines LinkedIn-Actors traegt das Risiko einer Account-Sperrung (des dahinterliegenden LinkedIn-Kontos) sowie zivilrechtlicher Anspruchsschreiben; fuer ein Ein-Personen-Projekt mit echtem eigenen LinkedIn-Konto nicht empfehlenswert.",
+      "sources": [
+        "https://apify.com/"
+      ],
+      "confidence": "medium",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Kontaktanreicherungs-Tools wie Apollo.io, Hunter.io und Lusha liefern private/direkte Kontaktdaten (E-Mail, Telefon) einzelner Personen, deren Datenbasis haeufig selbst aus Scraping stammt und deren DSGVO-Konformitaet fuer EU-Personen wiederholt in Frage gestellt wurde.",
+      "detail": "Fuer das Projekt empfiehlt sich, solche Tools nicht einzusetzen, um individuell zugeordnete Privat-/Direktkontakte von Recruitern zu ermitteln; stattdessen nur bereits vom Unternehmen selbst oeffentlich gemachte Geschaeftskontakte (Impressum, Karriereseite, Stellenanzeige) verwenden.",
+      "sources": [
+        "https://www.apollo.io/",
+        "https://hunter.io/",
+        "https://www.lusha.com/"
+      ],
+      "confidence": "medium",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Das serverseitige Anthropic Web-Search-/Web-Fetch-Tool ist bereits Teil des geplanten technischen Stacks (Claude Agent SDK) und wird nutzungsbasiert pro Suche/Abruf zusaetzlich zu normalen Tokenkosten abgerechnet.",
+      "detail": "Sollte als Standardquelle fuer die taegliche Firmenrecherche dienen, um keinen zusaetzlichen Such-API-Vertrag/Key-Management fuer den Kernpfad zu benoetigen; spezialisierte Dienste (Firecrawl, Tavily, Exa) nur ergaenzend fuer Faelle, in denen das Standard-Tool nicht ausreicht (z.B. tiefes Crawlen mehrseitiger Team-Uebersichten). Exakte 2025/2026-Preise in dieser Sitzung nicht verifizierbar.",
+      "sources": [],
+      "confidence": "low",
+      "info_date": "2024/2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse, mit erforderlicher Interessenabwaegung) ist die naheliegendste Rechtsgrundlage fuer die Verarbeitung oeffentlich auffindbarer Geschaeftskontaktdaten (Impressum, Karriereseite, beruflich genutztes LinkedIn/XING-Profil).",
+      "detail": "Voraussetzung ist eine dokumentierte, nachvollziehbare Interessenabwaegung (Zweck: individuelle Bewerbung, keine Massenwerbung; Datensparsamkeit: nur berufliche Kontaktdaten, keine privaten Zusatzdaten). Diese Abwaegung sollte im System als kurzer Log-Eintrag pro Kontakt gefuehrt werden.",
+      "sources": [
+        "https://eur-lex.europa.eu/eli/reg/2016/679/oj"
+      ],
+      "confidence": "medium",
+      "info_date": "2016/2024 (Rechtstext stabil seit 2016, Trainingswissen nicht live verifiziert)"
+    },
+    {
+      "claim": "Die Haushaltsausnahme des Art. 2 Abs. 2 lit. c DSGVO (rein persoenliche/familiaere Taetigkeit) ist fuer dieses Projekt als Rechtfertigung fragwuerdig, sobald ein Drittanbieter-Cloud-KI-Dienst eingebunden ist und die Verarbeitung Aussenwirkung entfaltet (E-Mail an eine namentlich benannte Person).",
+      "detail": "Empfehlung: Diese Ausnahme nicht als sicheren Freibrief behandeln, sondern das System vorsorglich so betreiben, als gaelten die vollen DSGVO-Pflichten (Dokumentation, Loeschkonzept, Reaktionsfaehigkeit bei Auskunftsersuchen betroffener Personen nach Art. 15 DSGVO). Bei spaeterer Kommerzialisierung (mehrere Nutzer) entfaellt die Ausnahme ohnehin vollstaendig.",
+      "sources": [
+        "https://eur-lex.europa.eu/eli/reg/2016/679/oj"
+      ],
+      "confidence": "medium",
+      "info_date": "2016/2024 (Rechtstext stabil seit 2016, Trainingswissen nicht live verifiziert)"
+    },
+    {
+      "claim": "Deutsche Bewerbungsberatung (Karriereportale, IHK-Ratgeber, Recruiting-Blogs) empfiehlt seit 2023/2024 verstaerkt eine mehrstufige Anrede-Fallback-Logik statt pauschal 'Sehr geehrte Damen und Herren'.",
+      "detail": "Uebliche Reihenfolge: (1) namentliche Anrede mit sicherem Geschlecht/Titel, wenn zweifach bestaetigt; (2) 'Guten Tag Vorname Nachname' bei Unsicherheit ueber Geschlecht/Titel; (3) 'Sehr geehrtes Team [Firma/Bereich]' als moderner, warmer Fallback (v.a. bei Startups/Agenturen); (4) klassisches 'Sehr geehrte Damen und Herren' bei konservativen Branchen (Banken, oeffentlicher Dienst, traditioneller Mittelstand) oder wenn gar kein Ansprechpartner auffindbar ist. Es gibt keinen einzelnen einheitlichen Branchenstandard - die Wahl sollte branchenabhaengig konfigurierbar sein.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": "2023-2025 (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Eine falsche Anrede oder ein falsch zugeordneter Titel (z.B. fehlendes 'Dr.', falsches Geschlecht) gilt in der deutschen Bewerbungsberatung durchgehend als einer der schwerwiegendsten und am haeufigsten genannten K.O.-Fehler in Anschreiben.",
+      "detail": "Konsequenz fuer die Systemarchitektur: Bei jeder Unsicherheit ist ein neutraler Fallback (namensbasiert ohne Herr/Frau, oder Team-Anrede) klar vorzuziehen gegenueber einer geratenen, moeglicherweise falschen persoenlichen Anrede - lieber unpersoenlich-korrekt als persoenlich-falsch.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": "Dauerhaft gueltiges Praxiswissen (Trainingswissen, nicht live verifiziert)"
+    },
+    {
+      "claim": "Fuer Firmen mit mehreren Standorten (Filialen, Niederlassungen) sollte primaer der in der Stellenanzeige selbst genannte Standort gelten; Impressum/Karriereseite dienen nur zur Validierung, nicht zur Ueberschreibung, es sei denn es gibt einen klaren Widerspruch.",
+      "detail": "Bei Widerspruch (Anzeige nennt Standort A, Impressum/Hauptsitz ist B, und es ist unklar ob die Stelle wirklich vor Ort A besetzt wird) sollte das System dies als Unsicherheitsfall markieren und den Nutzer statt zu raten gezielt fragen, welcher Standort fuer Anschreiben/Adresse zu verwenden ist.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": "Dauerhaft gueltiges Praxiswissen (Trainingswissen, nicht live verifiziert)"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Impressum der Unternehmenswebsite",
+      "url": "",
+      "category": "Datenquelle",
+      "access": "Manuell/WebFetch; keine Auth noetig, oeffentlich pflichtveroeffentlicht nach § 5 DDG",
+      "pricing": "Kostenlos",
+      "verdict": "empfohlen - rechtlich verbindlichste kostenlose Primaerquelle fuer Firmenname/Rechtsform/Sitz/Vertretungsberechtigte, sollte immer zuerst geprueft werden"
+    },
+    {
+      "name": "Northdata",
+      "url": "https://www.northdata.de/",
+      "category": "Datenquelle",
+      "access": "Web-UI kostenlos mit Limits, kostenpflichtige API im Business-Segment; Preise/Limits diese Sitzung nicht verifiziert",
+      "pricing": "Free Web-Suche eingeschraenkt, API kostenpflichtig - genaue 2025/2026-Tarife vor Integration pruefen",
+      "verdict": "optional - guter, rechtlich saubererer Ersatz fuer direktes handelsregister.de-Scraping bei Firmen mit unsicherer Identitaet/Rechtsform"
+    },
+    {
+      "name": "OpenCorporates API",
+      "url": "https://opencorporates.com/",
+      "category": "API",
+      "access": "API-Key, gestaffelte Plaene inkl. begrenztem kostenlosem Zugang; Auth per Token",
+      "pricing": "Free Tier stark limitiert, bezahlte Plaene fuer hoehere Volumina - genaue 2025/2026-Preise nicht verifiziert",
+      "verdict": "optional - v.a. fuer internationale/Multi-Country-Firmen sinnvoll, bei deutschen KMU luecken- und verzoegerungsanfaellig"
+    },
+    {
+      "name": "handelsregister.de",
+      "url": "https://www.handelsregister.de/",
+      "category": "Datenquelle",
+      "access": "Manuell, AGB untersagen automatisierten Massenabruf; Einzeldokumentabruf teils gebuehrenpflichtig",
+      "pricing": "Basissuche kostenlos, Dokumentenabruf gebuehrenpflichtig (Betrag nicht verifiziert)",
+      "verdict": "vermeiden fuer Automatisierung - nur manuelle Einzelabfragen, sonst Northdata/OpenCorporates nutzen"
+    },
+    {
+      "name": "Unternehmensregister.de / Bundesanzeiger",
+      "url": "https://www.unternehmensregister.de/",
+      "category": "Datenquelle",
+      "access": "Manuell, Web-Oberflaeche, teils gebuehrenpflichtige Dokumenteneinsicht",
+      "pricing": "Basisrecherche kostenlos, Volltext-/Dokumenteneinsicht teils kostenpflichtig",
+      "verdict": "optional - punktuelle Bonitaets-/Groessenpruefung vor einer Bewerbung, nicht fuer taegliche Automatisierung"
+    },
+    {
+      "name": "Kununu",
+      "url": "https://www.kununu.com/",
+      "category": "Datenquelle",
+      "access": "Manuell/gelegentliche Websuche; ToS untersagen systematisches Scraping, keine offene Public-API",
+      "pricing": "Kostenlos lesbar (Web), keine offizielle bezahlte API bekannt",
+      "verdict": "empfohlen fuer punktuelle Kontextrecherche (Kultur, Bewerbungsprozess-Erfahrungsberichte, Gehaltsangaben) - kein Massen-Scraping"
+    },
+    {
+      "name": "Glassdoor",
+      "url": "https://www.glassdoor.de/",
+      "category": "Datenquelle",
+      "access": "Manuell/gelegentliche Websuche; ToS untersagen Scraping",
+      "pricing": "Kostenlos lesbar (Web) mit Registrierungs-Wall fuer manche Inhalte",
+      "verdict": "optional - schwaechere DACH-Abdeckung als Kununu, als Zweitquelle nutzbar"
+    },
+    {
+      "name": "LinkedIn",
+      "url": "https://www.linkedin.com/",
+      "category": "Datenquelle",
+      "access": "Nur manuelle Recherche durch den Nutzer selbst empfohlen; automatisiertes Scraping verstoesst gegen Nutzungsbedingungen (siehe hiQ Labs Praezedenzfall)",
+      "pricing": "Kostenlos fuer Basisnutzung, LinkedIn Recruiter/Sales Navigator kostenpflichtig",
+      "verdict": "vermeiden fuer Automatisierung - Ansprechpartnersuche als Human-in-the-loop-Schritt belassen"
+    },
+    {
+      "name": "XING",
+      "url": "https://www.xing.com/",
+      "category": "Datenquelle",
+      "access": "Nur manuelle Recherche; oeffentliche Such-API seit ca. 2018 stark eingeschraenkt",
+      "pricing": "Kostenlos fuer Basisnutzung, Premium-Mitgliedschaft kostenpflichtig",
+      "verdict": "vermeiden fuer Automatisierung - v.a. fuer DACH-Mittelstand als manuelle Zweitquelle neben LinkedIn nuetzlich"
+    },
+    {
+      "name": "BuiltWith",
+      "url": "https://builtwith.com/",
+      "category": "API",
+      "access": "Kostenlose Einzelabfrage im Web-UI, kostenpflichtige API-Plaene fuer strukturierten Zugriff",
+      "pricing": "Free Web-Lookup, API-Abos kostenpflichtig - genaue 2025/2026-Preise nicht verifiziert",
+      "verdict": "optional - nur falls Tech-Stack-Erwaehnung im Anschreiben strategisch wichtig ist, sonst manuelle Websuche ausreichend"
+    },
+    {
+      "name": "Wappalyzer",
+      "url": "https://www.wappalyzer.com/",
+      "category": "API",
+      "access": "Kostenlose Browser-Extension/Einzel-Lookup, kostenpflichtige Lookup-API fuer Volumen",
+      "pricing": "Free Tier mit begrenzten Requests/Monat, bezahlte Plaene fuer hoeheres Volumen",
+      "verdict": "optional - Alternative/Ergaenzung zu BuiltWith"
+    },
+    {
+      "name": "Google Places API / Address Validation API",
+      "url": "https://developers.google.com/maps/documentation/places/web-service",
+      "category": "API",
+      "access": "API-Key, nutzungsbasierte Abrechnung pro 1000 Requests, unterschiedliche SKUs",
+      "pricing": "Nutzungsbasiert, historisch mit monatlichem Startguthaben - genaue 2025/2026-Konditionen vor Integration pruefen",
+      "verdict": "optional - sinnvoll als Zweitcheck zur Adressvalidierung, nicht als Firmen-Ansprechpartner-Quelle"
+    },
+    {
+      "name": "OpenStreetMap Nominatim",
+      "url": "https://nominatim.org/release-docs/latest/api/Overview/",
+      "category": "API",
+      "access": "Kostenlos, strikte Fair-Use-Policy (max. 1 req/s, Pflicht-User-Agent), fuer Dauerlast Self-Hosting empfohlen",
+      "pricing": "Kostenlos im Rahmen der Fair-Use-Policy; Self-Hosting/Alternativanbieter fuer Produktivbetrieb",
+      "verdict": "empfohlen fuer gelegentliche Adress-Existenzpruefung, aber nicht mit oeffentlichem Endpunkt in hoher Frequenz betreiben"
+    },
+    {
+      "name": "Crunchbase API",
+      "url": "https://www.crunchbase.com/",
+      "category": "API",
+      "access": "API-Key, seit ca. 2020 ueberwiegend Enterprise-/Vertriebs-gepreist, kein guenstiger Self-Service-Tier mehr bekannt",
+      "pricing": "Enterprise-Pricing, kein bekannter Low-Cost-Self-Service-Plan",
+      "verdict": "vermeiden - fuer Einzelentwickler-Budget unwirtschaftlich, manuelle Websuche als Ersatz"
+    },
+    {
+      "name": "Dealroom",
+      "url": "https://dealroom.co/",
+      "category": "API",
+      "access": "API/Datenbankzugang primaer fuer Investoren/Regierungen/Corporates, hochpreisig",
+      "pricing": "Enterprise-Pricing, keine guenstige Self-Service-Option bekannt",
+      "verdict": "vermeiden - nicht budgetgerecht fuer dieses Projekt"
+    },
+    {
+      "name": "Startbase.de",
+      "url": "https://www.startbase.de/",
+      "category": "Datenquelle",
+      "access": "Manuell/Websuche, keine bekannte oeffentliche Bulk-API",
+      "pricing": "Web-Recherche kostenlos",
+      "verdict": "optional - nur punktuell fuer deutsche Startups relevant"
+    },
+    {
+      "name": "wlw.de (Wer liefert was)",
+      "url": "https://www.wlw.de/",
+      "category": "Datenquelle",
+      "access": "Manuell/Websuche, keine bekannte oeffentliche Entwickler-API",
+      "pricing": "Web-Recherche kostenlos",
+      "verdict": "optional - v.a. fuer B2B-Industrieunternehmen als Zusatzkontext"
+    },
+    {
+      "name": "Gehalt.de",
+      "url": "https://www.gehalt.de/",
+      "category": "Datenquelle",
+      "access": "Manuell/Websuche, keine bekannte offene API",
+      "pricing": "Web-Recherche teils kostenlos, teils Lead-Gen-Wall",
+      "verdict": "optional - als Referenzquelle fuer Gehaltsvorstellungen im Anschreiben"
+    },
+    {
+      "name": "StepStone Gehaltsreport",
+      "url": "https://www.stepstone.de/",
+      "category": "Datenquelle",
+      "access": "Periodisch veroeffentlichter PDF-Report bzw. Web-Tool, keine API",
+      "pricing": "Kostenlos abrufbar",
+      "verdict": "optional - punktuelle Gehalts-Benchmark-Referenz"
+    },
+    {
+      "name": "Exa API",
+      "url": "https://exa.ai/",
+      "category": "API",
+      "access": "API-Key, nutzungsbasierte Abrechnung pro 1000 Suchergebnisse/Content-Abrufe",
+      "pricing": "Startguthaben fuer neue Konten, danach nutzungsbasiert - genaue 2025/2026-Tarife nicht verifiziert",
+      "verdict": "optional - gut fuer semantische/vage Recherche-Queries als Ergaenzung zum Anthropic-Web-Search-Tool"
+    },
+    {
+      "name": "Tavily API",
+      "url": "https://tavily.com/",
+      "category": "API",
+      "access": "API-Key, monatlicher kostenloser Kontingent-Tier, danach nutzungsbasiert/Abo",
+      "pricing": "Free Tier vorhanden, bezahlte Plaene fuer hoeheres Volumen - genaue 2025/2026-Zahlen nicht verifiziert",
+      "verdict": "empfohlen als Fallback-Suchquelle - speziell fuer LLM-Agenten-Workflows konzipiert"
+    },
+    {
+      "name": "Perplexity Sonar API",
+      "url": "https://www.perplexity.ai/",
+      "category": "API",
+      "access": "API-Key, nutzungsbasierte Abrechnung pro Request plus Tokenkosten, mehrere Modellvarianten",
+      "pricing": "Nutzungsbasiert, gestaffelt nach Modell (sonar/sonar-pro/...) - genaue 2025/2026-Preise nicht verifiziert",
+      "verdict": "optional - gut fuer aktuelle Unternehmensnews mit eingebauten Zitaten"
+    },
+    {
+      "name": "Brave Search API",
+      "url": "https://brave.com/search/api/",
+      "category": "API",
+      "access": "API-Key, kostenloser Einstiegs-Tier vorhanden, danach nutzungsbasiert",
+      "pricing": "Free Tier vorhanden - genaue 2025/2026-Limits/Preise nicht verifiziert",
+      "verdict": "empfohlen als guenstige, datenschutzfreundliche Basis-Suchquelle neben dem Anthropic-Tool"
+    },
+    {
+      "name": "SerpAPI",
+      "url": "https://serpapi.com/",
+      "category": "API",
+      "access": "API-Key, Abo-Plaene mit Anzahl Suchen/Monat, kostenloses Test-Kontingent",
+      "pricing": "Bezahlte Abo-Plaene - genaue 2025/2026-Preise nicht verifiziert",
+      "verdict": "optional - funktional, aber operiert im ToS-Graubereich von Google; Brave/Anthropic-Tool bevorzugen"
+    },
+    {
+      "name": "Firecrawl (Scrape/Search/Extract)",
+      "url": "https://www.firecrawl.dev/",
+      "category": "API",
+      "access": "API-Key, kreditbasierte Free- und Abo-Plaene",
+      "pricing": "Free Tier mit begrenzten Credits, bezahlte Plaene fuer Volumen - genaue 2025/2026-Preise nicht verifiziert",
+      "verdict": "empfohlen fuer strukturiertes Auslesen ganzer Karriere-/Team-Seiten, wenn ein einzelner Fetch-Aufruf nicht reicht"
+    },
+    {
+      "name": "Jina Reader (r.jina.ai)",
+      "url": "https://jina.ai/reader/",
+      "category": "API",
+      "access": "Kostenlos ohne Key fuer geringes Volumen, Rate-Limits, optionaler API-Key fuer hoehere Kontingente",
+      "pricing": "Kostenlose Basisnutzung, kostenpflichtige hoehere Kontingente - genaue 2025/2026-Zahlen nicht verifiziert",
+      "verdict": "optional - leichter, sehr guenstiger Fallback fuer einzelne Seitenabrufe"
+    },
+    {
+      "name": "Apify (inkl. LinkedIn/XING-Actors)",
+      "url": "https://apify.com/",
+      "category": "SaaS",
+      "access": "API/Actor-basiert, nutzungsbasierte Compute-Unit-Abrechnung; LinkedIn/XING-Actors verstossen typischerweise gegen die ToS der Zielplattformen",
+      "pricing": "Free Trial, danach nutzungsbasiert - genaue 2025/2026-Preise nicht verifiziert",
+      "verdict": "vermeiden fuer LinkedIn/XING-Actors wegen ToS-/Account-Sperr-Risiko; allgemeine Firecrawl-aehnliche Actors ggf. optional pruefen"
+    },
+    {
+      "name": "Apollo.io / Hunter.io / Lusha",
+      "url": "https://www.apollo.io/",
+      "category": "SaaS",
+      "access": "API/Browser-Extension, Kontaktanreicherung (E-Mail/Telefon einzelner Personen); DSGVO-Konformitaet fuer EU-Personen wiederholt umstritten",
+      "pricing": "Freemium mit begrenzten kostenlosen Credits, bezahlte Plaene fuer Volumen",
+      "verdict": "vermeiden - DSGVO-Risiko bei individuell zugeordneten Privat-/Direktkontakten, nur oeffentlich vom Unternehmen selbst bereitgestellte Kontakte nutzen"
+    },
+    {
+      "name": "Anthropic Web Search / Web Fetch Tool",
+      "url": "https://www.anthropic.com/",
+      "category": "API",
+      "access": "Serverseitiges Claude-Tool (web_search/web_fetch), Abrechnung nutzungsbasiert pro Suche/Abruf zusaetzlich zu Tokenkosten",
+      "pricing": "Nutzungsbasiert pro Suche/Abruf plus normale Tokenkosten - genaue 2025/2026-Preise diese Sitzung nicht verifiziert",
+      "verdict": "empfohlen als Standardquelle - bereits im Stack, kein zusaetzlicher Vendor-Vertrag noetig"
+    }
+  ],
+  "recommendations": [
+    "Anthropic Web-Search/Web-Fetch-Tool als Standardquelle fuer die taegliche Firmenrecherche nutzen (bereits im Stack, kein zusaetzlicher Vendor-Vertrag); Firecrawl/Tavily/Exa nur ergaenzend fuer tiefes Crawlen einzelner Seiten (z.B. mehrseitige Team-Uebersicht) einsetzen.",
+    "Handelsregister.de, LinkedIn, XING, Kununu und Glassdoor nicht automatisiert per Bot/Scraper abfragen; stattdessen fuer Registerdaten auf lizenzierte Aggregatoren (Northdata/OpenCorporates) und fuer LinkedIn/XING auf manuelle Recherche des Nutzers selbst (Human-in-the-loop) ausweichen.",
+    "Dreistufiges Konfidenzsystem fuer Ansprechpartner (hoch/mittel/niedrig) implementieren: nur bei hoher Konfidenz (Name aus zwei unabhaengigen aktuellen Quellen bestaetigt) automatisch personalisierte Anrede mit Herr/Frau/Titel verwenden, sonst neutrale Fallbacks ('Guten Tag Vorname Nachname' bzw. 'Sehr geehrtes Team [Firma]'/'Sehr geehrte Damen und Herren').",
+    "Vier klare Abbruch-/Rueckfrage-Kriterien fest einprogrammieren: widerspruechliche Adressen zwischen Anzeige/Website/Impressum, Firma im Handelsregister/Impressum nicht verifizierbar, Ansprechpartner laut LinkedIn nicht mehr im Unternehmen, Stellenanzeige laenger als 30 Tage offen ohne Bestaetigung - in all diesen Faellen die Bewerbung im Pruef-Batch markieren statt automatisch personalisiert zu versenden.",
+    "Impressum der Zielfirma als verbindliche Primaerquelle fuer Firmenname/Rechtsform/Sitz/Adresse behandeln; Google Places/Nominatim nur als Zusatzcheck fuer Schreibweise/Existenz, nicht als Primaerquelle.",
+    "Kontaktanreicherungs-Tools (Apollo.io, Hunter.io, Lusha) und LinkedIn/XING-Scraping-Actors (Apify) grundsaetzlich nicht einsetzen; nur Kontaktdaten verwenden, die das Unternehmen selbst oeffentlich gemacht hat (Impressum, Karriereseite, Stellenanzeige, offizielle Social-Media-Accounts).",
+    "Fuer jeden recherchierten Datensatz (Firma + Ansprechpartner) eine kurze interne DSGVO-Dokumentation fuehren (Quelle, Zweck, Interessenabwaegung, Zeitstempel) statt sich auf die Haushaltsausnahme zu verlassen - das erleichtert spaetere Auskunftsersuchen betroffener Personen und macht das Projekt zukunftsfest, falls es spaeter doch kommerzialisiert wird.",
+    "Recherche-Ergebnis pro Bewerbung als strukturierten Datensatz mit Feldern, Quellen-URLs, Konfidenzstufe je Feld und Zeitstempel speichern, damit der taegliche Pruef-Workflow (10 Bewerbungen) die Entscheidungsgrundlage nachvollziehen und der Nutzer gezielt bei niedriger Konfidenz nachsteuern kann."
+  ],
+  "risks": [
+    "Verstoss gegen die Abrufbedingungen von handelsregister.de bei automatisiertem Massenabruf kann zu IP-Sperre und zivilrechtlichen Konsequenzen fuehren.",
+    "Automatisierter LinkedIn-/XING-Zugriff riskiert Account-Sperrung und Unterlassungsanspruch (Praezedenzfall hiQ Labs vs. LinkedIn), unabhaengig von der strafrechtlichen CFAA-Frage.",
+    "DSGVO-Bussgeldrisiko fuer eine Einzelperson ist praktisch gering, aber Auskunfts-/Loeschungsansprueche betroffener Personen (Art. 15/17 DSGVO) sind moeglich, insbesondere wenn Kontaktanreicherungs-Tools mit fragwuerdiger Datenherkunft genutzt werden.",
+    "Falsche Anrede oder falscher Titel disqualifiziert eine Bewerbung haeufig sofort und wirkt wie ein automatisiert erstelltes, unpersoenliches Anschreiben - konterkariert das Kernziel 'nicht nach Bot aussehen'.",
+    "Veraltete Ansprechpartner-Daten (Person hat die Firma laut LinkedIn/Karriereseite bereits verlassen) fuehren zu peinlichen Fehladressierungen und schaden dem Eindruck sorgfaeltiger Recherche.",
+    "Kostenexplosion bei unkontrollierter Kombination mehrerer kostenpflichtiger Such-/Anreicherungs-APIs pro Bewerbung ohne Caching/Budget-Limit ist bei 10 Bewerbungen/Tag ueber Monate ein reales Kostenrisiko.",
+    "Nutzung von Kontaktanreicherungs-Tools (Apollo.io/Hunter.io/Lusha) oder LinkedIn-Scraping-Actors kann rechtliche Risiken einer Ebene tiefer nur verlagern statt loesen, da deren Datenbasis selbst haeufig aus fragwuerdig erhobenen Scraping-Daten stammt."
+  ],
+  "open_questions_for_user": [
+    "Gibt es eine monatliche Budget-Obergrenze fuer kostenpflichtige Recherche-APIs (Northdata, Exa, Tavily, Firecrawl, Google Places etc.), an der sich die Toolauswahl orientieren soll?",
+    "Soll bei 'niedriger Konfidenz' beim Ansprechpartner IMMER eine explizite Rueckfrage an dich gehen (Unterbrechung des Workflows), oder reicht ein automatischer Fallback plus deutliche Kennzeichnung im taeglichen Pruef-Batch ohne Blockierung?",
+    "Bist du bereit, LinkedIn-/XING-Ansprechpartnersuche als manuellen Schritt selbst zu uebernehmen (Human-in-the-loop, z.B. Agent liefert dir einen vorbereiteten Link/Suchbegriff), oder soll versucht werden, dies trotz ToS-Risiko staerker zu automatisieren?",
+    "Soll ein laufendes Northdata- oder OpenCorporates-Abo abgeschlossen werden (wiederkehrende Kosten), oder reicht fuer die meisten Faelle Websuche plus Impressum-Auszug ohne zusaetzliches Firmendaten-Abo?",
+    "Wie soll bei Firmen mit mehreren Standorten verfahren werden, wenn Stellenanzeige und Impressum/Hauptsitz voneinander abweichen - automatisch den Anzeige-Standort uebernehmen oder in diesem Fall immer explizit nachfragen?",
+    "Sollen fuer Kununu/Glassdoor-Erfahrungsberichte zum Bewerbungsprozess automatisch Textbausteine im Anschreiben verwendet werden, oder nur als interner Kontext fuer den Ton des Anschreibens dienen?"
+  ],
+  "search_log": [
+    "Impressumspflicht § 5 DDG Digitale-Dienste-Gesetz 2025 Pflichtangaben -> FEHLGESCHLAGEN (Websuche-Kontingent der Sitzung bei 200/200 erschoepft)",
+    "handelsregister.de Abrufbedingungen automatisierter Abruf Bots verboten -> FEHLGESCHLAGEN (Kontingent erschoepft)",
+    "Northdata API Preise 2025 -> FEHLGESCHLAGEN (Kontingent erschoepft)",
+    "OpenCorporates API pricing 2025 Germany company data -> FEHLGESCHLAGEN (Kontingent erschoepft)",
+    "Unternehmensregister.de Bundesanzeiger Jahresabschluss API Zugriff -> FEHLGESCHLAGEN (Kontingent erschoepft)",
+    "Kununu Nutzungsbedingungen Scraping API Bewertungen 2025 -> FEHLGESCHLAGEN (Kontingent erschoepft)",
+    "Glassdoor terms of service scraping API 2025 -> FEHLGESCHLAGEN (Kontingent erschoepft)",
+    "LinkedIn scraping legal hiQ Labs Urteil 2024 2025 Nutzungsbedingungen -> FEHLGESCHLAGEN (Kontingent erschoepft)",
+    "WebFetch https://www.northdata.de/Info/API -> EGRESS_BLOCKED",
+    "WebFetch https://www.handelsregister.de/rp_web/agb-info.xhtml -> EGRESS_BLOCKED",
+    "WebFetch https://www.gesetze-im-internet.de/ddg/__5.html -> EGRESS_BLOCKED",
+    "WebFetch https://exa.ai/pricing -> EGRESS_BLOCKED",
+    "WebFetch https://tavily.com/pricing -> EGRESS_BLOCKED",
+    "WebFetch https://www.firecrawl.dev/pricing -> EGRESS_BLOCKED",
+    "WebFetch https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool -> EGRESS_BLOCKED",
+    "WebFetch https://opencorporates.com/api_accounts/new -> EGRESS_BLOCKED",
+    "WebFetch https://en.wikipedia.org/wiki/Northdata -> EGRESS_BLOCKED",
+    "WebFetch https://dejure.org/gesetze/DSGVO/6.html -> EGRESS_BLOCKED",
+    "WebFetch https://www.xing.com/developer -> Claude Code konnte nicht abrufen",
+    "WebFetch https://www.anthropic.com/pricing -> EGRESS_BLOCKED",
+    "WebFetch https://www.bundesanzeiger.de -> EGRESS_BLOCKED",
+    "salvage/company_research.md geprueft -> Datei existiert nicht (ls: No such file or directory)"
+  ],
+  "verification_notes": [
+    "verify-B KORREKTUR: Das Anthropic Web-Fetch-Tool wird NICHT pro Abruf abgerechnet – nur Web Search kostet $10/1.000 Suchen; Web Fetch verursacht nur Tokenkosten (max_content_tokens zur Begrenzung nutzen). Code Execution ist mit web_search_20260209+/web_fetch_20260209+ kostenlos. Quelle: https://platform.claude.com/docs/en/about-claude/pricing (2026-09-08).",
+    "verify-B: Diese Datei basiert laut eigener Angabe vollständig auf Trainingswissen ohne Live-Verifikation. § 5 DDG, Nominatim-Policy, Northdata/OpenCorporates/Google-Places-Konditionen konnten auch im Prüflauf nicht abgerufen werden (Domains gesperrt) – gesamte Datei als Konfidenz 'low' behandeln und Preise/Limits vor Implementierung prüfen."
+  ]
+}
