@@ -1,0 +1,444 @@
+{
+  "dimension": "Human-in-the-Loop: Review, Freigabe, Tracking",
+  "summary": "Für die Review-, Freigabe- und Tracking-Ebene ist die wichtigste Vorentscheidung durch die Architektur bereits gesetzt: Backend ist ein selbst gehostetes Claude Agent SDK (Python) mit SQLite als Zustands- und Audit-Speicher und einem privaten Git-Repo für erzeugte PDFs, und der Versand darf laut architecture.json niemals ohne expliziten menschlichen Freigabeschritt laufen (kein bypassPermissions, keine autonome Routine für Aktionen mit Außenwirkung). Die Review-Oberfläche muss also keine eigenständige Plattform sein, sondern eine dünne Schicht über dieser bestehenden SQLite-Datenbank – Kopplungsaufwand zählt hier mehr als Feature-Reichtum.\n\nVon den sieben Optionsfamilien (Web-App, Notion/Obsidian/Airtable/Sheets, Messenger, E-Mail-Digest, GitHub, Claude Code selbst, Job-Tracker-Vorbilder) passen zwei am besten zu einem Ein-Personen-MVP in 1-2 Wochen, und sie ergänzen sich: (1) ein Telegram-Bot mit Inline-Buttons (python-telegram-bot, passend zur Python-Basis) als primärer Push- und Freigabe-Kanal – kostenlos, sofortige mobile Benachrichtigung, native Datei-Anhänge für die PDF-Vorschau, und ein Rückfrage-Kanal für Ja/Nein/Kommentar-Interaktionen, die direkt eine Regenerierung anstoßen können; (2) eine schlanke FastAPI+HTMX-Seite (alternativ NiceGUI oder Reflex als reine-Python-UI-Frameworks) für die 'tiefe' Prüfung, die Telegram fehlt: Wort-Diff Lebenslauf-Basis vs. angepasst, PDF-Einbettung, eine Checkliste mit Quellenzuordnung pro Aussage (macht 'keine erfundenen Aussagen' prüfbar statt vage) und eine Kanban-/Tabellenansicht der Status-Pipeline direkt aus derselben SQLite-DB. Beide Bausteine sind in ein bis zwei Wochen baubar, weil sie keine neue Datenhaltung brauchen und keine dritte Partei (Meta, Notion, Airtable) zwingend einbeziehen.\n\nDeutlich attraktiv, aber bewusst für v1 statt MVP vorgesehen: Notion (offizielles SDK, MIT, aktiv gepflegt) liefert kostenlos Kanban-, Kalender- und Mobile-Push-Ansichten ohne eigenen Frontend-Code, sofern man die Datenduplizierung (Sync-Job SQLite→Notion) und die Abhängigkeit von planabhängigen Automations-/Webhook-Limits in Kauf nimmt. GitHub Issues/PRs sind für einen technisch versierten Nutzer überraschend gut geeignet – native Diff-Ansicht, Kommentar-Threads, Labels als Statuspipeline, GitHub-Mobile-Push – und passen zum bereits geplanten privaten Git-Repo; diese Sitzung selbst zeigt, dass Claude-Code-Tooling PR-Review-Automatisierung (pull_request_review_write, subscribe_pr_activity) bereits mitbringt, was den Zusatzaufwand für dieses Muster senkt. Auch ein Claude-Artifact als Review-Cockpit ist auffällig billig umzusetzen (kein eigenes Hosting, Kommentare können eine Claude-Sitzung direkt aufwecken), ist aber ein sich noch entwickelnder Produktbereich und daher eher MVP-Experiment als tragfähiges v1-Fundament. WhatsApp Business API ist für eine Einzelperson unverhältnismäßig aufwändig (Verifizierung, Template-Freigabe, Konversationskosten je Land/Kategorie) und wird nicht empfohlen; Slack/Discord sind technisch gleichwertig zu Telegram, bringen aber keinen zusätzlichen Nutzen für einen Einzelnutzer ohne Team. Offene Job-Tracker-Vorbilder wie Teal, Huntr und Simplify sind proprietäre SaaS-Produkte ohne für diesen Zweck nutzbare offene API – ihre Kanban-Status-Idee wird stattdessen direkt im eigenen Schema nachgebildet.\n\nFür die UX-Prinzipien gilt: Freigeben/Ablehnen/Später/Kommentar müssen vier getrennte Aktionen sein, kein Timeout darf implizit als Freigabe zählen. Jede Bewertung sollte ihre Begründung ('Warum diese Stelle') und eine Vertrauensmarkierung je Fakt mitliefern, damit sich die Prüfzeit auf unsichere Stellen konzentriert. Jede Zustandsänderung landet unveränderlich im Audit-Log; ein kurzes Undo-Fenster federt Freigabe-Fehlklicks vor dem tatsächlichen Versand ab, und ein separater 'offene Rückfragen'-Kanal darf die restlichen Bewerbungen des Tages nicht blockieren, wenn eine von ihnen eine Entscheidung des Nutzers braucht. Empfehlung: MVP = Telegram-Bot + FastAPI/HTMX-Detailseite auf der bestehenden SQLite-DB; v1 = optionale Notion-Spiegelung für Kanban/Kalender/Mobile und/oder GitHub-PR-Workflow für den Diff-/Kommentar-Teil, sobald der Kernkreislauf sich im Alltag bewährt hat.",
+  "findings": [
+    {
+      "claim": "python-telegram-bot ist aktiv gepflegt und für den Freigabe-Kanal geeignet.",
+      "detail": "GitHub-Repo zeigt 29,5k Stars, 3.229 Commits, 25 offene Issues, 14 offene PRs; Lizenz laut Repo-Hinweis LGPL-3 als Kernlizenz mit GPL-3.0-Anteilen. Async-fähige Python-Bibliothek, passt direkt zur Python-Basis des Agent SDK für Inline-Button-Freigaben (Freigeben/Ablehnen/Später/Kommentar).",
+      "sources": [
+        "https://github.com/python-telegram-bot/python-telegram-bot"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09-09"
+    },
+    {
+      "claim": "grammY ist eine aktiv gepflegte, MIT-lizenzierte Alternative für den Telegram-Bot-Teil auf Node/TypeScript-Basis.",
+      "detail": "3,7k Stars, 945 Commits, 11 offene Issues/PRs, MIT-Lizenz. Nur sinnvoll, wenn ein separater Node-Service bevorzugt wird; sonst spricht die Konsistenz mit dem Python-Backend für python-telegram-bot.",
+      "sources": [
+        "https://github.com/grammyjs/grammY"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09-09"
+    },
+    {
+      "claim": "NiceGUI ist ein aktiv gepflegtes, MIT-lizenziertes reines Python-UI-Framework mit fertigen Widgets.",
+      "detail": "16,2k Stars, 6.839 Commits. Baut auf FastAPI/Vue/Quasar auf, liefert Buttons, Dialoge, Tabellen, Benachrichtigungen 'out of the box' – laut Projektbeschreibung für Micro-Web-Apps und Dashboards gedacht, ohne dass eigenes CSS/JS geschrieben werden muss.",
+      "sources": [
+        "https://github.com/zauberzeug/nicegui"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09-09"
+    },
+    {
+      "claim": "Reflex ist ein aktiv gepflegtes, Apache-2.0-lizenziertes Python-Framework mit mehr App-Charakter als NiceGUI/Streamlit.",
+      "detail": "28,9k Stars, 3.424 Commits, 261 offene Issues. Kompiliert Python-Code zu React (Frontend) + FastAPI (Backend); bietet Routing und State-Management für komplexere Apps (z.B. Kanban mit mehreren Ansichten), mit entsprechend höherem Lernaufwand als HTMX oder NiceGUI.",
+      "sources": [
+        "https://github.com/reflex-dev/reflex"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09-09"
+    },
+    {
+      "claim": "Streamlit ist Apache-2.0-lizenziert, sehr populär und aktiv, nimmt aber aktuell keine externen Pull Requests mehr an.",
+      "detail": "45,7k Stars, 10.586 Commits im develop-Branch, 976 offene Issues, 188 offene PRs. Repo-Hinweis: 'We have paused accepting pull requests from outside the Streamlit maintainer team' – Weiterentwicklung liegt beim internen Team, was die Zukunftssicherheit nicht mindert, aber Community-Beiträge einschränkt.",
+      "sources": [
+        "https://github.com/streamlit/streamlit"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09-09"
+    },
+    {
+      "claim": "Streamlits Rerun-Modell (ganzes Skript läuft bei jeder Interaktion neu) ist für eine Liste von ~10 Items mit mehreren Buttons pro Zeile umständlicher als HTMX/NiceGUI.",
+      "detail": "Jede Interaktion (Klick, Texteingabe) führt zu einem vollständigen Rerun des Python-Skripts; bei vielen unabhängigen Zeilen-Buttons (Freigeben/Ablehnen/Kommentar je Bewerbung) wird State-Handling schnell unübersichtlich, ohne Zusatzbibliotheken für Callbacks pro Widget.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "FastAPI ist MIT-lizenziert, extrem verbreitet und eine risikoarme Basis-Schicht für Freigabe-Endpunkte.",
+      "detail": "102,2k GitHub Stars, 7.713 Commits. Passt zur ohnehin Python-basierten Agent-SDK-Architektur; eignet sich für Telegram-Webhook-Empfang, Magic-Link-Freigabe-Endpunkte und die Auslieferung der HTMX-Detailseite aus derselben SQLite-DB.",
+      "sources": [
+        "https://github.com/fastapi/fastapi"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09-09"
+    },
+    {
+      "claim": "htmx liegt aktuell bei Version 2.0.10; die genaue Lizenzangabe konnte per WebFetch nicht zuverlässig aus der Repo-Startseite extrahiert werden.",
+      "detail": "49,4k Stars. Quick-Start-Beispiel referenziert 'htmx.org@2.0.10'. Die Lizenzdatei selbst wurde nicht inhaltlich ausgelesen (Fetch zeigte nur den Link) – vor Einsatz LICENSE-Datei direkt prüfen (nach bisherigem Modellwissen BSD-2-Clause, aber hier nicht verifiziert).",
+      "sources": [
+        "https://github.com/bigskysoftware/htmx"
+      ],
+      "confidence": "medium",
+      "info_date": "2026-09-09"
+    },
+    {
+      "claim": "FastAPI+HTMX erlaubt teil-interaktive, serverseitig gerenderte Seiten mit sehr wenig JavaScript.",
+      "detail": "Buttons/Formulare können Teile der Seite (z.B. eine Bewerbungszeile) per AJAX-Request aktualisieren, ohne ein SPA-Framework wie React/Svelte zu benötigen – guter Mittelweg zwischen Streamlit-Einfachheit und Next.js/SvelteKit-Komplexität für ein Ein-Personen-Review-Tool.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Obsidian Dataview ist MIT-lizenziert und aktiv gepflegt; erlaubt SQL-ähnliche Abfragen über Markdown-Frontmatter.",
+      "detail": "9,3k Stars, 806 Commits, 637 offene Issues, 27 offene PRs. Könnte Status-Tabellen/Kanban-artige Übersichten aus Bewerbungsnotizen generieren, wenn Bewerbungen als Markdown-Dateien mit Frontmatter (Status, Firma, Datum) im selben Git-Repo wie die PDFs abgelegt werden.",
+      "sources": [
+        "https://github.com/blacksmithgu/obsidian-dataview"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09-09"
+    },
+    {
+      "claim": "Obsidian selbst bietet kein natives Freigabe-/Automatisierungsmodell und keinen Server-Push zu Mobilgeräten unabhängig von der eigenen Sync-App.",
+      "detail": "Eine Statusänderung im Frontmatter würde nicht automatisch das Agent-Backend benachrichtigen; dafür wäre ein externer Datei-Watcher (z.B. auf das Git-Repo) nötig, der Änderungen erkennt und an die Pipeline zurückmeldet – zusätzlicher Plumbing-Aufwand gegenüber Notion/Telegram.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Notion SDK (JS) ist offiziell von Notion selbst gepflegt, MIT-lizenziert und aktiv.",
+      "detail": "5,7k Stars, 509 Commits, 56 offene Issues, 19 offene PRs, Organisation 'makenotion'. Dokumentation verweist auf API-Version '2025-09-03' als Mindestanforderung ab SDK v5 – geeignet, um Bewerbungsdatensätze programmatisch anzulegen/zu aktualisieren.",
+      "sources": [
+        "https://github.com/makenotion/notion-sdk-js"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09-09"
+    },
+    {
+      "claim": "Notion liefert native Kanban- und Kalenderansichten sowie eine offizielle Mobile-App mit Push bei Kommentaren/Erwähnungen ohne eigenen Frontend-Code.",
+      "detail": "Datenbank-Views (Board/Kalender/Tabelle) sind Bordmittel; ob 'Automatisierung bei Property-Änderung → Webhook' auf dem konkret genutzten Plan verfügbar ist, ändert sich erfahrungsgemäß je nach Notion-Preisstufe und sollte vor dem Bau im aktuellen Tarif geprüft werden.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Airtable bietet Button-Felder im Interface Designer, die Freigabe-Automationen ohne eigenen Code auslösen können.",
+      "detail": "Denkbar ist ein Button 'Freigeben', der ein Skript/eine Automation triggert, die den Status ändert; Zeilen- und Automations-Limits auf den günstigeren Plänen sowie deren genaue Grenzen ändern sich regelmäßig und wurden hier nicht verifiziert.",
+      "sources": [],
+      "confidence": "low",
+      "info_date": ""
+    },
+    {
+      "claim": "Google Sheets + Apps Script eignet sich gut als reine Statistik-/Tracking-Ebene, aber schlecht als interaktive Review-Oberfläche.",
+      "detail": "Pivot-Tabellen und Diagramme sind für Kennzahlen (Antwortquote, Bewerbungen/Woche) einfach, aber PDF-Vorschau, Diff-Darstellung und strukturierte Kommentar-→-Regenerierung sind in Sheets nur mit erheblichem Zusatzaufwand (Apps-Script-Sidebar) nachbaubar.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Slack Block Kit ist funktional mit Telegram vergleichbar, aber im Setup aufwändiger und mit Historienlimit auf dem Free-Plan.",
+      "detail": "Interaktive Buttons/Threads/Datei-Inline-Vorschau erfordern eine Slack-App mit OAuth-Scopes (z.B. via Bolt SDK) statt eines einzelnen Bot-Tokens wie bei Telegram; kostenlose Slack-Workspaces begrenzen die Nachrichtenhistorie typischerweise auf 90 Tage, was gegen Slack als alleinigen Audit-Speicher spricht (SQLite bleibt Quelle der Wahrheit).",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Discord bietet über discord.py ähnliche interaktive Komponenten wie Telegram/Slack, aber ohne klaren Zusatznutzen für einen reinen Einzelnutzer.",
+      "detail": "Buttons/Embeds/Slash-Commands sind technisch möglich, doch ohne Team/Community-Kontext bringt Discord gegenüber Telegram keinen Vorteil und zusätzliche Serververwaltung (Guild/Channel-Setup).",
+      "sources": [],
+      "confidence": "low",
+      "info_date": ""
+    },
+    {
+      "claim": "WhatsApp Business API ist für ein persönliches Ein-Personen-Tool unverhältnismäßig aufwändig.",
+      "detail": "Unternehmensinitiierte Nachrichten außerhalb des 24-Stunden-Service-Fensters benötigen vorab genehmigte Nachrichtenvorlagen (Template-Review durch Meta); Kosten pro Konversation variieren nach Land/Kategorie, plus Business-Verifizierung – deutlich mehr Reibung als ein kostenloser Telegram-Bot-Token.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "GitHub Issues/PRs bilden Diff, Kommentar und Statuspipeline nativ ab und passen zum ohnehin geplanten Git-Repo für PDFs.",
+      "detail": "PRs liefern kostenlos Zeilen-Diffs, Kommentar-Threads (Kommentar → Regenerierung als neuer Commit), Labels als Statuspipeline (draft/approved/sent/rejected) und GitHub-Mobile-Push. PDFs selbst sind binär nicht diffbar ('binary file not shown'); die Quelle (z.B. Markdown/Typst) sollte parallel zum PDF-Artefakt versioniert werden, damit der Diff aussagekräftig bleibt.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Diese Arbeitsumgebung zeigt, dass Claude-Code-Tooling PR-Review-Automatisierung bereits nativ mitbringt.",
+      "detail": "In dieser Sitzung stehen GitHub-MCP-Werkzeuge wie pull_request_review_write, add_comment_to_pending_review und subscribe_pr_activity (Webhook-getriebenes Aufwecken bei PR-Kommentaren/CI) bereit – ein Indiz, dass Option (e) mit vergleichsweise wenig Zusatzaufwand an vorhandene Automatisierung anschließt, wenn der Nutzer git-affin ist.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Claude Artifacts unterstützen laut dieser Sitzung eine geteilte Datenbank, Datei-Assets und Kommentar-Threads, die eine Claude-Sitzung aufwecken können.",
+      "detail": "Ein Review-Cockpit als Artifact könnte ohne eigenes Hosting Checklisten, Diff-Ansicht und Freigabe-Buttons zeigen; ein Nutzerkommentar auf dem Artefakt kann laut Werkzeugbeschreibung dieser Sitzung direkt eine neue Claude-Runde anstoßen (Regenerierung). Kein Beleg für native Mobile-Push unabhängig vom claude.ai-Client; als produktives v1-Fundament mit Vorsicht behandeln, da es ein sich weiterentwickelnder Anthropic-Produktbereich ist.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Reactive Resume ist MIT-lizenziert, aktiv gepflegt und als Layout-/Vorlagen-Inspiration relevant, nicht als Review-Tool.",
+      "detail": "42,4k Stars, 6.037 Commits. Web-basierter Lebenslauf-Generator mit 15 Vorlagen, Export als PDF/JSON/DOCX, bereits mit KI-Integration (u.a. Claude) laut Repo-Beschreibung. Für den 'Setzer'-Agenten als Referenz für Layout-Qualität und Exportformate nützlich.",
+      "sources": [
+        "https://github.com/AmruthPillai/Reactive-Resume"
+      ],
+      "confidence": "high",
+      "info_date": "2026-09-09"
+    },
+    {
+      "claim": "Ein aktiv gepflegter, offener Bewerbungs-Kanban-Tracker vergleichbar mit Huntr/Teal/Simplify konnte im vorgegebenen WebFetch-Rahmen nicht sicher identifiziert werden.",
+      "detail": "Teal, Huntr und Simplify sind proprietäre SaaS-Produkte (Freemium) ohne bekannte offene API, die für eine programmatische Statuspflege durch den eigenen Agenten geeignet wäre; ihre Kanban-Status-Idee (Beworben/Interview/Angebot/Abgelehnt) lässt sich aber 1:1 im eigenen SQLite-Schema nachbilden, ohne Abhängigkeit von einem Drittprodukt.",
+      "sources": [],
+      "confidence": "low",
+      "info_date": ""
+    },
+    {
+      "claim": "Ein reiner E-Mail-Digest mit Freigabe-Links ist als alleiniger Kanal riskant, aber als Backup-/Zusammenfassungskanal sinnvoll.",
+      "detail": "Magic-Link-Freigabe (einmalig gültiger, zeitlich begrenzter Token) landet gelegentlich im Spam-Ordner und liefert keinen Live-Status; als tägliche/wöchentliche Zusammenfassung neben einem interaktiven Chat-Bot (Telegram) aber eine gute Redundanz, falls der Bot-Kanal ausfällt.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Selbstgebautes Web-Push (VAPID) aus einer PWA ist für ein 1-2-Wochen-MVP unverhältnismäßig aufwändig.",
+      "detail": "Service-Worker-Registrierung, VAPID-Schlüsselverwaltung und Browser-Berechtigungsdialoge sind deutlich mehr Aufwand als die kostenlose, eingebaute Push-Funktion eines Telegram- oder Slack-Bots; erst sinnvoll, wenn eine eigenständige App/PWA aus anderen Gründen (z.B. Mehrnutzer-Betrieb) ohnehin gebaut wird.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Wort-Diff statt Zeilen-Diff ist das passendere UX-Muster für Anschreiben/CV-Fließtext.",
+      "detail": "Bei kurzen Absätzen ändern sich meist einzelne Wörter/Phrasen, nicht ganze Zeilen; ein GitHub-Stil-Zeilen-Diff überzeichnet dann kleine Änderungen als große Blöcke – ein Word-/Track-Changes-Stil-Diff (grün/unterstrichen für neu, rot/durchgestrichen für entfernt) liest sich für Prosa deutlich klarer.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Eine Quellen-verknüpfte Checkliste macht 'keine erfundenen Aussagen' prüfbar statt einer reinen Vertrauensfrage.",
+      "detail": "Wenn der Autor-Agent jede Aussage im Anschreiben mit ihrer Quelle taggt (CV-Fakt / Stellenanzeige / Recherche-Fakt), kann die Review-Oberfläche jeden untaggten Satz farblich als 'unbelegt – bitte prüfen' markieren, statt dass der Mensch den gesamten Text auf Erfindungen durchlesen muss.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    },
+    {
+      "claim": "Ein Timeout darf niemals implizit als Freigabe zählen.",
+      "detail": "Deckt sich mit der in architecture.json geforderten Nicht-Autonomie des Versand-Schritts: die Statusmaschine sollte 'kein expliziter Freigabe-Klick = blockiert' als Invariante erzwingen, damit ein vergessenes Review nicht versehentlich zum Versand führt.",
+      "sources": [],
+      "confidence": "high",
+      "info_date": ""
+    },
+    {
+      "claim": "Für die Statistik-Ebene bei diesem Volumen reicht einfache SQL-Aggregation auf der bestehenden SQLite-DB.",
+      "detail": "Bei ca. 10 Bewerbungen/Tag (~300/Monat) sind Kennzahlen wie Antwortquote, Time-to-Review oder Bewerbungen/Woche mit einfachen SQL-Abfragen und ein bis zwei einfachen Charts abgedeckt; ein separates BI-Tool oder eine zusätzliche Datenbank wäre bei diesem Volumen unverhältnismäßig.",
+      "sources": [],
+      "confidence": "high",
+      "info_date": ""
+    },
+    {
+      "claim": "Kalenderintegration sollte in der MVP-Phase intern bleiben; native Google/Outlook-Anbindung erst in v1.",
+      "detail": "Eine Tabellen-/Kanbanspalte 'Fällig am' (Interview-Termin, Nachfass-Frist) plus optionaler .ics-Export deckt die MVP-Bedürfnisse ab; die API-Anbindung an einen echten Hauptkalender lohnt sich erst, wenn der Nutzer Termine tatsächlich dort sehen will.",
+      "sources": [],
+      "confidence": "medium",
+      "info_date": ""
+    }
+  ],
+  "tools": [
+    {
+      "name": "python-telegram-bot",
+      "url": "https://github.com/python-telegram-bot/python-telegram-bot",
+      "category": "Messenger-Bot-Framework (Python)",
+      "access": "Open Source, self-hosted",
+      "pricing": "kostenlos",
+      "verdict": "Empfohlen als primärer Freigabe-/Push-Kanal fürs MVP; passt zur Python-Basis des Agent SDK, LGPL-3/GPL-Mix beachten."
+    },
+    {
+      "name": "grammY",
+      "url": "https://github.com/grammyjs/grammY",
+      "category": "Messenger-Bot-Framework (TS/Node)",
+      "access": "Open Source, self-hosted",
+      "pricing": "kostenlos",
+      "verdict": "Nur bei Node-Präferenz statt python-telegram-bot einsetzen; sonst Konsistenz mit Python-Backend vorziehen."
+    },
+    {
+      "name": "NiceGUI",
+      "url": "https://github.com/zauberzeug/nicegui",
+      "category": "Python-UI-Framework",
+      "access": "Open Source (MIT), self-hosted",
+      "pricing": "kostenlos",
+      "verdict": "Guter Kandidat für die 'tiefe Review'-Seite, wenn fertige Widgets/Dialoge Bauzeit sparen sollen."
+    },
+    {
+      "name": "Reflex",
+      "url": "https://github.com/reflex-dev/reflex",
+      "category": "Python-Web-App-Framework",
+      "access": "Open Source (Apache-2.0), self-hosted",
+      "pricing": "kostenlos (Hosting optional kostenpflichtig)",
+      "verdict": "Für v1 interessant (App-Charakter, Kanban/Kalender); für ein 1-2-Wochen-MVP eher zu viel Aufwand gegenüber HTMX/NiceGUI."
+    },
+    {
+      "name": "Streamlit",
+      "url": "https://github.com/streamlit/streamlit",
+      "category": "Python-Dashboard-Framework",
+      "access": "Open Source (Apache-2.0), self-hosted",
+      "pricing": "kostenlos (Community Cloud optional)",
+      "verdict": "Sehr schnell für reine Statistik-/Lese-Dashboards; Rerun-Modell unpraktisch für viele Buttons pro Zeile bei 10 Items."
+    },
+    {
+      "name": "Gradio",
+      "url": "https://github.com/gradio-app/gradio",
+      "category": "Python-Dashboard-Framework",
+      "access": "Open Source, self-hosted",
+      "pricing": "kostenlos",
+      "verdict": "Für ML-Demo-Ein-/Ausgabe gedacht; schlechterer Fit als Streamlit/NiceGUI für tabellarische Review-Workflows."
+    },
+    {
+      "name": "FastAPI",
+      "url": "https://github.com/fastapi/fastapi",
+      "category": "Web-Backend-Framework (Python)",
+      "access": "Open Source (MIT), self-hosted",
+      "pricing": "kostenlos",
+      "verdict": "Solide Basis-Schicht für Freigabe-Endpunkte, Telegram-Webhook und die HTMX-Detailseite."
+    },
+    {
+      "name": "htmx",
+      "url": "https://github.com/bigskysoftware/htmx",
+      "category": "Frontend-Bibliothek",
+      "access": "Open Source, self-hosted",
+      "pricing": "kostenlos",
+      "verdict": "Ermöglicht interaktive Buttons ohne SPA-Aufwand; Lizenz vor Einsatz direkt in LICENSE-Datei verifizieren."
+    },
+    {
+      "name": "Obsidian + Dataview-Plugin",
+      "url": "https://github.com/blacksmithgu/obsidian-dataview",
+      "category": "Notiz-Vault / Abfrage-Plugin",
+      "access": "Obsidian-App kostenlos für Privatnutzung, Dataview Open Source (MIT)",
+      "pricing": "kostenlos (Obsidian Sync optional kostenpflichtig)",
+      "verdict": "Passt zu einem Git-basierten, lokalen Workflow; ohne eigenes Push/Automations-Modell nur mit Zusatz-Plumbing als Freigabe-Kanal nutzbar."
+    },
+    {
+      "name": "Notion (API/SDK)",
+      "url": "https://github.com/makenotion/notion-sdk-js",
+      "category": "Workspace/Datenbank-Tool",
+      "access": "Proprietär mit offiziellem Open-Source-SDK (MIT)",
+      "pricing": "Freemium; Automationen/Webhooks teils planabhängig",
+      "verdict": "Starke v1-Ergänzung für Kanban/Kalender/Mobile-Push ohne eigenen Frontend-Code; Plan-Limits vor Bau prüfen."
+    },
+    {
+      "name": "Airtable",
+      "url": "https://airtable.com",
+      "category": "Low-Code-Datenbank",
+      "access": "Proprietär, REST-API",
+      "pricing": "Freemium; Zeilen-/Automations-Limits je Plan",
+      "verdict": "Native Button-Felder für Freigabe interessant, vergleichbar zu Notion; Limits nicht verifiziert, vor Bau prüfen."
+    },
+    {
+      "name": "Google Sheets + Apps Script",
+      "url": "https://www.google.com/sheets/about/",
+      "category": "Tabellentool",
+      "access": "Proprietär, kostenlos mit Google-Konto",
+      "pricing": "kostenlos",
+      "verdict": "Gut als reine Statistik-/Tracking-Ebene; schwach als interaktive Review-Oberfläche mit Diff/PDF-Vorschau."
+    },
+    {
+      "name": "Slack (Block Kit / Bolt SDK)",
+      "url": "https://slack.com",
+      "category": "Messenger/Team-Chat",
+      "access": "Proprietär, offizielles Bolt-SDK Open Source",
+      "pricing": "Freemium; Free-Plan mit Historienlimit (typisch 90 Tage)",
+      "verdict": "Technisch gleichwertig zu Telegram, aber mehr Setup-Aufwand (OAuth-App) ohne Zusatznutzen für Einzelnutzer."
+    },
+    {
+      "name": "Discord (discord.py)",
+      "url": "https://discord.com",
+      "category": "Messenger/Community-Chat",
+      "access": "Proprietär, discord.py Open Source",
+      "pricing": "kostenlos",
+      "verdict": "Kein klarer Vorteil gegenüber Telegram für diesen Einzelnutzer-Fall."
+    },
+    {
+      "name": "WhatsApp Business API",
+      "url": "https://business.whatsapp.com",
+      "category": "Messenger-API",
+      "access": "Proprietär (Meta Cloud API oder BSP wie Twilio/360dialog)",
+      "pricing": "Kosten pro Konversation, je Land/Kategorie",
+      "verdict": "Nicht empfohlen: Verifizierung, Template-Freigabe und Konversationskosten unverhältnismäßig für ein persönliches Tool."
+    },
+    {
+      "name": "GitHub Issues/PRs + Projects",
+      "url": "https://github.com",
+      "category": "Entwickler-Workflow-Tool",
+      "access": "Proprietär (GitHub), Free-Tier für private Repos ausreichend",
+      "pricing": "kostenlos in üblichem Umfang für Einzelnutzer",
+      "verdict": "Sehr guter v1-Kandidat für Diff/Kommentar/Label-Pipeline; Claude-Code-Tooling unterstützt PR-Reviews bereits nativ."
+    },
+    {
+      "name": "Claude Artifacts (db/assets/comments-Fähigkeiten)",
+      "url": "",
+      "category": "Claude-eigene Hosting-Oberfläche",
+      "access": "Teil des Claude-Produkts, kein separates Hosting nötig",
+      "pricing": "in Claude-Abo/API-Nutzung enthalten",
+      "verdict": "Sehr niedriger Aufwand fürs MVP-Experiment; als langfristiges Produktfundament wegen sich weiterentwickelnder Plattform mit Vorsicht behandeln."
+    },
+    {
+      "name": "Reactive Resume",
+      "url": "https://github.com/AmruthPillai/Reactive-Resume",
+      "category": "Open-Source-Lebenslauf-Builder",
+      "access": "Open Source (MIT), self-hosted oder gehostete Instanz",
+      "pricing": "kostenlos",
+      "verdict": "Nicht als Review-Tool, aber als Vorlagen-/Layout-Inspiration für den 'Setzer'-Agenten relevant."
+    },
+    {
+      "name": "Teal / Huntr / Simplify",
+      "url": "",
+      "category": "Proprietäre Job-Tracker-SaaS",
+      "access": "closed / freemium, keine bekannte offene API für diesen Zweck",
+      "pricing": "Freemium, kostenpflichtige Stufen",
+      "verdict": "Nur als UX-Vorbild für Status-Pipeline/Kanban nutzen, nicht integrieren."
+    }
+  ],
+  "recommendations": [
+    "MVP (1-2 Wochen): Telegram-Bot (python-telegram-bot) als primärer Push-/Freigabe-Kanal mit Inline-Buttons (Freigeben/Ablehnen/Später/Kommentar) direkt auf der bestehenden SQLite-DB; jede Bewerbung wird als eine Nachricht mit Score+Begründung, PDF-Anhang und Kurztext des Anschreibens gesendet.",
+    "MVP: ergänzende FastAPI+HTMX-Detailseite (lokal oder auf demselben Host wie der Agent) für die 'tiefe' Prüfung: Wort-Diff Lebenslauf-Basis vs. angepasst, PDF-Einbettung per iframe, Checkliste mit Quellen-Tags pro Aussage, Status-Tabelle/Kanban gruppiert nach Pipeline-Status – der Telegram-Bot verlinkt bei Bedarf auf diese Seite.",
+    "Kein neues Datenmodell für die Review-Oberfläche einführen: Status, Kommentare, Checklisten-Ergebnisse und Audit-Log bleiben Tabellen in der ohnehin vorhandenen SQLite-Datenbank; die Review-UI ist rein lesend/schreibend darauf, keine eigene Quelle der Wahrheit.",
+    "Vier getrennte Aktionen statt einer binären Freigabe modellieren: Freigeben (löst Versand aus, mit kurzem Undo-Fenster), Ablehnen (Bewerbung endet), Später (zurück in Warteschlange, kein Zeitdruck), Kommentar (löst Regenerierung durch Autor/Kritiker-Agent aus, Bewerbung bleibt im Review-Status).",
+    "Jede Statusänderung als unveränderlichen Audit-Log-Eintrag (Zeitstempel, Akteur, alter/neuer Status, Kommentartext) persistieren; Log-Tabelle ohne UPDATE/DELETE-Berechtigung für die Anwendungsschicht anlegen, um Nachweisbarkeit der menschlichen Freigabe zu sichern.",
+    "Konfidenzwerte und 'Warum diese Stelle'-Begründung des Matcher-Agenten direkt neben jedem Item anzeigen, damit die Prüfzeit sich auf unsichere/niedrig bewertete Fakten konzentriert statt auf jedes Detail gleich viel Zeit zu verwenden.",
+    "Nachfass-Logik als eigener geplanter Job (gleicher Cron-Mechanismus wie der Scan) umsetzen: Bewerbungen im Status 'Versendet' älter als konfigurierbare N Werktage ohne Antwort erzeugen eine 'Nachfassen fällig'-Benachrichtigung über denselben Telegram-Kanal.",
+    "Separaten 'Offene Rückfragen'-Kanal/Status führen (z.B. 'Firma verlangt Gehaltsangabe, welchen Betrag?'), damit eine einzelne unklare Bewerbung nicht die Prüfung der übrigen 9 blockiert; Antwort fließt strukturiert zurück in die Pipeline statt eines kompletten Neustarts.",
+    "v1: Notion-Spiegelung (per Notion-SDK-Sync-Job) für Kanban-/Kalender-/Mobile-Push-Ansicht ergänzen, sobald Kernkreislauf stabil läuft; Automations-/Webhook-Verfügbarkeit im tatsächlich genutzten Notion-Plan vorher prüfen.",
+    "v1: GitHub-PR-Workflow (private Repo mit CV/Anschreiben-Quelltext, PR pro Bewerbung, Review = Kommentar/Merge) als Alternative oder Ergänzung zur Detailseite prüfen, besonders wenn der Nutzer ohnehin git-affin ist; nutzt bereits vorhandene Claude-Code-PR-Automatisierung.",
+    "Claude Artifact als Review-Cockpit nur als Experiment/Zusatzkanal behandeln, nicht als alleinige Produktionsschicht, solange die Plattform sich weiterentwickelt; kein Ersatz für die SQLite-basierte Quelle der Wahrheit.",
+    "WhatsApp Business API, Slack und Discord nicht für das MVP einplanen – kein belegbarer Zusatznutzen gegenüber Telegram für einen Einzelnutzer, bei WhatsApp zusätzlich unverhältnismäßiger Setup-/Kostenaufwand."
+  ],
+  "risks": [
+    "Kein Timeout darf implizit als Freigabe zählen – die Statusmaschine muss 'kein expliziter Klick = blockiert' als Invariante erzwingen, sonst kann ein vergessenes Review versehentlich zum Versand führen.",
+    "Telegram als alleiniger interaktiver Kanal ist ein Single Point of Failure (Konto-/App-Ausfall, Bot-Token-Kompromittierung) – ein Backup-Kanal (z.B. E-Mail-Digest oder direkter DB-Zugriff über die FastAPI-Seite) sollte immer verfügbar bleiben.",
+    "Notion/Airtable-Automatisierungs- und Webhook-Funktionen sind planabhängig und ändern sich häufig – vor Festlegung der v1-Architektur im aktuell genutzten Tarif konkret verifizieren, nicht auf Basis veralteter Annahmen bauen.",
+    "Claude Artifacts sind ein sich weiterentwickelnder Produktbereich ohne langfristige API-Stabilitätsgarantie – nicht als einzige Produktionsschicht ohne SQLite-Fallback nutzen.",
+    "PDFs sind binär nicht diffbar (z.B. in GitHub); ohne parallele Versionierung der Quelle (Markdown/Typst/LaTeX) verliert die Diff-Anforderung ihren Wert.",
+    "WhatsApp-Business-Kosten und -Regeln (Templates, 24-Stunden-Fenster) ändern sich je Land/Kategorie und wurden hier nicht aktuell recherchiert – vor jeder Entscheidung für WhatsApp eine frische Preis-/Regelprüfung durchführen.",
+    "Prompt-Injection aus Stellenanzeigen/Firmenwebseiten könnte versuchen, auch die Review-Darstellung selbst zu manipulieren (z.B. vortäuschen, ein Fakt sei bereits geprüft) – externe Texte in der Review-UI immer sichtbar als Zitat/unvertrauenswürdig kennzeichnen, nie als eigene Aussage des Agenten rendern.",
+    "Ohne Quellen-Tagging pro Aussage bleibt 'keine erfundenen Aussagen' eine reine Vertrauensfrage an das Modell statt einer prüfbaren UI-Eigenschaft – das Fehlen dieses Tags im Autor-Agenten-Output würde die zentrale Anforderung 6 (Checklisten-Review) entwerten."
+  ],
+  "open_questions_for_user": [
+    "Ist ein täglicher fester Review-Termin (z.B. abends) ausreichend, oder wird sofortige mobile Push-Benachrichtigung binnen Minuten benötigt? Das entscheidet, ob Telegram/Push nötig ist oder ein E-Mail-Digest reicht.",
+    "Nutzt der Kandidat bereits Notion, Obsidian, Slack oder ein anderes der genannten Tools im Alltag? Wiederverwendung eines bereits genutzten Tools senkt die Einstiegshürde erheblich gegenüber einem komplett neuen Kanal.",
+    "Soll die Review-Oberfläche später für weitere Personen (z.B. eine Vertrauensperson als Zweitmeinung) freigegeben werden? Das beeinflusst, ob Mehrnutzer-fähige Optionen (Notion-Sharing, eigene Webapp mit Login) früher priorisiert werden sollten.",
+    "Welches Nachfass-Intervall ist gewünscht (z.B. 7, 10 oder 14 Werktage ohne Antwort), und soll es je Branche/Unternehmensgröße variieren?",
+    "Bevorzugt der Nutzer Python oder ist auch ein Node/TypeScript-Baustein (z.B. grammY) akzeptabel, falls das die Wahl der Bot-/Web-Bibliothek beeinflusst?",
+    "Soll ein bestehender Kalender (Google/Outlook) für Interview-Termine und Nachfass-Fristen angebunden werden, oder reicht zunächst eine interne Tabellen-/Kanban-Ansicht?",
+    "Wie genau soll das Undo-Fenster nach 'Freigeben' funktionieren (z.B. 30-60 Sekunden verzögerter Versand mit Abbrechen-Option) – ist eine kurze Verzögerung vor dem tatsächlichen E-Mail-Versand akzeptabel?"
+  ],
+  "search_log": [
+    "WebSearch war für diese Sitzung nicht verfügbar (Kontingent erschöpft) und wurde nicht verwendet.",
+    "WebFetch https://github.com/python-telegram-bot/python-telegram-bot -> Lizenz, Stars, Aktivität abgefragt.",
+    "WebFetch https://github.com/grammyjs/grammY -> Lizenz, Stars, Aktivität abgefragt.",
+    "WebFetch https://github.com/zauberzeug/nicegui -> Lizenz, Stars, Aktivität, Framework-Beschreibung abgefragt.",
+    "WebFetch https://github.com/reflex-dev/reflex -> Lizenz, Stars, Aktivität, Framework-Beschreibung abgefragt.",
+    "WebFetch https://github.com/streamlit/streamlit -> Lizenz, Stars, Aktivität abgefragt.",
+    "WebFetch https://github.com/blacksmithgu/obsidian-dataview -> Lizenz, Stars, Aktivität abgefragt.",
+    "WebFetch https://github.com/makenotion/notion-sdk-js -> Lizenz, Stars, Aktivität, offizieller Status abgefragt.",
+    "WebFetch https://github.com/AmruthPillai/Reactive-Resume -> Lizenz, Stars, Aktivität, Funktionsumfang abgefragt.",
+    "WebFetch https://github.com/fastapi/fastapi -> Lizenz, Stars abgefragt.",
+    "WebFetch https://github.com/bigskysoftware/htmx -> Lizenz (nicht eindeutig extrahiert), Stars, Versionshinweis abgefragt.",
+    "Insgesamt 10 WebFetch-Abrufe genutzt (Limit eingehalten); alle übrigen Aussagen stammen aus Modellwissen ohne Websuche, entsprechend als 'medium' oder 'low' Confidence markiert und ohne erfundene Quellen-URLs in 'sources'."
+  ],
+  "verification_notes": [
+    "Diese Datei entstand ohne Websuche; Preise/Features vor Umsetzung prüfen.",
+    "Gradio-, Airtable-, Slack-, Discord-, WhatsApp-, Teal/Huntr/Simplify- und Google-Sheets-Aussagen basieren auf Modellwissen (Stand Wissensgrenze Januar 2026) und wurden nicht per Fetch verifiziert – insbesondere Preise, Plan-Limits und Automatisierungs-/Webhook-Funktionen ändern sich häufig.",
+    "htmx-Lizenz wurde per Fetch nicht eindeutig extrahiert (nur Versionshinweis 2.0.10 sichtbar); vor Einsatz LICENSE-Datei direkt im Repo prüfen.",
+    "Für einen aktiv gepflegten Open-Source-'Bewerbungs-Kanban-Tracker' als direktes Vorbild wurde keine konkrete, verifizierbare Quelle gefunden; Empfehlung ist, das Kanban-Schema selbst nachzubilden statt ein Drittprodukt zu integrieren.",
+    "Alle in dieser Datei genannten Aussagen zu Claude Artifacts (db/assets/comments-Fähigkeiten) stammen aus der Werkzeugbeschreibung dieser Sitzung, nicht aus einer externen, versionierten Dokumentationsquelle – vor Verlass auf konkrete Grenzwerte die aktuelle artifact-capabilities-Doku zum Zeitpunkt der Umsetzung erneut prüfen."
+  ]
+}
