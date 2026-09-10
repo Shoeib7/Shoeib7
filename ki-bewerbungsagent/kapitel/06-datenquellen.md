@@ -131,11 +131,13 @@ Das Ergebnis der Erkennung (ATS-Typ, Feed-URL, Adapter, letzter erfolgreicher Ab
 
 ### 6.6 Stufenstrategie
 
-| Stufe | Quellen | Abrufschicht | Budget Datenquellen | Ausstiegskriterium |
+| Stufe | Quellen | Abrufschicht | Kosten Datenquellen | Ausstiegskriterium |
 |---|---|---|---|---|
-| MVP (Wochen 1–4) | BA-API; Watchlist-Adapter Personio/Greenhouse/Lever; Adzuna; Arbeitnow; Job-Alert-Mails (Metadaten) | deterministische Python-Adapter, kein Browser | 0 EUR | 20 Werktage stabile Tagesläufe; Abdeckungsmessung mit SerpAPI-Free-Tier dokumentiert |
-| v1 (Monat 2–3) | + SerpAPI 1.000 Suchen/Monat; + Recruitee, SmartRecruiters, Workday, Teamtailor (nach Test); + generischer JSON-LD-Adapter; + Jina/Firecrawl-Fallback ohne Stealth; Einzelabruf nach Nutzerklick | + Web-Fetch/Jina/Firecrawl, Haiku-4.5-Extraktion | ca. 25–41 USD/Monat | Watchlist-Abdeckung ≥ 90 % der Firmen mit funktionierendem Adapter |
-| v2 (Monat 4–6) | + Playwright MCP für einzelne JS-Seiten; + JOIN; optional Apify-Actors oder JSearch nur nach ausdrücklicher Freigabe mit Volumendeckel; Crawl4AI statt Firecrawl, falls Kosten | + Browser für Einzelseiten | ca. 25–60 USD/Monat je Freigabe | siehe Kapitel 19 |
+| MVP (Wochen 1–4) | BA-API; Watchlist-Adapter Personio/Greenhouse/Lever; Adzuna; Arbeitnow; Job-Alert-Mails (Metadaten) | deterministische Python-Adapter, kein Browser | 0 € (Kapitel 18.4) | 20 Werktage stabile Tagesläufe; Abdeckungsmessung mit SerpAPI-Free-Tier dokumentiert |
+| v1 (Monat 2–3) | + SerpAPI 1.000 Suchen/Monat; + Recruitee, SmartRecruiters, Workday, Teamtailor (nach Test); + generischer JSON-LD-Adapter; + Jina/Firecrawl-Fallback ohne Stealth; Einzelabruf nach Nutzerklick | + Web-Fetch/Jina/Firecrawl, Haiku-4.5-Extraktion | siehe Kapitel 18.4/18.6 | Watchlist-Abdeckung ≥ 90 % der Firmen mit funktionierendem Adapter |
+| v2 (Monat 4–6) | + Playwright MCP für einzelne JS-Seiten; + JOIN; optional Apify-Actors oder JSearch nur nach ausdrücklicher Freigabe mit Volumendeckel; Crawl4AI statt Firecrawl, falls Kosten | + Browser für Einzelseiten | siehe Kapitel 18.6 | siehe Kapitel 19 |
+
+Die verbindlichen Euro-Gesamtkosten (inklusive Datenquellen) rechnet Kapitel 18 durch; dieses Kapitel nennt hier keine eigenen, davon abweichenden Monatsbeträge.
 
 **Entscheidung:** Der MVP nutzt ausschließlich Grün-Quellen; Gelb-Quellen kommen erst in v1 nach dokumentierter Abdeckungslücke, Rot-Quellen nie. **Begründung:** Bei rund zehn Bewerbungen am Tag ist Breite weniger wert als Verlässlichkeit; jede Gelb-Quelle bringt Kosten, Parsing-Fragilität und ein Restrisiko, das nur der Nutzer selbst eingehen kann. **Alternative:** Frühstart mit SerpAPI und Apify für maximale Abdeckung ab Tag 1; verworfen, weil Dedup, Scoring und Kritiker zuerst an einer stabilen Quelle reifen sollen.
 
@@ -201,7 +203,7 @@ Dieselbe Stelle taucht regelmäßig in BA-API, Google for Jobs, einer Job-Alert-
 1. Dürfen Gelb-Quellen (SerpAPI, später Apify/JSearch) überhaupt genutzt werden? Default: SerpAPI ab v1 ja, Apify/JSearch nein.
 2. Soll der Volltext einer Anzeige aus einer Job-Alert-Mail automatisch nachgeladen werden? Default: nein, nur nach Klick im Review-Cockpit.
 3. Gibt es eine Watchlist von Wunscharbeitgebern und wie groß ist sie? Default: der Nutzer liefert 20 bis 50 Firmen, der Scout schlägt aus BA-Treffern weitere vor.
-4. Welches Monatsbudget für Datenquellen ist akzeptabel? Default: 0 EUR im MVP, bis 41 USD in v1.
+4. Welches Monatsbudget für Datenquellen ist akzeptabel? Default: 0 € im MVP; ab v1 siehe Kostenrahmen in Kapitel 18.4/18.6.
 5. Sind englischsprachige Tech-Rollen relevant (Arbeitnow, Greenhouse/Lever-Schwerpunkt)? Default: ja, bis Zielrollen bekannt sind.
 6. Sollen Ansprechpartner-Namen aus Anzeigen über die einzelne Bewerbung hinaus gespeichert werden? Default: nein, Löschung nach Abschluss.
 

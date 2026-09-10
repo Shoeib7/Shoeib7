@@ -16,18 +16,19 @@ Die Roadmap übersetzt die Entscheidungen der Kapitel 6 bis 16 in eine Reihenfol
 | Phase | Zeitraum | Ziel | Ergebnis am Ende | Laufende Kosten (Größenordnung) |
 |---|---|---|---|---|
 | Phase 0 | Woche 0 | Voraussetzungen schaffen | Accounts, Server, zwei Repos, vollständiges Kandidatenprofil, geprüfte Quellenzugänge | Server ca. 20 €/Monat; API nur Testaufrufe |
-| MVP | Wochen 1–4 | Durchstich: Quelle → Entwurf im Postfach | Tageslauf liefert täglich bis zu 10 Bewerbungen im Status „bereit zur Freigabe“; Freigabe im Cockpit; Bote legt Entwürfe ab; du sendest selbst | Server; API-Budget bis 10 USD je Tageslauf; Datenquellen 0 EUR |
+| MVP-Kern | Wochen 1–4 | Durchstich: Quelle → Entwurf im Postfach | Tageslauf liefert täglich bis zu 10 Bewerbungen im Status „bereit zur Freigabe“; Freigabe im Cockpit; Bote legt Entwürfe ab; du sendest selbst (MS1) | Server; API-Budget bis 45 USD je Tageslauf (aus Kapitel 18.2 abgeleitet, siehe 19.4); Datenquellen 0 EUR |
+| MVP-Rest | Wochen 5–6 | Ursprünglich geplanten MVP-Funktionsumfang abschließen, vor dem eigentlichen v1-Betrieb | ATS-Prüfer Stufe 2, DOCX-Builder und Mappe, FastAPI-Detailseite, weitere Quellenadapter, Abdeckungsmessung | Server; API-Budget wie MVP-Kern |
 | v1 | Monat 2–3 | Betrieb stabilisieren, Versand und Rückkanal | SMTP-Versand nach Freigabe, Tracker mit Antwortklassifikation und Nachfassen, SerpAPI, weitere ATS-Adapter, Embeddings, Cockpit als Web-App, Phoenix | + SerpAPI 25 USD/Monat, Firecrawl 0–16 USD/Monat |
 | v2 | Monat 4–6 | Portale, Lernen, Mehrnutzer-Vorbereitung | Co-Pilot für Portalformulare, gelernte Scoring-Gewichte, Auth im Cockpit, Managed-Agents-Entscheidung, rechtliche Prüfung vor Öffnung | + optionale Gelb-Quellen nach Freigabe, Kapitel 6.6 |
 
-Die belastbare Kostenrechnung je Bewerbung und je Monat steht in Kapitel 18; die Zahlen hier sind nur die Deckel, die die Architektur setzt (Kapitel 7.7.7, 6.6).
+Der MVP ist für vier Wochen zu breit zugeschnitten (Begründung und Aufteilung in Kern und Rest in 19.4); Wochen 5–6 laufen kalendarisch parallel zum Anlauf von v1 (19.5), gehören inhaltlich aber noch zum MVP. Die belastbare Kostenrechnung je Bewerbung und je Monat steht in Kapitel 18; die Zahlen hier sind nur die Deckel, die die Architektur setzt (Kapitel 7.7.7, 6.6) und werden aus Kapitel 18 abgeleitet, nicht neu berechnet.
 
 Fünf Meilensteine markieren die Übergänge. Jeder hat ein einziges Abnahmeereignis, das du selbst auslöst, und die Definition of Done der jeweiligen Phase als Bedingung:
 
 | Meilenstein | Ende von | Abnahmeereignis | Bedingung |
 |---|---|---|---|
 | MS0 „Startklar“ | Woche 0 | Commit `profil/` im Daten-Repository, `pytest` grün auf dem Server | Definition of Done Phase 0 (19.3) |
-| MS1 „Durchstich“ | Woche 4 | Du klickst im eigenen Mailprogramm auf Senden für einen Entwurf, den der Bote angelegt hat | Definition of Done MVP (19.4), fünf Betriebstage |
+| MS1 „Durchstich“ | Woche 4 | Du klickst im eigenen Mailprogramm auf Senden für einen Entwurf, den der Bote angelegt hat | Definition of Done MVP-Kern (19.4), fünf Betriebstage |
 | MS2 „Erster Versand und Kalibrierung“ | Woche 8 | Erste SMTP-Sendung durch den Boten im Versandfenster; Kalibrierungstermin nach 20 Freigaben protokolliert | V-01 bis V-07 abgenommen |
 | MS3 „v1 abgenommen“ | Woche 12 | Baseline für Rücklauf- und Interviewquote mit dir festgehalten (Kapitel 1.3) | Definition of Done v1 (19.5) |
 | MS4 „v2 und Go/No-Go“ | Woche 26 | Go/No-Go-Entscheidung nach Kapitel 21.5 dokumentiert | Definition of Done v2 (19.6) |
@@ -64,7 +65,7 @@ Betrieb (tägliche Reviews)   ├───────────────�
 
 - [ ] P0-08 Zwei private Git-Repositories anlegen: `bewerbungsagent` (Code) und `bewerbungen-data` (Profil, Bewerbungen, Datenbank; nie veröffentlichen), Struktur nach Kapitel 7.9.
 - [ ] P0-09 age-Schlüsselpaar erzeugen, privaten Schlüssel nur auf dem Server (`/etc/bewerbungsagent/age.key`, 0400) und im Passwortmanager; `.sops.yaml` und `config/secrets.enc.yaml` mit API-Key, E-Mail-Passwort, Telegram-Token, Adzuna-Keys ([sops](https://github.com/getsops/sops)).
-- [ ] P0-10 Claude-Code-Projekt initialisieren: `CLAUDE.md` mit Statusbegriffen, den zehn Sicherheitsregeln als Verbotsliste, Testpflicht (Kapitel 7.9); `.claude/settings.json` mit Deny-Regeln und `PreToolUse`-Hook (Kapitel 7.8); `pyproject.toml` mit gepinnten Abhängigkeiten (`claude-agent-sdk` 0.2.152, Python 3.10+, [PyPI](https://pypi.org/project/claude-agent-sdk/)); `schema.sql` aus Kapitel 7.3 als erste Migration; leere Modulordner; `pytest` mit einem ersten Test, der die Migration ausführt.
+- [ ] P0-10 Claude-Code-Projekt initialisieren: `CLAUDE.md` mit Statusbegriffen, den zehn Sicherheitsregeln als Verbotsliste, Testpflicht (Kapitel 7.9); `.claude/settings.json` mit Deny-Regeln und `PreToolUse`-Hook (Kapitel 7.8); `pyproject.toml` mit gepinnten Abhängigkeiten (`claude-agent-sdk` 0.2.152, Python 3.10+, [PyPI](https://pypi.org/project/claude-agent-sdk/)); `schema.sql` aus Kapitel 7.3 als erste Migration; `schemas/`- und `config/`-Verträge, von denen alle MVP-Pakete abhängen (Arbeitspaket M-00, 19.4); leere Modulordner; `pytest` mit einem ersten Test, der die Migration ausführt.
 - [ ] P0-11 Systempakete auf dem Server: Python 3.12, Node (für Playwright MCP ab v2), WeasyPrint-Abhängigkeiten, Poppler (`pdftotext`, `pdffonts`), Java für `tika-server` (Apache Tika 4.0.0, [Tika](https://github.com/apache/tika)), LibreOffice headless nur für die DOCX-Prüfung (Kapitel 13.2), Tesseract mit deutschem Sprachpaket (Kapitel 13.8). Schriftdateien Carlito und Liberation Sans nach `assets/fonts/` (Kapitel 13.3).
 - [ ] P0-12 systemd-Units aus Kapitel 7.5 anlegen, aber die Timer noch deaktiviert lassen.
 
@@ -98,65 +99,77 @@ Summe Phase 0: rund 4 bis 4,5 PT deiner Zeit, davon 2,5 bis 3 PT für das Kandid
 
 **Risiken dieser Phase:** Das Onboarding ist der einzige Schritt, den niemand für dich beschleunigen kann; unvollständige Story-Bank bedeutet dünne Belege in jeder Bewerbung (Kapitel 8.9 Schritt 6). Die inoffizielle BA-API kann anders antworten als die OpenAPI-Beschreibung (Kapitel 6.3); dann wird der Adapter in Woche 1 gegen die reale Antwort gebaut, nicht gegen die Spezifikation. Hetzner-Preise und Verfügbarkeit einzelner Linien waren nicht abschließend belegbar (Kapitel 7.7.3).
 
-### 19.4 MVP (Wochen 1–4): der kleinste Durchstich, der echten Wert liefert
+### 19.4 MVP (Wochen 1–6): der kleinste Durchstich, der echten Wert liefert
 
-**Ziel:** Ein Tageslauf, der aus BA-API, Watchlist-Feeds, Adzuna, Arbeitnow und Job-Alert-Mails eine Tagesauswahl bildet, sie recherchiert, schreibt, prüft, setzt und dir im Cockpit vorlegt; nach deiner Freigabe legt der Bote die fertige E-Mail als Entwurf im Postfach ab, und du sendest sie selbst. Genau die Kette aus Kapitel 7.2, mit den Stufen-Festlegungen aus Kapitel 6.6 und 7.10.
+**Ziel:** Ein Tageslauf, der aus BA-API, Watchlist-Feeds, Adzuna, Arbeitnow und Job-Alert-Mails eine Tagesauswahl bildet, sie recherchiert, schreibt, prüft, setzt und dir im Cockpit vorlegt; nach deiner Freigabe legt der Bote die fertige E-Mail als Entwurf im Postfach ab, und du sendest sie selbst. Genau die Kette aus Kapitel 7.2, mit den Stufen-Festlegungen aus Kapitel 6.6 und 7.10. Fünfzehn Arbeitspakete in vier Wochen sind nicht belastbar (13 PT eigener Zeit, 25 bis 35 Claude-Code-Sitzungen für den vollen ursprünglichen Zuschnitt); deshalb teilt sich der MVP in einen **Kern** (Wochen 1–4, trägt MS1 „Durchstich“) und einen **Rest** (Wochen 5–6, schließt den ursprünglich geplanten Funktionsumfang ab, bevor der eigentliche v1-Betrieb mit Kalibrierung und SMTP-Versand beginnt, 19.5).
 
-**Im MVP enthalten:** Scout-Adapter BA-API, Personio, Greenhouse, Lever, Adzuna, Arbeitnow, Job-Alert-Mails (nur Metadaten, Volltext erst nach Klick); Extraktion Haiku 4.5, Dedup mit datasketch, Injection-Screen; Matcher mit Muss-Filter, BM25 und Judge auf Sonnet 5 im Batch, Tagesauswahl mit Diversitätskappung; Rechercheur, Autor, Kritiker als Agent-SDK-Subagents; Claims-Abgleich und Anti-Generik-Katalog; ATS-Prüfer Stufe 1 und 2 mit Tika und OpenResume; Setzer mit WeasyPrint und python-docx, Layout `sachlich`, Mappe; Cockpit als Telegram-Bot plus FastAPI/HTMX-Detailseite mit Checkliste, Wort-Diff, Seitenvorschau und den vier Aktionen; Bote im Entwurfsmodus; `event_log`, Budget je Lauf, systemd-Timer. Portal-Bewerbungen im MVP: Der Bote liefert Link, Standardantworten und Dateien, du füllst das Formular selbst aus (Kapitel 2.12, 15.5).
+**Im MVP-Kern enthalten (Wochen 1–4):** Scout-Adapter BA-API, Personio, Greenhouse (Watchlist-Kern); Extraktion Haiku 4.5, Dedup mit datasketch, Injection-Screen; Matcher mit Muss-Filter, BM25 und Judge auf Sonnet 5 im Batch, Tagesauswahl mit Diversitätskappung; Rechercheur, Autor, Kritiker als Agent-SDK-Subagents; Claims-Abgleich und Anti-Generik-Katalog; ATS-Prüfer Stufe 1; Setzer mit WeasyPrint, Layout `sachlich`, zunächst nur PDF plus `anschreiben.txt`; Cockpit als Telegram-Bot mit Checkliste und den vier Aktionen; Bote im Entwurfsmodus; `event_log`, Budget je Lauf, systemd-Timer. Portal-Bewerbungen im MVP: Der Bote liefert Link, Standardantworten und Dateien, du füllst das Formular selbst aus (Kapitel 2.12, 15.5).
 
-**Nicht im MVP:** SMTP-Versand, SerpAPI und alle Gelb-Quellen, Embeddings und Reranker, Antwortklassifikation und Nachfassen, Portalformular-Vorbefüllung, Kanban und Statistikseite, Phoenix, Zweitgutachter, Lernschleife (Gründe werden nur gesammelt), Motivationsschreiben, englische Vorlage nur, wenn deine Zielrollen sie brauchen (Kapitel 22).
+**Im MVP-Rest enthalten (Wochen 5–6):** ATS-Prüfer Stufe 2 mit Tika und OpenResume; Setzer-Ausbau mit python-docx-Builder und Mappe; FastAPI/HTMX-Detailseite mit Wort-Diff und Seitenvorschau als Ergänzung zum Telegram-Bot; weitere Scout-Adapter Lever, Adzuna, Arbeitnow, Job-Alert-Mails; Abdeckungsmessung.
+
+**Nicht im MVP:** SMTP-Versand, SerpAPI und alle Gelb-Quellen, Embeddings und Reranker, Antwortklassifikation und Nachfassen, Portalformular-Vorbefüllung, Kanban und Statistikseite, Phoenix, Lernschleife (Gründe werden nur gesammelt), Motivationsschreiben, englische Vorlage nur, wenn deine Zielrollen sie brauchen (Kapitel 22).
 
 **Arbeitspakete (Checkliste):**
 
+- [ ] M-00 Verträge: erzeugt `schemas/` (`extraktion.json`, `judge.json`, `dossier.json`, `briefing.json`, `anschreiben-mit-claims.json`, `kritik.json`, `tailoring_log.json`, `ats_report.json`, `antwort.json`, `checkliste.json`) und `config/rubrik.yaml`, `config/scoring.yaml`, `config/anti_generik.yaml`, `config/ats_rules.yaml`, `config/ats_detection_rules.yaml`, `config/modelle.yaml`, `config/zeitplan.yaml` sowie je Schema einen leeren Golden-Test; erste Instanz aus P0-10 (19.3). Läuft vor allen vier Strängen, weil jedes MVP-Paket gegen diese Verträge baut (Definition of Ready, 19.8).
 - [ ] M-01 Orchestrator-Kern: CLI `bewerbungsagent`, `run` und `event_log` mit Triggern, Statusmaschine mit den erlaubten Übergängen aus Kapitel 7.4, `--budget-usd` mit hartem Abbruch, `--resume`, Commit ins Daten-Repository nach jedem Statuswechsel (Kapitel 7.5, 7.7.5).
-- [ ] M-02 Scout-Adapter BA-API mit Schema-Validierung, Backoff, Tagesnotiz bei Einbruch der Trefferzahl (Kapitel 6.3); Adapter Personio, Greenhouse, Lever für die Watchlist; Adzuna, Arbeitnow; IMAP-Leser für Job-Alert-Mails (Kapitel 6.5). Jeder Adapter liefert den Rohtreffer aus Kapitel 6.7 und hat einen Fixture-Test.
+- [ ] M-02 Scout-Adapter BA-API mit Schema-Validierung, Backoff, Tagesnotiz bei Einbruch der Trefferzahl (Kapitel 6.3); Adapter Personio, Greenhouse für den Watchlist-Kern (Kapitel 6.5). Jeder Adapter liefert den Rohtreffer aus Kapitel 6.7 und hat einen Fixture-Test.
+- [ ] M-02b Scout-Adapter Rest (MVP-Rest, Wochen 5–6): Lever für die Watchlist; Adzuna, Arbeitnow; IMAP-Leser für Job-Alert-Mails (Kapitel 6.5), gleiches Schema und Fixture-Test wie M-02.
 - [ ] M-03 Normalisierung und Extraktion mit Haiku 4.5 und Structured Output nach dem Schema aus Kapitel 9.2; Eskalation auf Sonnet 5 bei leeren Pflichtfeldern; pydantic-Nachprüfung (Kennziffer, PLZ).
 - [ ] M-04 Dedup dreistufig (ID, Blocking mit Jaro-Winkler 0,90, MinHashLSH 0,75–0,85 mit `datasketch`, [datasketch](https://github.com/ekzhu/datasketch)), Grenzband als „mögliches Duplikat“ (Kapitel 9.4).
 - [ ] M-05 Injection-Screen und Scam-Signal mit Haiku 4.5 vor dem Judge (Kapitel 7.8 Regel 5, 9.5); Fixtures mit eingebetteten Anweisungen und Weißtext.
 - [ ] M-06 Matcher: Muss-Filter aus `praeferenzen.yaml`, BM25-Vorauswahl mit `bm25s` ([bm25s](https://github.com/xhluca/bm25s)), Judge auf Sonnet 5 als Message Batch mit gecachtem Präfix (Kapitel 7.6, [Batch](https://platform.claude.com/docs/en/build-with-claude/batch-processing), [Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)); synchroner Fallback für die Top-40; Tagesauswahl Top-10 mit maximal zwei Anzeigen je Arbeitgeber (Kapitel 9.8); Begründungsfeld je Anzeige (Kapitel 9.6).
 - [ ] M-07 Rechercheur als Subagent (Definition aus Kapitel 7.6): Stufenfolge Anzeige, Karriereseite, Impressum, Register nur im Zweifel (Kapitel 10.1); `allowed_domains`, `max_uses: 8`; Dossier nach `schemas/dossier.json`; Rückfragen als `question`-Datensätze mit den drei Fragetypen und Defaults aus Kapitel 10.4; `contact.delete_after` (Kapitel 10.7).
 - [ ] M-08 Autor als Subagent: Format-Router (Kapitel 11.3), Briefing-Schritt auf Sonnet 5, drei Varianten in einem Aufruf, Lebenslauf-Tailoring mit Log (Kapitel 11.7), `claims` mit Story-IDs; Skills `anschreiben`, `lebenslauf-tailoring`; System-Prompt-Skelett aus Kapitel 11.10.
-- [ ] M-09 Kritiker: deterministische Prüfungen und `anti_generik.yaml` (Kapitel 11.5), Rubrik K1–K7 mit Gates (Kapitel 11.9), Fakten-Check gegen Story-Bank, Stimm-Check und Leser-Test im frischen Kontext, Konsistenz-Check (Kapitel 11.8); höchstens zwei Schleifen, danach Cockpit. Modell für Kritiker und Zweitgutachter nach Kapitel 11.10 in `config/modelle.yaml` konfigurieren, nicht im Code festschreiben.
-- [ ] M-10 ATS-Prüfer Stufe 1: Begriffsextraktion mit Haiku 4.5, Abdeckungsquote deterministisch, Stuffing-Regeln (Kapitel 12.2–12.4). Stufe 2: `tika-server` und OpenResume-Parser lokal, Formatcheckliste, Lesetest auf Sonnet 5, ATS-Report (Kapitel 12.5–12.8, [OpenResume](https://github.com/xitanggg/open-resume)).
-- [ ] M-11 Setzer: Jinja2-Vorlagen `sachlich` für Anschreiben (DIN 5008 Form B) und Lebenslauf, WeasyPrint, python-docx-Builder für den Lebenslauf, Typografie-Nachbearbeitung, QA-Tabelle aus Kapitel 13.10, Mappe mit pypdf, Dateinamen nach Kapitel 13.6, `render/vN`, `final/` mit Hashes, Manifest (Kapitel 13.11, [WeasyPrint](https://weasyprint.com/)).
-- [ ] M-12 Cockpit: Telegram-Bot mit Push je Stelle, Tagesdigest, vier Aktionen als Inline-Buttons, Rückfragen als Buttons oder Freitext (Kapitel 14.6–14.8); FastAPI/HTMX-Detailseite über SSH-Tunnel mit Checkliste aus Kapitel 14.4, Wort-Diff (`difflib`, Kapitel 14.5), Seitenvorschau, Undo-Fenster 60 Sekunden; Audit-Einträge in `event_log`; E-Mail-Digest als Rückfallkanal.
+- [ ] M-09 Kritiker: deterministische Prüfungen und `anti_generik.yaml` (Kapitel 11.5), Rubrik K1–K7 mit Gates (Kapitel 11.9), Fakten-Check gegen Story-Bank, Stimm-Check und Leser-Test im frischen Kontext, Konsistenz-Check (Kapitel 11.8); höchstens zwei Schleifen, danach Cockpit. Modell für den Kritiker (Claude Opus 5, Rubrik effort high, Stimm-/Leser-Test effort medium) nach Kapitel 11.10 in `config/modelle.yaml` konfigurieren, nicht im Code festschreiben.
+- [ ] M-10 ATS-Prüfer Stufe 1 (MVP-Kern): Begriffsextraktion mit Haiku 4.5, Abdeckungsquote deterministisch, Stuffing-Regeln (Kapitel 12.2–12.4).
+- [ ] M-10b ATS-Prüfer Stufe 2 (MVP-Rest, Wochen 5–6): `tika-server` und OpenResume-Parser lokal, Formatcheckliste, Lesetest auf Sonnet 5, ATS-Report (Kapitel 12.5–12.8, [OpenResume](https://github.com/xitanggg/open-resume)).
+- [ ] M-11 Setzer (MVP-Kern): Jinja2-Vorlage `sachlich` für Anschreiben (DIN 5008 Form B) und Lebenslauf, WeasyPrint, Typografie-Nachbearbeitung, QA-Tabelle aus Kapitel 13.10, Dateinamen nach Kapitel 13.6, `render/vN`, `final/` mit Hashes, Manifest (Kapitel 13.11, [WeasyPrint](https://weasyprint.com/)); Ausgabe zunächst nur PDF plus `anschreiben.txt`.
+- [ ] M-11a Kostenmessung (Ende Woche 3, MVP-Kern): eine vollständige Bewerbung (Rechercheur → Autor → Kritiker → ATS-Prüfer → Setzer) an einer echten Anzeige durchlaufen lassen, sobald M-11 steht; alle `response.usage`-Werte in `event_log` protokollieren. Ergebnis kalibriert Kapitel 18 (Entscheidung „Mini-Prototyp“, Kapitel 18.1) und ist die geprüfte Grundlage für das Lauf-Budget aus der Definition of Done (19.4 Punkt 6–7).
+- [ ] M-11b Setzer-Ausbau (MVP-Rest, Wochen 5–6): python-docx-Builder für den Lebenslauf, Mappe mit pypdf.
+- [ ] M-12 Cockpit (MVP-Kern): Telegram-Bot mit Push je Stelle, Tagesdigest, vier Aktionen als Inline-Buttons, Rückfragen als Buttons oder Freitext (Kapitel 14.6–14.8); Checkliste aus Kapitel 14.4; Audit-Einträge in `event_log`; E-Mail-Digest als Rückfallkanal.
+- [ ] M-12b Cockpit-Ausbau (MVP-Rest, Wochen 5–6): FastAPI/HTMX-Detailseite über SSH-Tunnel mit Wort-Diff (`difflib`, Kapitel 14.5), Seitenvorschau, Undo-Fenster 60 Sekunden.
 - [ ] M-13 Bote im Entwurfsmodus: E-Mail mit Betreff nach Konvention, Anschreiben als Mailtext aus `anschreiben.txt`, Mappe als Anhang, IMAP-APPEND in „Entwürfe“ oder Gmail-Drafts-API ([Gmail Drafts](https://developers.google.com/workspace/gmail/api/guides/drafts)); nur aus `final/`, nur bei Hash-Gleichheit und `review_item.status = freigegeben` (Kapitel 7.8, 15.1). Auth-Fehler 535 erzeugt eine Warnung statt Wiederholungen (Kapitel 15.4). Für Portal-Stellen: Nachricht mit Link, Dateipfaden und `standardantworten.yaml`-Auszug.
 - [ ] M-14 Betrieb: Timer für Tageslauf Teil 1 und 2 aktivieren, Wartungslauf mit `sqlite3 .backup`, wöchentlicher Kostenabgleich über die Usage-and-Cost-API ([Cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking)), Telegram-Zusammenfassung am Ende von Teil 2 (Kapitel 7.7.7).
-- [ ] M-15 Abdeckungsmessung: in der letzten MVP-Woche täglich bis zu 8 SerpAPI-Suchen aus dem Free-Tier mit deinen Zielrollen; Treffer gegen die Grün-Quellen abgleichen und die Lücke dokumentieren (Kapitel 6.5). Das Ergebnis entscheidet, ob SerpAPI in v1 kommt.
+- [ ] M-15 Abdeckungsmessung (MVP-Rest, Wochen 5–6): täglich bis zu 8 SerpAPI-Suchen aus dem Free-Tier mit deinen Zielrollen; Treffer gegen die Grün-Quellen abgleichen und die Lücke dokumentieren (Kapitel 6.5). Das Ergebnis entscheidet, ob SerpAPI in v1 kommt.
 
-**Abhängigkeiten und Parallelisierung.** Die Pakete sind über Schemas (`schemas/`) und Fixtures (`tests/fixtures/`) entkoppelt; sobald M-01 steht, können vier Stränge in getrennten Claude-Code-Sitzungen laufen:
+**Abhängigkeiten und Parallelisierung.** Die Pakete sind über Schemas (`schemas/`) und Fixtures (`tests/fixtures/`) entkoppelt, die M-00 zuerst liefert; erst danach können vier Stränge in getrennten Claude-Code-Sitzungen laufen:
 
 ```text
-M-01 Orchestrator (Statusmaschine, run, event_log, Budget)
- ├─ Strang A  M-02 Adapter → M-03 Extraktion → M-04 Dedup → M-05 Screen → M-06 Matcher
- ├─ Strang B  M-07 Rechercheur → M-08 Autor → M-09 Kritiker      (Eingabe: Fixture-Anzeigen + Profil)
- ├─ Strang C  M-11 Setzer ⇄ M-10 ATS-Prüfer                       (Eingabe: Beispiel-Dossier aus Kapitel 13.3)
- └─ Strang D  M-12 Cockpit                                        (Eingabe: Datensätze aus schema.sql)
-Zusammenführung: A+B+C+D → M-13 Bote → M-14 Betrieb → M-15 Messung
+M-00 Verträge (schemas/, config/)
+ └─ M-01 Orchestrator (Statusmaschine, run, event_log, Budget)
+     ├─ Strang A  M-02 Adapter (BA-API, Personio, Greenhouse) → M-03 Extraktion → M-04 Dedup → M-05 Screen → M-06 Matcher
+     ├─ Strang B  M-07 Rechercheur → M-08 Autor → M-09 Kritiker      (Eingabe: Fixture-Anzeigen + Profil)
+     ├─ Strang C  M-11 Setzer (PDF, `sachlich`) ⇄ M-10 ATS-Prüfer Stufe 1   (Eingabe: Beispiel-Dossier aus Kapitel 13.3)
+     └─ Strang D  M-12 Cockpit (Telegram)                             (Eingabe: Datensätze aus schema.sql)
+Zusammenführung MVP-Kern: B+C → M-11a Kostenmessung; A+B+C+D → M-13 Bote → M-14 Betrieb → MS1 „Durchstich“ (Ende Woche 4)
+MVP-Rest (Wochen 5–6, vor v1): M-02b weitere Adapter, M-10b ATS-Prüfer Stufe 2, M-11b DOCX/Mappe, M-12b Detailseite, M-15 Abdeckungsmessung
 ```
 
-Strang C braucht keinen Modellaufruf und kann ganz am Anfang laufen; Strang B braucht das committete Profil aus Phase 0.
+M-00 liefert die Verträge, von denen alle vier Stränge abhängen, und muss vor ihnen abgeschlossen sein. Strang C braucht keinen Modellaufruf für den Setzer-Teil und kann früh laufen; Strang B braucht das committete Profil aus Phase 0.
 
 **Sprintplan (Annahme: eine Person, Claude Code baut, du prüfst):**
 
 | Woche | Schwerpunkt | Arbeitspakete | Zwischenergebnis | Deine Zeit |
 |---|---|---|---|---|
-| 1 | Daten rein | M-01 bis M-06 | `bewerbungsagent tageslauf --teil 1` läuft gegen echte Quellen; morgens steht eine Top-10 mit Begründung in der Datenbank und als Telegram-Text | ca. 3 PT (Adapter gegen echte Antworten prüfen, Judge-Begründungen an 30 Anzeigen lesen, Muss-Filter nachjustieren) |
+| 1 | Verträge und Daten rein | M-00, M-01 bis M-06 | Schemas und Konfiguration im Repo; `bewerbungsagent tageslauf --teil 1` läuft gegen echte Quellen; morgens steht eine Top-10 mit Begründung in der Datenbank und als Telegram-Text | ca. 3 PT (Adapter gegen echte Antworten prüfen, Judge-Begründungen an 30 Anzeigen lesen, Muss-Filter nachjustieren) |
 | 2 | Text raus | M-07 bis M-09 | Für drei echte Anzeigen liegen Dossier, Anschreiben-Varianten, Tailoring-Log, Kritikbericht und Fakten-Check als Dateien vor | ca. 3 PT (Dossiers auf Fehler prüfen, Anschreiben gegen dein Stimmprofil lesen, Rückfrage-Fälle durchspielen) |
-| 3 | Datei raus | M-10, M-11 | Erste Mappe als PDF, Setzer-QA und ATS-Report grün, Reproduzierbarkeits-Hash stabil | ca. 3 PT (Vorlagenabnahme am Bildschirm und im Druck, DOCX in Word öffnen, Test-Parsing-Berichte lesen) |
-| 4 | Mensch dazu | M-12 bis M-15 | Vollständiger Tageslauf bis „bereit zur Freigabe“, Freigabe per Telegram, Entwurf im Postfach, fünf Betriebstage, Abdeckungsmessung | ca. 4 PT (tägliche Reviews, Freigaben, Fehlerprotokoll, Messung) |
+| 3 | Datei raus, Kosten messen | M-10, M-11, M-11a | Erste Mappe als PDF, Setzer-QA und ATS-Report Stufe 1 grün, Reproduzierbarkeits-Hash stabil, gemessene Kosten einer echten Bewerbung liegen vor | ca. 3 PT (Vorlagenabnahme am Bildschirm und im Druck, Test-Parsing-Berichte lesen, Kostenmessung mit Kapitel 18 abgleichen) |
+| 4 | Mensch dazu | M-12 bis M-14 | Vollständiger Tageslauf bis „bereit zur Freigabe“, Freigabe per Telegram, Entwurf im Postfach, fünf Betriebstage — MS1 erreicht | ca. 4 PT (tägliche Reviews, Freigaben, Fehlerprotokoll) |
+| 5–6 | MVP-Rest abschließen | M-02b, M-10b, M-11b, M-12b, M-15 | ATS-Prüfer Stufe 2, DOCX und Mappe, Detailseite, weitere Quellenadapter und Abdeckungsmessung ergänzt; MVP vollständig wie ursprünglich geplant | ca. 2 PT je Woche (Rest-Pakete abnehmen, Messung dokumentieren) |
 
-Summe MVP: rund 13 PT deiner Zeit über vier Wochen, plus ab Woche 4 täglich 30 bis 60 Minuten Review (Kapitel 2.13). Claude-Code-Sitzungen: je Arbeitspaket ein bis drei Sitzungen zu zwei bis vier Stunden, insgesamt etwa 25 bis 35 Sitzungen.
+Summe MVP: rund 13 PT deiner Zeit im Kern (Wochen 1–4) plus rund 4 PT im Rest (Wochen 5–6), zusammen rund 17 PT über sechs Wochen, plus ab Woche 4 täglich 30 bis 60 Minuten Review (Kapitel 2.13). Claude-Code-Sitzungen: je Arbeitspaket ein bis drei Sitzungen zu zwei bis vier Stunden, insgesamt etwa 28 bis 40 Sitzungen für Kern und Rest zusammen.
 
-**Definition of Done (MVP), gemessen aus Tracker- und `event_log`-Daten (Kapitel 1.5):**
+**Definition of Done (MVP-Kern, Ende Woche 4), gemessen aus Tracker- und `event_log`-Daten (Kapitel 1.5):**
 
 1. Zwei aufeinanderfolgende Tagesläufe liefern ohne manuellen Eingriff eine Tagesauswahl; jede ausgewählte Stelle erreicht „bereit zur Freigabe“ oder trägt eine begründete Rückfrage beziehungsweise einen Cockpit-Eintrag „Kritiker unzufrieden“.
 2. Median der Review-Zeit („bereit zur Freigabe“ bis „freigegeben“) unter 10 Minuten (Kapitel 1.3).
 3. Null unbelegte Aussagen in freigegebenen Dokumenten (Kritiker-Fakten-Check plus Stichprobe von dir an mindestens fünf Bewerbungen).
-4. ATS-Parsing-Gates in 100 Prozent der freigegebenen Dokumente bestanden.
+4. ATS-Parsing-Gates Stufe 1 in 100 Prozent der freigegebenen Dokumente bestanden (Stufe 2 folgt im MVP-Rest, M-10b).
 5. Null Vorgänge mit Außenwirkung ohne Freigabe: Der Bote hat ausschließlich Entwürfe angelegt, jeder mit `review_item.status = freigegeben` und passendem Hash.
-6. Kosten je Tageslauf innerhalb des Budgets (Default 10 USD, Kapitel 7.11) und nach dem ersten Wochenabgleich mit der Usage-Seite ohne Abweichung über 20 Prozent gegenüber dem `event_log` (Schwelle ist eine Annahme).
-7. Abdeckungsmessung dokumentiert (M-15); Ablehnungsgründe aus dem Cockpit liegen strukturiert vor.
+6. Kosten je Tageslauf innerhalb des Budgets (Default 45 USD, abgeleitet aus Kapitel 18.2: Szenario „empfohlen“ kostet 3,713 USD je Bewerbung, also rund 37 USD für zehn Bewerbungen, Szenario „maximal“ 5,217 USD je Bewerbung, also rund 52 USD; der Default deckt „empfohlen“ mit Puffer, kein frei gewählter Wert; wer dauerhaft „maximal“ fährt, hebt den Wert in `config/zeitplan.yaml` an) und nach dem ersten Wochenabgleich mit der Usage-Seite ohne Abweichung über 20 Prozent gegenüber dem `event_log` (Schwelle ist eine Annahme).
+7. Gemessene Kosten je Bewerbung liegen vor (M-11a) und Kapitel 18 ist damit kalibriert; das Budget aus Punkt 6 ist gegen diese Messung geprüft.
+8. Ablehnungsgründe aus dem Cockpit liegen strukturiert vor.
 
 Die Punkte 2, 4, 5 und 6 berechnet ein Skript `scripts/abnahme.py` aus dem Schema in Kapitel 7.3; die Abfragen gehören zum Arbeitspaket M-14, damit die Abnahme nicht von Hand zusammengesucht wird:
 
@@ -187,6 +200,13 @@ WHERE is_final = 1 AND json_extract(ats_check, '$.gate_status') <> 'bestanden';
 SELECT id, started_at, status, spent_usd, budget_usd
 FROM run WHERE kind = 'tageslauf' ORDER BY started_at DESC LIMIT 10;
 ```
+
+**Definition of Done (MVP-Rest, Ende Woche 6):**
+
+- Abdeckungsmessung dokumentiert (M-15); das Ergebnis entscheidet, ob SerpAPI in v1 kommt (Kapitel 6.5).
+- ATS-Prüfer Stufe 2 (Tika, OpenResume, Lesetest) läuft auf allen freigegebenen Dokumenten (M-10b).
+- DOCX und Mappe bestehen die gleiche Setzer-QA wie das PDF (M-11b, Kapitel 13.10).
+- FastAPI/HTMX-Detailseite ist über den SSH-Tunnel erreichbar und zeigt Wort-Diff und Seitenvorschau (M-12b).
 
 **Testplan (MVP):**
 
@@ -230,7 +250,7 @@ FROM run WHERE kind = 'tageslauf' ORDER BY started_at DESC LIMIT 10;
 *Cockpit, Qualität, Betrieb*
 
 - [ ] V-12 Cockpit als vollwertige lokale Web-App: Kanban über alle Status, Statistikseite mit Review-Zeit, Rückmeldequote, Ablehnungsgründen (Kapitel 14.10); Feedback-Tags werden zu `profilvorschlag`-Einträgen, die du bestätigst (Kapitel 7.8 Regel 6, 7.10); Formular für einzelne Profilfelder statt erneutem Interview (Kapitel 8.9 Alternative).
-- [ ] V-13 Zweitgutachter auf Opus 5 vor der Freigabe als Option (Kapitel 7.6, 11.10); Entscheidung nach Kosten-Nutzen aus V-02.
+- [ ] V-13 effort-Kalibrierung des Kritikers (Opus 5) nach 20 Freigaben: Rubrik-effort (high/medium) je Prüfschritt gegen die tatsächlichen Korrekturschleifen aus V-02 nachjustieren (Kapitel 11.10 Punkt 9).
 - [ ] V-14 Arize Phoenix mit SQLite-Backend und Anthropic-Instrumentierung ([Phoenix](https://github.com/Arize-ai/phoenix)); Langfuse bleibt wegen des Ressourcenbedarfs außen vor (Kapitel 7.7.7).
 - [ ] V-15 Backup verschlüsselt an einen zweiten Ort, etwa Hetzner Object Storage (4,99 €/Monat inklusive 1 TB, [Hetzner](https://www.hetzner.com/storage/object-storage/)); Wiederherstellung einmal geübt.
 - [ ] V-16 Optional: Typst als Zweitrenderer für den Lebenslauf evaluieren (Kapitel 13.2); Layouts `klassisch` und `international-en` nur nach bestandenem Test-Parsing (Kapitel 13.3), englischer Anti-Generik-Katalog E01–E36 (Kapitel 11.11). Optional: eigene Bewerbungsdomain über mailbox.org (laut Anbieter ab rund 3 €/Monat) oder Fastmail (rund 6 $/Monat) mit Warm-up, wenn Zustellbarkeit oder Seriosität es verlangen (Kapitel 15.2, [mailbox.org](https://mailbox.org/en/news/new-price-plans-available-mailboxorg/), [Fastmail](https://www.fastmail.help/hc/en-us/articles/8033939068815-2024-pricing-and-plan-updates); beide Preise vom Faktenprüfer nicht geprüft).
@@ -318,16 +338,16 @@ Kapitel 7.10 legt fest, welcher Baustein in welcher Stufe welche Form hat. Die R
 | Baustein | MVP-Paket | v1-Paket | v2-Paket | Auslöser für den nächsten Schritt |
 |---|---|---|---|---|
 | Laufzeit | M-01, M-14 (Agent SDK + Messages API, systemd) | V-17 optional: nur Rechercheur als Scheduled Deployment | W-10 Vollmigration oder Verbleib | Managed Agents laut Anthropic-Doku nicht mehr Beta, und ein konkreter Bedarf an Vaults oder Webhooks; nie vor abgenommenem v1 |
-| Modelle | M-06, M-08, M-09 (Fable 5.1, Sonnet 5, Haiku 4.5; Kritiker-Modell in `config/modelle.yaml`) | V-02 effort-Sweep, V-13 Zweitgutachter Opus 5 | W-06 Sweep mit Freigabedaten | 20 freigegebene Bewerbungen liegen vor (Kalibrierungstermin) |
-| Quellen | M-02 (BA-API, Personio, Greenhouse, Lever, Adzuna, Arbeitnow, Alert-Mails) | V-08 SerpAPI, V-09 weitere Adapter, V-10 Detektor | W-08 Playwright MCP, JOIN, Gelb-Quellen nach Freigabe | M-15 belegt eine Abdeckungslücke; Watchlist-Abdeckung unter 90 %; für Gelb zusätzlich deine Freigabe in `config/quellen.yaml` |
+| Modelle | M-06, M-08, M-09 (Fable 5.1 für Rechercheur/Autor, Sonnet 5 für Judge/Matcher, Haiku 4.5 für Massenarbeit, Opus 5 als Kritiker; Modelle in `config/modelle.yaml`) | V-02 effort-Sweep, V-13 effort-Kalibrierung Kritiker (Opus 5) | W-06 Sweep mit Freigabedaten | 20 freigegebene Bewerbungen liegen vor (Kalibrierungstermin) |
+| Quellen | M-02 (BA-API, Personio, Greenhouse), M-02b (Lever, Adzuna, Arbeitnow, Alert-Mails, MVP-Rest) | V-08 SerpAPI, V-09 weitere Adapter, V-10 Detektor | W-08 Playwright MCP, JOIN, Gelb-Quellen nach Freigabe | M-15 belegt eine Abdeckungslücke; Watchlist-Abdeckung unter 90 %; für Gelb zusätzlich deine Freigabe in `config/quellen.yaml` |
 | Matching | M-06 (Muss-Filter, BM25, Judge im Batch) | V-11 Embeddings, LanceDB, Reranker | W-05 gelernte Gewichte | Vergleichstest an 100 bewerteten Anzeigen zeigt, dass BM25 relevante Treffer verfehlt; für Lernen mindestens 100 strukturierte Cockpit-Urteile |
 | Versand | M-13 Entwurfsmodus | V-04 SMTP nach Freigabe, Sendeprotokoll | W-01 bis W-04 Portal-Co-Pilot | MVP-DoD Punkt 5 erfüllt und 20 Werktage stabil; für Portale: Anteil der Portal-Stellen an der Tagesauswahl über vier Wochen mindestens ein Drittel (Annahme, im Tracker zählbar) |
 | Datenbank | SQLite | + LanceDB nur mit V-11 | W-11 Postgres/pgvector nur bei Mehrnutzer | zweiter realer Nutzer steht an (Go nach Kapitel 21.5) |
 | Secrets | P0-09 sops + age | unverändert | Vaults nur bei Migration | wie Laufzeit |
 | Observability | M-14 `event_log`, Digest, Wochenabgleich | V-14 Phoenix | Langfuse nur mit größerem Server | Kosten- oder Latenzabweichung lässt sich aus `event_log` nicht mehr erklären; sonst kein Wechsel |
 | Gedächtnis und Lernen | Profil-Dateien, `company.last_contacted_at`, Blacklist | V-12 Feedback-Tags werden `profilvorschlag` | W-05, W-06; Memory Store `read_only` bei Migration | mindestens 100 strukturierte Urteile; jede Profiländerung weiterhin nur durch dich |
-| Cockpit | M-12 Telegram + Detailseite | V-12 Kanban, Statistik, Profilformular | W-09 Anmeldung, Mandant | Review-Zeit-Median über 10 Minuten oder verlorene Rückfragen ziehen V-12 vor; Mehrnutzer nur bei Go |
-| Dokumente | M-11 WeasyPrint, python-docx, `sachlich` | V-16 Typst-Evaluation, `klassisch`, `international-en` | W-07 Motivationsschreiben, Kurzbewerbung | Zielrollen verlangen Englisch oder konservatives Layout (Kapitel 22); Tracker zählt wiederholt Anzeigen, die ein Motivationsschreiben fordern |
+| Cockpit | M-12 Telegram (Kern), M-12b Detailseite (MVP-Rest) | V-12 Kanban, Statistik, Profilformular | W-09 Anmeldung, Mandant | Review-Zeit-Median über 10 Minuten oder verlorene Rückfragen ziehen V-12 vor; Mehrnutzer nur bei Go |
+| Dokumente | M-11 WeasyPrint, `sachlich`, PDF (Kern); M-11b python-docx, Mappe (MVP-Rest) | V-16 Typst-Evaluation, `klassisch`, `international-en` | W-07 Motivationsschreiben, Kurzbewerbung | Zielrollen verlangen Englisch oder konservatives Layout (Kapitel 22); Tracker zählt wiederholt Anzeigen, die ein Motivationsschreiben fordern |
 
 Der Wechsel ist bausteinweise möglich, weil alle Modellaufrufe hinter `src/bewerbungsagent/llm/` liegen (Kapitel 7.10) und alle Quellen hinter dem Adapter-Interface aus Kapitel 9.1. Rückwärts geht es genauso: Ein Baustein, dessen Auslöser sich später als Fehlmessung erweist, fällt ohne Codeänderung an anderer Stelle auf die MVP-Stufe zurück (Konfigurationsschalter in `config/quellen.yaml`, `config/modelle.yaml`, `config/zeitplan.yaml`).
 
@@ -337,7 +357,7 @@ Die Aufwandsannahmen dieses Kapitels gelten nur, wenn die Bauarbeit in einer fes
 
 1. **Ein Arbeitspaket, eine Sitzung, ein Auftrag.** Jede Claude-Code-Sitzung bekommt genau ein Paket aus 19.3 bis 19.6 mit Ziel, Eingaben, Ausgaben, Abnahme und Sperrliste. Die Sitzung endet erst, wenn `pytest` grün ist und die Abnahmebedingung erfüllt ist; halbfertige Pakete werden nicht committet.
 2. **`CLAUDE.md` ist Kontext, Settings und Hooks sind die Regel.** `CLAUDE.md` enthält die Statusbegriffe, die zehn Sicherheitsregeln und die Testpflicht (Kapitel 7.9; [Memory](https://code.claude.com/docs/en/memory)); erzwungen wird über `.claude/settings.json` und den `PreToolUse`-Hook, die auch beim Bauen aktiv sind. Claude Code schreibt beim Bauen nie in `profil/`, sieht nie `config/secrets.enc.yaml` im Klartext und baut keinen Versandpfad ohne die negativen Bote-Tests aus dem Testplan.
-3. **Definition of Ready je Paket.** Ein Paket startet erst, wenn die Schemas, Fixtures und Konfigurationsdateien, die es braucht, im Repo liegen; sonst baut Claude Code gegen Annahmen. Für Strang B in 19.4 heißt das: committetes Profil und ein Beispiel-Dossier; für Strang C: das Dossier-Skelett aus Kapitel 13.3.
+3. **Definition of Ready je Paket.** Ein Paket startet erst, wenn die Schemas, Fixtures und Konfigurationsdateien, die es braucht, im Repo liegen; sonst baut Claude Code gegen Annahmen. M-00 (19.4) liefert genau diese Verträge und ist deshalb das einzige Paket, das vor allen anderen fertig sein muss. Für Strang B in 19.4 heißt das zusätzlich: committetes Profil und ein Beispiel-Dossier; für Strang C: das Dossier-Skelett aus Kapitel 13.3.
 4. **Deine Prüfroutine je Paket, in dieser Reihenfolge:** Diff lesen (Ziel: 15 Minuten), Tests selbst laufen lassen, das Paket an drei echten Fällen ausprobieren, dann Commit. Was du dabei findest, wird als Fixture oder Test festgehalten, nicht als Notiz.
 
 Arbeitsauftrag-Vorlage, mit der jede Sitzung beginnt (Datei `docs/auftraege/<paket>.md`, damit sie versioniert ist):
@@ -362,25 +382,28 @@ Wochenrhythmus im MVP: Montag Pakete der Woche festlegen und Aufträge schreiben
 
 ### 19.9 Die ersten 10 konkreten Schritte ab morgen
 
-Alle Schritte gehören zu Phase 0 und lassen sich in fünf bis sechs Werktagen erledigen. Zeitangaben sind Annahmen für deine eigene Zeit.
+Alle Schritte gehören zu Phase 0 und lassen sich in sechs bis acht Werktagen erledigen (P0-17 Zeugnisse normalisieren und P0-21 Fingerprints sammeln laufen nebenher und lassen sich parallel zu den übrigen Schritten einplanen). Zeitangaben sind Annahmen für deine eigene Zeit.
 
-1. **Blocker entscheiden (P0-01, 30 Minuten).** Fünf Antworten aufschreiben: primäres E-Mail-Konto (iCloud oder Gmail), Server (Hetzner-VPS oder Mac), Top-Modell (Fable 5.1 mit 30-Tage-Speicherung oder Opus 5), Budget je Tageslauf (Default 10 USD), Zielrollen und Orte. Die Datei `config/entscheidungen.md` im Daten-Repository hält sie fest.
+1. **Blocker entscheiden (P0-01, 30 Minuten).** Fünf Antworten aufschreiben: primäres E-Mail-Konto (iCloud oder Gmail), Server (Hetzner-VPS oder Mac), Top-Modell (Fable 5.1 mit 30-Tage-Speicherung oder Opus 5), Budget je Tageslauf (Default 45 USD, hergeleitet aus Kapitel 18.2, siehe 19.4), Zielrollen und Orte. Die Datei `config/entscheidungen.md` im Daten-Repository hält sie fest.
 2. **Anthropic-Zugang einrichten (P0-02, 45 Minuten).** Organisation, Commercial-API-Key, Ausgabenlimit, Auftragsverarbeitungsvertrag; bei Fable 5.1 die 30-Tage-Speicherung aktivieren und einen Testaufruf machen, der ohne Fehler 400 antwortet.
 3. **Server bestellen (P0-03, 1 Stunde).** Hetzner CPX22 in Deutschland, Ubuntu 24.04, SSH-Schlüssel, Nutzer `agent`, Firewall nur SSH; Preis im Konfigurator festhalten.
 4. **Kanäle anlegen (P0-04, P0-05, 1 Stunde).** Telegram-Bot bei BotFather mit Chat-ID; bei iCloud App-spezifisches Passwort, bei Gmail OAuth-Projekt im Testing-Modus mit den Scopes aus P0-05. Ein Test-Entwurf per IMAP-APPEND, danach wieder löschen.
 5. **Quellenkonten und Job-Alerts (P0-06, P0-07, 45 Minuten).** Adzuna-Konto mit App-ID und Key (Rate Limits notieren), SerpAPI-Konto nur anlegen, Job-Alerts bei StepStone, Indeed, LinkedIn und XING auf das Bewerbungspostfach.
-6. **Projektgerüst bauen lassen (P0-08 bis P0-12, 2 bis 3 Stunden, erste Claude-Code-Sitzung).** Zwei Repositories, `CLAUDE.md`, `.claude/settings.json` mit Deny-Regeln und Hook, `pyproject.toml`, `schema.sql` als Migration, erster `pytest`, sops mit age, Systempakete und deaktivierte systemd-Units auf dem Server. Auftrag nach der Vorlage in 19.8.
+6a. **Repos und Projektgerüst (P0-08 bis P0-10, 2 bis 3 Stunden, erste Claude-Code-Sitzung).** Zwei Repositories, `CLAUDE.md`, `.claude/settings.json` mit Deny-Regeln und Hook, `pyproject.toml`, `schema.sql` als erste Migration, `schemas/`- und `config/`-Verträge (M-00), erster `pytest`, sops mit age. Auftrag nach der Vorlage in 19.8.
+6b. **Server provisionieren (P0-11, P0-12, 2 bis 3 Stunden, zweite Claude-Code-Sitzung, teils Wartezeit für Paketinstallation).** Systempakete (Python 3.12, WeasyPrint-Abhängigkeiten, Poppler, Java für `tika-server`, LibreOffice headless, Tesseract mit deutschem Sprachpaket), Schriftdateien nach `assets/fonts/`, deaktivierte systemd-Units; am besten als Skript `scripts/provision.sh` mit fester Paketliste, damit der Server reproduzierbar neu aufgesetzt werden kann.
 7. **Material sammeln (P0-13, P0-18, 1 bis 2 Stunden).** Lebenslauf, alte Anschreiben, 5 bis 10 Textproben, Zeugnis-Scans in einen Eingangsordner; dazu 20 bis 50 Wunscharbeitgeber mit Karriereseiten-URL als erste `watchlist.yaml`.
 8. **Onboarding, Teil 1 (P0-14, 2 bis 3 Stunden, zweite Claude-Code-Sitzung).** Skill `profil-onboarding` anlegen lassen, dann Blöcke A bis C: Kontakt, Werdegang, 8 bis 10 Erfolge mit Zahl und Beleg. Ergebnis sind `lebenslauf.yaml` und `story_bank.yaml` als Entwürfe.
 9. **Onboarding, Teil 2 und Freigabe (P0-15, P0-16, 2 bis 3 Stunden, dritte Sitzung).** Blöcke D bis H, Stimmprofil-Vorschlag aus den Textproben korrigieren, Tabus `NUTZER-001…` setzen, alle fünf Dateien lesen, Commit im Daten-Repository, `candidate_profile` mit Hashes füllen. Danach schreibt kein Modell mehr in `profil/`.
-10. **Quellen-Smoke-Tests und Zeugnisse (P0-17, P0-19 bis P0-22, 2 Stunden, vierte Sitzung).** BA-API live aufrufen und als Fixture speichern, je einen Personio-, Greenhouse- und Lever-Feed abrufen, Teamtailor testen, Fingerprints für softgarden, rexx, d.vinci, SuccessFactors und JOIN sammeln; Zeugnisse normalisieren und OCR mit deutschem Sprachpaket; htmx-Lizenz und DIN-5008-Maße prüfen. Damit ist MS0 erreicht, und Woche 1 beginnt mit M-01 und M-02.
+10a. **Quellen-Smoke-Tests (P0-19, P0-20, P0-22, 2 Stunden, vierte Sitzung).** BA-API live aufrufen und als Fixture speichern, je einen Personio-, Greenhouse- und Lever-Feed abrufen, Teamtailor testen; htmx-Lizenz und DIN-5008-Maße prüfen.
+10b. **ATS-Fingerprints (P0-21, 2 Stunden, fünfte Sitzung).** Fingerprints für softgarden, rexx, d.vinci, SAP SuccessFactors und JOIN an je drei Beispielseiten sammeln und in `ats_detection_rules.yaml` eintragen.
+10c. **Zeugnisse normalisieren und OCR (P0-17, 1 bis 2 Stunden, abhängig von der Zahl der Dokumente, läuft parallel zu 10a/10b).** Zeugnisse normalisieren, OCR mit deutschem Tesseract-Sprachpaket, komprimieren. Damit ist MS0 erreicht, und Woche 1 beginnt mit M-00, M-01 und M-02.
 
 ### 19.10 Default-Annahmen und offene Fragen (für Kapitel 22)
 
 Bis du anders entscheidest, gilt für die Roadmap:
 
 - Start sofort mit Phase 0; Umsetzung durch Claude Code, Prüfung durch dich; rund 3 PT deiner Zeit je Woche im MVP, danach 1 bis 2 PT je Woche plus tägliche Review-Routine.
-- Phasenzuschnitt wie in 19.2; kein Baustein wechselt die Stufe ohne den Auslöser aus 19.7.
+- Phasenzuschnitt wie in 19.2 (MVP-Kern Wochen 1–4, MVP-Rest Wochen 5–6); kein Baustein wechselt die Stufe ohne den Auslöser aus 19.7.
 - MVP im Entwurfsmodus (du sendest selbst); erster SMTP-Versand in Woche 5 mit Budget 5 USD und Tageslimit 3, danach die Defaults aus Kapitel 7.11.
 - Kalibrierungstermin nach 20 freigegebenen Bewerbungen als gemeinsamer Termin von rund 2 PT (V-02).
 - Deutsche Vorlage `sachlich` im MVP; `international-en` und `klassisch` erst in v1 nach Test-Parsing.
@@ -391,18 +414,17 @@ Bis du anders entscheidest, gilt für die Roadmap:
 Offene Fragen an dich, gesammelt in Kapitel 22:
 
 1. Wann startet Phase 0, und wie viel Zeit je Woche kannst du verbindlich einplanen? Default: Start diese Woche, 3 PT je Woche im MVP.
-2. Fable 5.1 mit 30-Tage-Speicherung oder Opus 5 für Rechercheur, Autor und Kritiker? Default: Fable 5.1 mit dokumentierter Zustimmung (Kapitel 16.2); Umschalter `MODEL_TOP` bleibt.
+2. Fable 5.1 mit 30-Tage-Speicherung oder Opus 5 für Rechercheur und Autor (Umschalter `MODEL_TOP`)? Der Kritiker ist von dieser Wahl nicht betroffen und läuft in jedem Fall auf Claude Opus 5. Default: Fable 5.1 mit dokumentierter Zustimmung (Kapitel 16.2); Umschalter `MODEL_TOP` bleibt.
 3. Hetzner-VPS oder eigener Mac für Betrieb und Entwicklung? Default: VPS; der Mac nur für den Portal-Co-Pilot in v2 (residentielle IP).
 4. Primäres E-Mail-Konto: iCloud per IMAP-APPEND oder Gmail per Drafts-API? Default: das Konto, das du heute für Bewerbungen nutzt; beide Wege werden gebaut.
-5. Budget je Tageslauf und Monatsbudget für Datenquellen? Default: 10 USD je Tageslauf, 0 EUR Datenquellen im MVP, bis 41 USD in v1.
+5. Budget je Tageslauf und Monatsbudget für Datenquellen? Default: 45 USD je Tageslauf (abgeleitet aus Kapitel 18.2, 19.4 Punkt 6), 0 EUR Datenquellen im MVP, bis 41 USD in v1.
 6. Sind englischsprachige Zielrollen relevant, sodass `international-en` schon im MVP gebraucht wird? Default: nein, v1.
 7. Ist der Start des echten Versands in Woche 5 mit Tageslimit 3 und Budget 5 USD akzeptabel, oder soll der Entwurfsmodus länger laufen? Default: Woche 5.
 8. Onboarding in zwei Sitzungen zu je 2 bis 3 Stunden oder verteilt über die Woche? Default: zwei Sitzungen.
 9. Kannst du in Phase 0 eine Watchlist mit 20 bis 50 Wunscharbeitgebern liefern? Default: ja; sonst startet der MVP nur mit BA-API, Adzuna, Arbeitnow und Alert-Mails.
-10. Zweitgutachter auf Opus 5 in v1 grundsätzlich gewünscht, oder nur, wenn V-02 einen Nutzen zeigt? Default: nur nach V-02.
-11. Soll der Managed-Agents-Test (V-17) überhaupt stattfinden? Default: optional, nur Rechercheur, nur wenn Zeit bleibt.
-12. Welche Portalfamilien zuerst im Co-Pilot (W-02)? Default: Personio, softgarden, JOIN; SuccessFactors und Workday danach; Plattform-Schnellbewerbungen nur nach ausdrücklicher Entscheidung.
-13. Soll die anwaltliche Prüfung (W-12) vor v2 budgetiert werden oder erst bei einer Go-Entscheidung? Default: erst bei Go.
+10. Soll der Managed-Agents-Test (V-17) überhaupt stattfinden? Default: optional, nur Rechercheur, nur wenn Zeit bleibt.
+11. Welche Portalfamilien zuerst im Co-Pilot (W-02)? Default: Personio, softgarden, JOIN; SuccessFactors und Workday danach; Plattform-Schnellbewerbungen nur nach ausdrücklicher Entscheidung.
+12. Soll die anwaltliche Prüfung (W-12) vor v2 budgetiert werden oder erst bei einer Go-Entscheidung? Default: erst bei Go.
 
 **Quellen dieses Kapitels:**
 

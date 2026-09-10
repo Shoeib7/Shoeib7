@@ -32,14 +32,14 @@ Dieses Kapitel ist das vollständige Inventar aller Werkzeuge, die in den Kapite
 
 #### 17.2.1 Modelle und ihr Einsatz
 
-Preise laut Preisseite: Fable 5.1 $10/$50, Opus 5 $5/$25, Sonnet 5 $2/$10 (seit 1.9.2026 dauerhaft), Haiku 4.5 $1/$5 je 1 Mio. Token Input/Output; Cache-Lesen 0,1x des Eingabepreises, bei Fable 5.1 0,025x; Cache-Schreiben 1,25x (5 Minuten) oder 2x (1 Stunde); Batch 50 Prozent Rabatt; Modelle ab Claude 4.7 (also Opus 5, Sonnet 5, Fable 5.x) erzeugen mit dem neuen Tokenizer rund 30 Prozent mehr Tokens für denselben Text ([Pricing](https://platform.claude.com/docs/en/about-claude/pricing), [Prompt Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [Batch](https://platform.claude.com/docs/en/build-with-claude/batch-processing)). Fable 5.1, Fable 5, Mythos 5 und Mythos 5.1 sind „Covered Models“ mit Pflicht zur 30-Tage-Speicherung; Opus 5, Sonnet 5 und Haiku 4.5 sind es nicht ([Data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)).
+Preise laut Preisseite: Fable 5.1 $10/$50, Opus 5 $5/$25, Sonnet 5 $2/$10 (dauerhaft; die zum 1.9.2026 angekündigte Erhöhung auf $3/$15 ist entfallen), Haiku 4.5 $1/$5 je 1 Mio. Token Input/Output; Cache-Lesen 0,1x des Eingabepreises, bei Fable 5.1 0,025x; Cache-Schreiben 1,25x (5 Minuten) oder 2x (1 Stunde); Batch 50 Prozent Rabatt; Modelle ab Claude 4.7 (also Opus 5, Sonnet 5, Fable 5.x) erzeugen mit dem neuen Tokenizer rund 30 Prozent mehr Tokens für denselben Text ([Pricing](https://platform.claude.com/docs/en/about-claude/pricing), [Prompt Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [Batch](https://platform.claude.com/docs/en/build-with-claude/batch-processing)). Fable 5.1, Fable 5, Mythos 5 und Mythos 5.1 sind „Covered Models“ mit Pflicht zur 30-Tage-Speicherung; Opus 5, Sonnet 5 und Haiku 4.5 sind es nicht ([Data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)).
 
 | Modell (ID) | Preis In/Out, Cache-Lesen | Einsatz bei uns | Hinweise |
 |---|---|---|---|
-| Claude Fable 5.1 (`claude-fable-5-1`) | $10/$50; 0,025x | Rechercheur (effort high); Autor: Entwürfe high, Überarbeitung medium, Lebenslauf-Tailoring medium; Matcher-Tagesauswahl mit Begründung (medium) | Thinking immer aktiv, Tiefe nur über `effort`; 30-Tage-Speicherung muss im Konto aktiviert sein, sonst Fehler 400; `stop_reason: refusal` möglich, Fallback Opus 5 (Kapitel 11.10) |
+| Claude Fable 5.1 (`claude-fable-5-1`) | $10/$50; 0,025x | Rechercheur (effort high); Autor: Entwürfe high, Überarbeitung medium, Lebenslauf-Tailoring medium | Thinking immer aktiv, Tiefe nur über `effort`; 30-Tage-Speicherung muss im Konto aktiviert sein, sonst Fehler 400; `stop_reason: refusal` möglich, Fallback Opus 5 (Kapitel 11.10) |
 | Claude Opus 5 (`claude-opus-5`) | $5/$25; 0,1x | Kritiker: Rubrik (high), Stimm-Check und Leser-Test (medium); Refusal-Fallback; Umschalter `MODEL_TOP=claude-opus-5` für alle Fable-Rollen | ZDR-fähig; Alternative als Autor, falls keine 30-Tage-Speicherung gewünscht (Kapitel 16.2) |
-| Claude Sonnet 5 (`claude-sonnet-5`) | $2/$10; 0,1x | Matcher-Judge im Batch (medium); Autor-Briefing (medium); Fakten-Check (medium, Structured Output); ATS-Lesetest; Eskalation bei Extraktions- und Klassifikationsfehlern (low) | Arbeitspferd für Masse mit Erklärbarkeit |
-| Claude Haiku 4.5 (`claude-haiku-4-5`) | $1/$5; 0,1x | Extraktion normalisierter Anzeigen; Dedup-Zweifelsfälle; Injection-Screen; Keyword-Extraktion im ATS-Prüfer; Konsistenz-Check (low); Tracker-Antwortklassifikation (Standard); optionale Sichtprüfung der PDF-Vorschau | kein `effort`-Parameter (Kapitel 7.6); Cache-Mindestlänge 4.096 Token |
+| Claude Sonnet 5 (`claude-sonnet-5`) | $2/$10; 0,1x | Matcher-Judge im Batch (medium); Matcher-Tagesauswahl mit Begründung (medium); Autor-Briefing (medium); Fakten-Check (medium, Structured Output); ATS-Lesetest; Eskalation bei Extraktions- und Klassifikationsfehlern (low) | Arbeitspferd für Masse mit Erklärbarkeit |
+| Claude Haiku 4.5 (`claude-haiku-4-5`) | $1/$5; 0,1x | Extraktion normalisierter Anzeigen; Dedup-Zweifelsfälle; Injection-Screen; Keyword-Extraktion im ATS-Prüfer; Konsistenz-Check (low); Tracker-Antwortklassifikation (Standard); optionale Sichtprüfung der PDF-Vorschau | Cache-Mindestlänge 4.096 Token |
 
 Zuordnung je Rolle, konsolidiert aus den Modulkapiteln:
 
@@ -47,7 +47,7 @@ Zuordnung je Rolle, konsolidiert aus den Modulkapiteln:
 |---|---|---|---|
 | Scout: Extraktion, Dedup-Zweifel, Injection-Screen | Haiku 4.5 (Eskalation Sonnet 5) | Messages API, Batch | 7.6, 9.3, 7.8 |
 | Matcher: Judge | Sonnet 5, medium | Messages Batch, gecachter Präfix | 7.6, 9.5 |
-| Matcher: Tagesauswahl-Begründung | Fable 5.1, medium | Messages API | 7.6, 9.8 |
+| Matcher: Tagesauswahl-Begründung | Sonnet 5, medium | Messages API | 7.6, 9.8 |
 | Rechercheur | Fable 5.1, high | Agent SDK Subagent | 7.6, 10 |
 | Autor: Briefing | Sonnet 5, medium | Messages API | 11.8 |
 | Autor: Entwürfe / Überarbeitung / Tailoring | Fable 5.1, high / medium / medium | Agent SDK Subagent | 11.8, 11.10 |
@@ -57,7 +57,7 @@ Zuordnung je Rolle, konsolidiert aus den Modulkapiteln:
 | Tracker: Antwortklassifikation | Haiku 4.5, Eskalation Sonnet 5 unter Konfidenz 0,7 | Messages API | 15.6 |
 | Setzer, Bote, Cockpit, Orchestrator | kein Modell | Code | 13, 14, 15 |
 
-**Entscheidung** zu zwei Widersprüchen zwischen Kapiteln: Kapitel 7.6 nennt für den Kritiker Fable 5.1 mit Opus 5 als optionalem Zweitgutachter und für die Tracker-Klassifikation Sonnet 5; die Modulkapitel 11 und 15 legen Opus 5 als Kritiker und Haiku 4.5 mit Eskalation für den Tracker fest, und Kapitel 12, 19 und 20 folgen ihnen. Das Inventar folgt den Modulkapiteln. **Begründung:** Kapitel 11 begründet die Wahl mit Anthropics Empfehlung, Grader und Generator zu trennen, und mit der ZDR-Fähigkeit von Opus 5 ([Develop tests](https://platform.claude.com/docs/en/test-and-evaluate/develop-tests)); Kapitel 15 begründet Haiku 4.5 mit der Massenlogik des Styleguides. **Alternative:** Kapitel 7.6 anpassen; Kapitel 24 sollte den Stand vereinheitlichen. Alle Zuordnungen liegen in `config/modelle.yaml` (Kapitel 7.9), nicht im Code, und werden nach 20 Bewerbungen kalibriert (Kapitel 19.5, V-02).
+Die Zuordnung entspricht Kapitel 7.6, 11.8/11.10, 12.9 und 15.6; alle Werte liegen in `config/modelle.yaml` (Kapitel 7.9) und werden nach 20 freigegebenen Bewerbungen kalibriert (Kapitel 19.5, V-02).
 
 #### 17.2.2 Funktionen der Claude-API
 
@@ -85,7 +85,7 @@ Claude Code ist zugleich Bauwerkzeug (schreibt und testet den Code) und Laufzeit
 
 | Skill (`.claude/skills/…/SKILL.md`) | Zweck | Trigger | Modell, allowed-tools |
 |---|---|---|---|
-| `anschreiben` (in Kapitel 11.10 als `anschreiben-schreiben` referenziert; ein Name, hier `anschreiben`) | Struktur-Skelette A/B/C, Schreibregeln in Kurzform, Anti-Generik-Hinweise für den Autor | automatisch im Autor-Subagent, wenn Status „recherchiert“ und Briefing vorliegt | Fable 5.1; Read, Write nur im Stellenordner |
+| `anschreiben` | Struktur-Skelette A/B/C, Schreibregeln in Kurzform, Anti-Generik-Hinweise für den Autor | automatisch im Autor-Subagent, wenn Status „recherchiert“ und Briefing vorliegt | Fable 5.1; Read, Write nur im Stellenordner |
 | `lebenslauf-tailoring` | erlaubte Operationen, Tailoring-Log, Synonym-Spiegelung | automatisch im Autor-Subagent | Fable 5.1, medium; Read, Write |
 | `rubrik-kritik` | Rubrik K1–K7, Gates, Kritik-Schema, Leser-Test-Fragen | automatisch im Kritiker-Subagent | Opus 5; nur Read |
 | `din-5008-check` | Prüfliste Anschriftfeld, Betreff, Anrede-Formen, Anlagenvermerk | manuell `/din-5008-check` bei Vorlagenabnahme; automatisch nicht nötig, weil der Setzer Code ist | Haiku 4.5; Read |
@@ -175,20 +175,18 @@ Beispiel `.mcp.json` (Projekt-Scope, versioniert; Playwright erst in v2 aktiv):
 
 #### 17.2.5 Claude Agent SDK und Managed Agents
 
-| Baustein | Zweck bei uns | Zugriff | Kosten | Bewertung |
-|---|---|---|---|---|
-| Claude Agent SDK Python `claude-agent-sdk` ([PyPI](https://pypi.org/project/claude-agent-sdk/), [Doku](https://code.claude.com/docs/en/agent-sdk/python)) | Werkzeugschleife für Rechercheur, Autor, Kritiker; `query()` je Lauf, `ClaudeSDKClient` für Mehrschritt; `ClaudeAgentOptions` mit `allowed_tools`, `permission_mode`, `agents`, `hooks`, `output_format`, `max_budget_usd`, `model`, `effort`, `mcp_servers`, `skills` | `pip install claude-agent-sdk`; bündelt die Claude-Code-CLI, kein Node nötig; MIT | 0 EUR, Tokens separat | Kern (MVP) |
-| Permission-Auswertung ([Permissions](https://code.claude.com/docs/en/agent-sdk/permissions)) | sechs Stufen: Hooks → Deny → Ask → Modus → Allow → `canUseTool`; Modi default/acceptEdits/plan/bypassPermissions/dontAsk/auto | Konfiguration | – | Kern (MVP); `canUseTool` ist das Gate des Boten |
-| Structured Outputs im SDK ([Doku](https://code.claude.com/docs/en/agent-sdk/structured-outputs)) | `output_format` mit JSON-Schema, Feld `structured_output`, automatische Wiederholung bei Verstoß | Option | – | Kern (MVP) |
-| Cost Tracking ([Doku](https://code.claude.com/docs/en/agent-sdk/cost-tracking)) | `total_cost_usd` je Session, `max_budget_usd` als Session-Deckel | Option | clientseitige Schätzung, nicht autoritativ | Kern (MVP), plus Usage-API-Abgleich |
-| Session Storage, Hosting ([Storage](https://code.claude.com/docs/en/agent-sdk/session-storage), [Hosting](https://code.claude.com/docs/en/agent-sdk/hosting)) | JSONL-Transkripte unter `~/.claude/projects/`; je Session ein CLI-Subprozess | Dateisystem des VPS | – | Kern (MVP); SessionStore-Adapter erst bei Mehrhostbetrieb |
-| Managed Agents ([Overview](https://platform.claude.com/docs/en/managed-agents/overview)) | vollverwaltete Alternative: Sessions, Environments, Events | REST, Beta-Header `managed-agents-2026-04-01` | Tokens ohne Batch-Rabatt plus $0,08 je aktiver Session-Stunde plus $10 je 1.000 Websuchen ([Budgets](https://platform.claude.com/docs/en/managed-agents/budgets)) | optional (v1-Test für den Rechercheur, v2-Entscheidung, Kapitel 7.10) |
-| Scheduled Deployments ([Doku](https://platform.claude.com/docs/en/managed-agents/scheduled-deployments)) | Cron minutengenau, IANA-Zeitzone, Jitter bis 15 % (5 s bis 9 min), Budget je gestarteter Session, max. 1.000 Deployments je Organisation | REST | siehe oben | optional (v1-Test) |
-| Budgets ([Doku](https://platform.claude.com/docs/en/managed-agents/budgets)) | harter Deckel in USD-Cent, Session pausiert mit `budget_reached` | nur bei Session-Erstellung setzbar | – | optional |
-| Vaults ([Doku](https://platform.claude.com/docs/en/managed-agents/vaults)) | Credentials (`mcp_oauth`, `static_bearer`, `environment_variable`), Klartext nie im Kontext | REST; `environment_variable` nicht mit self-hosted Sandboxes | im Preis enthalten | optional (v2 bei Migration) |
-| Memory Stores ([Doku](https://platform.claude.com/docs/en/managed-agents/memory)) | Gedächtnis über Läufe; max. 8 je Session, 10.000 Einträge, 100 kB je Eintrag, 30 Tage Historie | Beta-Header `agent-memory-2026-07-22`, nicht mit `managed-agents-2026-04-01` kombinierbar (400) | im Preis enthalten | optional (v2, nur `read_only` in Läufen mit Drittinhalten) |
-| Webhooks ([Doku](https://platform.claude.com/docs/en/managed-agents/webhooks)) | Ereignisse `session.status_idled`, `budget_reached`, `deployment_run.*` | HMAC-signiert, 3 Zustellversuche, kein durables Log | – | optional |
-| Cloud Sandboxes ([Referenz](https://platform.claude.com/docs/en/managed-agents/cloud-sandboxes-reference)) | Ubuntu 24.04, bis 8 GB RAM, 10 GB Disk; Python, Node, Playwright mit Chromium, LibreOffice, Poppler, TeX Live, pandoc vorinstalliert; Tesseract nur Englisch | – | Session-Stunden | Hinweis für die Migration; ohne persistente DB |
+Begründungen für Einsatz und Abgrenzung gegenüber Managed Agents stehen in Kapitel 7.7.2 und 7.10; hier nur das Inventar.
+
+| Baustein | Zweck bei uns | Zugriff | Kosten | Bewertung | Kapitel |
+|---|---|---|---|---|---|
+| Claude Agent SDK Python `claude-agent-sdk` ([PyPI](https://pypi.org/project/claude-agent-sdk/), [Doku](https://code.claude.com/docs/en/agent-sdk/python)) | Werkzeugschleife für Rechercheur, Autor, Kritiker (`query()`, `ClaudeSDKClient`) | `pip install claude-agent-sdk`; bündelt die Claude-Code-CLI, kein Node nötig; MIT | 0 EUR, Tokens separat | Kern (MVP) | 7.6, 7.7.2 |
+| Permission-Auswertung ([Permissions](https://code.claude.com/docs/en/agent-sdk/permissions)) | sechs Stufen Hooks → Deny → Ask → Modus → Allow → `canUseTool` | Konfiguration | – | Kern (MVP); `canUseTool` ist das Gate des Boten | 7.8 |
+| Structured Outputs im SDK ([Doku](https://code.claude.com/docs/en/agent-sdk/structured-outputs)) | `output_format` mit JSON-Schema, Feld `structured_output` | Option | – | Kern (MVP) | 7.6 |
+| Cost Tracking ([Doku](https://code.claude.com/docs/en/agent-sdk/cost-tracking)) | `total_cost_usd` je Session, `max_budget_usd` als Session-Deckel | Option | clientseitige Schätzung, nicht autoritativ | Kern (MVP), plus Usage-API-Abgleich | 7.7.7 |
+| Session Storage, Hosting ([Storage](https://code.claude.com/docs/en/agent-sdk/session-storage), [Hosting](https://code.claude.com/docs/en/agent-sdk/hosting)) | JSONL-Transkripte unter `~/.claude/projects/`; je Session ein CLI-Subprozess | Dateisystem des VPS | – | Kern (MVP) | 7.7.3 |
+| Managed Agents Overview ([Doku](https://platform.claude.com/docs/en/managed-agents/overview)) | vollverwaltete Alternative: Sessions, Environments, Events, Budgets, Memory Stores, Webhooks, Cloud Sandboxes (vorinstalliert Python, Node, Playwright, LibreOffice, TeX Live) | REST, Beta-Header `managed-agents-2026-04-01` | Tokens ohne Batch-Rabatt plus $0,08 je aktiver Session-Stunde plus $10 je 1.000 Websuchen | optional (v1-Test für den Rechercheur, v2-Entscheidung) | 7.7.2, 7.10 |
+| Scheduled Deployments ([Doku](https://platform.claude.com/docs/en/managed-agents/scheduled-deployments)) | Cron minutengenau, IANA-Zeitzone, Jitter bis 15 % (5 s bis 9 min) | REST | siehe oben | optional (v1-Test) | 7.7.2, 17.2.6 |
+| Vaults ([Doku](https://platform.claude.com/docs/en/managed-agents/vaults)) | Credentials (`mcp_oauth`, `static_bearer`, `environment_variable`), Klartext nie im Kontext | REST; `environment_variable` nicht mit self-hosted Sandboxes | im Preis enthalten | optional (v2 bei Migration) | 7.7.6, 7.10 |
 
 #### 17.2.6 Zeitsteuerung auf Claude-Seite
 
@@ -355,16 +353,16 @@ Entscheidungen in Kapitel 15: Entwurfsmodus im MVP, SMTP-Versand in v1, Konto na
 | `deutschland` ([GitHub](https://github.com/bundesAPI/deutschland)) | Sammel-Client für Bundesanzeiger, Handelsregister, Jobsuche | pip, Apache-2.0 | 0 EUR | Kern (MVP) |
 | MTEB-Leaderboard ([Hugging Face](https://huggingface.co/spaces/mteb/leaderboard)) | Modellvergleich mit deutschen Tasks vor V-11 | Web | 0 EUR | Referenz |
 | Hetzner Object Storage ([Produkt](https://www.hetzner.com/storage/object-storage/)) | verschlüsseltes Offsite-Backup | S3-kompatibel | 4,99 €/Monat inkl. 1 TB (unbestätigt) | optional (v1, V-15) |
-| Managed Agents Memory Stores | Profil- und Firmenhistorie bei Migration | siehe 17.2.5 | im Preis enthalten | optional (v2) |
+| Managed Agents Memory Stores ([Doku](https://platform.claude.com/docs/en/managed-agents/memory)) | Profil- und Firmenhistorie bei Migration; max. 8 je Session, 10.000 Einträge, 100 kB je Eintrag, 30 Tage Historie | Beta-Header `agent-memory-2026-07-22`, nicht mit `managed-agents-2026-04-01` kombinierbar (400) | im Preis enthalten | optional (v2, nur `read_only` in Läufen mit Drittinhalten) |
 
 ### 17.9 (H) UI und Benachrichtigung
 
 | Werkzeug | Zweck bei uns | Zugriff | Kosten | Bewertung |
 |---|---|---|---|---|
-| FastAPI ([GitHub](https://github.com/fastapi/fastapi)) | Review-Cockpit-Backend, Telegram-Webhook | pip, MIT; nur über SSH-Tunnel erreichbar | 0 EUR | Kern (MVP) |
+| FastAPI ([GitHub](https://github.com/fastapi/fastapi)) | Review-Cockpit-Backend | pip, MIT; nur über SSH-Tunnel erreichbar | 0 EUR | Kern (MVP) |
 | htmx ([GitHub](https://github.com/bigskysoftware/htmx)) | Teil-Updates der Detailseite ohne SPA | Version 2.0.10; Lizenz vor Einsatz in der LICENSE-Datei prüfen (P0-22) | 0 EUR | Kern (MVP) |
 | Jinja2, `difflib` (stdlib) | serverseitiges Rendering; Wort-Diff Master vs. Variante | pip / stdlib | 0 EUR | Kern (MVP) |
-| python-telegram-bot ([GitHub](https://github.com/python-telegram-bot/python-telegram-bot)) | Push je Stelle, Tagesdigest, vier Aktionen als Inline-Buttons, Rückfragen | Bot-Token von BotFather; LGPL-3/GPL-Anteile beachten | 0 EUR | Kern (MVP) |
+| python-telegram-bot ([GitHub](https://github.com/python-telegram-bot/python-telegram-bot)) | Push je Stelle, Tagesdigest, vier Aktionen als Inline-Buttons, Rückfragen | Bot-Token von BotFather; Long Polling (`Application.run_polling`), kein eingehender Port, eigener systemd-Dienst neben dem Tracker-Daemon; LGPL-3/GPL-Anteile beachten | 0 EUR | Kern (MVP) |
 | E-Mail-Digest über das Bewerbungspostfach | Rückfallkanal bei Bot-Ausfall | Bote-Code | 0 EUR | Kern (MVP) |
 | NiceGUI ([GitHub](https://github.com/zauberzeug/nicegui)), Reflex ([GitHub](https://github.com/reflex-dev/reflex)) | fertige Python-UI-Bausteine | pip; MIT bzw. Apache-2.0 | 0 EUR | optional (v1, falls HTMX nicht reicht) |
 | Streamlit ([GitHub](https://github.com/streamlit/streamlit)), Gradio ([GitHub](https://github.com/gradio-app/gradio)) | – | pip | 0 EUR | vermeiden (Rerun-Modell, ML-Demo-Fokus) |
@@ -378,27 +376,28 @@ Entscheidungen in Kapitel 15: Entwurfsmodus im MVP, SMTP-Versand in v1, Konto na
 
 ### 17.10 (I) Betrieb: Hosting, Secrets, Observability, Backup
 
-| Werkzeug | Zweck bei uns | Zugriff | Kosten | Bewertung |
-|---|---|---|---|---|
-| Hetzner Cloud CPX22 ([Preisanpassung](https://docs.hetzner.com/de/general/infrastructure-and-availability/price-adjustment/), [Northflank](https://northflank.com/blog/hetzner-cloud-server-price-increases)) | Dauerserver in Falkenstein/Nürnberg, Ubuntu 24.04, Nutzer `agent`, nur SSH | Cloud-Konsole; 2 vCPU, 4 GB RAM, 80 GB NVMe | ca. 19,49–19,99 €/Monat nach der Erhöhung vom 15.6.2026 (vor Bestellung prüfen) | Kern (MVP) |
-| systemd-Timer und -Services | Tageslauf, Versandlauf, Nachlauf, Wartung, Tracker-Daemon; `Persistent=true`, Zeitzone im Timer | Units unter `deploy/systemd/` | 0 EUR | Kern (MVP) |
-| cron (cronie, `CRON_TZ`) | Alternative zu systemd | crontab | 0 EUR | optional |
-| Fly.io ([fly.io](https://fly.io/)) | Zero-Ops-Alternative | Git-Deploy | shared-cpu-1x/1 GB ca. 5,70–5,92 $/Monat (unbestätigt) | optional |
-| Mac mit Desktop-Scheduled-Tasks und Keychain | Entwicklung, Portal-Co-Pilot (residentielle IP) | lokal | 0 EUR | optional (Entwicklung, v2-Co-Pilot) |
-| sops + age ([sops](https://github.com/getsops/sops)) | `config/secrets.enc.yaml`; `sops exec-env` injiziert Umgebungsvariablen | CLI, MPL-2.0; privater age-Schlüssel nur auf dem Server (0400) und im Passwortmanager | 0 EUR | Kern (MVP) |
-| macOS Keychain (`security`, [ss64](https://ss64.com/mac/security-password.html)) | Secrets auf dem Mac des Nutzers für den Co-Piloten | systemeigen | 0 EUR | optional (v2, lokal) |
-| 1Password CLI ([Doku](https://developer.1password.com/docs/cli/secrets-scripts)) | Secret-Referenzen `op://…`, Service-Accounts | Abo nötig | Business 7,99 $/Nutzer/Monat (mittlere Konfidenz) | optional, nur bei bestehendem Abo |
-| Infisical ([GitHub](https://github.com/Infisical/infisical)) | Secret-Web-UI | Docker Compose self-hosted, MIT außer `ee/` | 0 EUR self-hosted; Cloud Pro 18 $/Identität/Monat (mittlere Konfidenz) | optional (mehrere Umgebungen) |
-| Doppler ([doppler.com](https://www.doppler.com/)) | – | Cloud-only | Free bis 5 Identitäten | vermeiden |
-| Managed Agents Vaults | Credentials ohne Klartext im Kontext | siehe 17.2.5 | im Preis | optional (v2 bei Migration) |
-| `event_log` (SQLite) | Observability und Kostenwahrheit im MVP | eigener Code | 0 EUR | Kern (MVP) |
-| Arize Phoenix ([GitHub](https://github.com/Arize-ai/phoenix)) | Tracing der Subagent-Läufe, OpenTelemetry, `openinference-instrumentation-anthropic` | `pip install arize-phoenix && phoenix serve`, SQLite-Backend | Elastic License 2.0, 0 EUR | Kern (v1, V-14) |
-| Langfuse ([Self-Hosting](https://langfuse.com/self-hosting)) | – | Docker Compose mit Postgres, ClickHouse, Redis, MinIO; 4+ CPU, 16 GiB RAM, ca. 100 GiB | self-hosted 0 EUR; Cloud Hobby $0, Core $29/Monat, Pro $199/Monat (mittlere Konfidenz) | vermeiden (zweiter Server nur für Tracing) |
-| Anthropic Console: Ausgabenlimit, Usage-and-Cost-API | dritte Stufe der Kostenkontrolle (Kapitel 7.7.7) | Console | 0 EUR | Kern (MVP) |
-| `sqlite3 .backup`, verschlüsselte Kopie an zweiten Ort | nächtliches Backup, wöchentlich offsite | Wartungslauf | 0 EUR; Object Storage siehe 17.8 | Kern (MVP); offsite v1 |
-| Docker (`deploy/Dockerfile`) | optionales Image mit Playwright- und WeasyPrint-Systempaketen | docker | 0 EUR | optional |
-| n8n Community Edition ([GitHub](https://github.com/n8n-io/n8n)) | Glue-Schicht für Webhooks | Docker, Sustainable-Use-Lizenz | 0 EUR self-hosted; Cloud ab 20 €/Monat (mittlere Konfidenz) | vermeiden im MVP; allenfalls optionale Glue-Schicht |
-| Temporal ([GitHub](https://github.com/temporalio/temporal)), Trigger.dev ([GitHub](https://github.com/triggerdotdev/trigger.dev)), Inngest ([GitHub](https://github.com/inngest/inngest)), LangGraph ([GitHub](https://github.com/langchain-ai/langgraph)), CrewAI ([GitHub](https://github.com/crewAIInc/crewAI)), APScheduler ([GitHub](https://github.com/agronholm/apscheduler)) | – | – | frei bis ca. 75 $/Monat (niedrige Konfidenz) | vermeiden (ein Lauf am Tag rechtfertigt keine Workflow-Engine; Agent SDK bringt Loop, Hooks, Permissions mit) |
+Begründungen stehen in Kapitel 7.7.2 bis 7.7.7; hier nur das Inventar.
+
+| Werkzeug | Zweck bei uns | Zugriff | Kosten | Bewertung | Kapitel |
+|---|---|---|---|---|---|
+| Hetzner Cloud CPX22 ([Preisanpassung](https://docs.hetzner.com/de/general/infrastructure-and-availability/price-adjustment/), [Northflank](https://northflank.com/blog/hetzner-cloud-server-price-increases)) | Dauerserver in Falkenstein/Nürnberg, Ubuntu 24.04, Nutzer `agent`, nur SSH | Cloud-Konsole; 2 vCPU, 4 GB RAM, 80 GB NVMe | rund 20 €/Monat (19,49–19,99 € je nach Quelle; vor Bestellung prüfen) | Kern (MVP) | 7.7.3 |
+| systemd-Timer und -Services | Tageslauf, Versandlauf, Nachlauf, Wartung, Tracker-Daemon | Units unter `deploy/systemd/` | 0 EUR | Kern (MVP) | 7.5 |
+| cron (cronie, `CRON_TZ`) | Alternative zu systemd | crontab | 0 EUR | optional | 7.5 |
+| Fly.io ([fly.io](https://fly.io/)) | Zero-Ops-Alternative | Git-Deploy | shared-cpu-1x/1 GB ca. 5,70–5,92 $/Monat (unbestätigt) | optional | 7.7.3 |
+| Mac mit Desktop-Scheduled-Tasks und Keychain | Entwicklung, Portal-Co-Pilot (residentielle IP) | lokal | 0 EUR | optional (Entwicklung, v2-Co-Pilot) | 7.7.3 |
+| sops + age ([sops](https://github.com/getsops/sops)) | `config/secrets.enc.yaml`; `sops exec-env` injiziert Umgebungsvariablen | CLI, MPL-2.0; privater age-Schlüssel nur auf dem Server (0400) und im Passwortmanager | 0 EUR | Kern (MVP) | 7.7.6 |
+| macOS Keychain (`security`, [ss64](https://ss64.com/mac/security-password.html)) | Secrets auf dem Mac des Nutzers für den Co-Piloten | systemeigen | 0 EUR | optional (v2, lokal) | 7.7.6 |
+| 1Password CLI ([Doku](https://developer.1password.com/docs/cli/secrets-scripts)) | Secret-Referenzen `op://…`, Service-Accounts | Abo nötig | Business 7,99 $/Nutzer/Monat (mittlere Konfidenz) | optional, nur bei bestehendem Abo | 7.7.6 |
+| Infisical ([GitHub](https://github.com/Infisical/infisical)) | Secret-Web-UI | Docker Compose self-hosted, MIT außer `ee/` | 0 EUR self-hosted; Cloud Pro 18 $/Identität/Monat (mittlere Konfidenz) | optional (mehrere Umgebungen) | 7.7.6 |
+| Doppler ([doppler.com](https://www.doppler.com/)) | – | Cloud-only | Free bis 5 Identitäten | vermeiden | 7.7.6 |
+| `event_log` (SQLite) | Observability und Kostenwahrheit im MVP | eigener Code | 0 EUR | Kern (MVP) | 7.7.7 |
+| Arize Phoenix ([GitHub](https://github.com/Arize-ai/phoenix)) | Tracing der Subagent-Läufe, OpenTelemetry, `openinference-instrumentation-anthropic` | `pip install arize-phoenix && phoenix serve`, SQLite-Backend | Elastic License 2.0, 0 EUR | Kern (v1, V-14) | 7.7.7 |
+| Langfuse ([Self-Hosting](https://langfuse.com/self-hosting)) | – | Docker Compose mit Postgres, ClickHouse, Redis, MinIO; 4+ CPU, 16 GiB RAM, ca. 100 GiB | self-hosted 0 EUR; Cloud Hobby $0, Core $29/Monat, Pro $199/Monat (mittlere Konfidenz) | vermeiden (zweiter Server nur für Tracing) | 7.7.7 |
+| Anthropic Console: Ausgabenlimit, Usage-and-Cost-API | dritte Stufe der Kostenkontrolle | Console | 0 EUR | Kern (MVP) | 7.7.7 |
+| `sqlite3 .backup`, verschlüsselte Kopie an zweiten Ort | nächtliches Backup, wöchentlich offsite | Wartungslauf | 0 EUR; Object Storage siehe 17.8 | Kern (MVP); offsite v1 | 7.7.4 |
+| Docker (`deploy/Dockerfile`) | optionales Image mit Playwright- und WeasyPrint-Systempaketen | docker | 0 EUR | optional | – |
+| n8n Community Edition ([GitHub](https://github.com/n8n-io/n8n)) | Glue-Schicht für Webhooks | Docker, Sustainable-Use-Lizenz | 0 EUR self-hosted; Cloud ab 20 €/Monat (mittlere Konfidenz) | vermeiden im MVP; allenfalls optionale Glue-Schicht | 7.7.2 |
+| Temporal ([GitHub](https://github.com/temporalio/temporal)), Trigger.dev ([GitHub](https://github.com/triggerdotdev/trigger.dev)), Inngest ([GitHub](https://github.com/inngest/inngest)), LangGraph ([GitHub](https://github.com/langchain-ai/langgraph)), CrewAI ([GitHub](https://github.com/crewAIInc/crewAI)), APScheduler ([GitHub](https://github.com/agronholm/apscheduler)) | – | – | frei bis ca. 75 $/Monat (niedrige Konfidenz) | vermeiden (ein Lauf am Tag rechtfertigt keine Workflow-Engine) | 7.7.2 |
 
 ### 17.11 (J) Entwicklungswerkzeuge und CLIs
 

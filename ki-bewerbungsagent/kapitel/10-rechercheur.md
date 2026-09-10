@@ -15,10 +15,10 @@ Die Recherche läuft in einer festen Stufenfolge, jede Stufe billiger und verlä
 | 3 | Impressum | rechtssicherer Firmenname, Rechtsform, Sitz, Vertretungsberechtigte, allgemeine Kontaktdaten nach § 5 DDG, Nachfolgeregelung zu § 5 TMG seit 14.5.2024 (unbestätigt: in dieser Recherche nicht live nachprüfbar, gilt aber als stabile Rechtslage) [§ 5 DDG](https://www.gesetze-im-internet.de/ddg/__5.html) | Web Fetch auf `{domain}/impressum`; bei Fehlschlag ein Web-Search-Aufruf „{firma} impressum“ | Pflicht – einzige kostenlose, rechtlich verbindliche Primärquelle |
 | 4 | Handelsregister/Northdata | Auflösung bei Widerspruch: exakte Rechtsform, Sitz, Geschäftsführung | ein Web-Search/-Fetch-Aufruf auf die öffentliche Northdata-Ergebnisseite oder das lesende MCP-Tool `mcp__bundesapi__handelsregister_suche`; **nie** automatisierter Zugriff auf handelsregister.de selbst | nur im Zweifelsfall (Abbruchkriterium 1) |
 | 5 | LinkedIn/XING | Bestätigung, ob eine gefundene Ansprechperson noch im Unternehmen ist | **nur lesend und manuell durch dich** – der Rechercheur hat auf diesen Domains kein Werkzeug, sondern liefert einen vorbereiteten Such-Link im Dossier | immer optional, nie automatisiert |
-| 6 | Kununu | Kultur/Ton-Kontext, Erfahrungsberichte zum Bewerbungsprozess, ggf. Gehaltsangaben | ein einzelner Web-Fetch-Aufruf auf die öffentliche Profilseite der Firma – kein systematisches Erfassen aller Bewertungen | optional, nur wenn Karriereseite/Anzeige zu Kultur/Ton nichts liefern |
+| 6 | Kununu | Kultur/Ton-Kontext, Erfahrungsberichte zum Bewerbungsprozess, ggf. Gehaltsangaben | ein einzelner Web-Fetch-Aufruf auf die öffentliche Profilseite der Firma – kein systematisches Erfassen aller Bewertungen | optional, nur nach ausdrücklicher Nutzerfreigabe in der Konfiguration (Default: aus) |
 | 7 | News | aktuelle Themen (Finanzierungsrunde, Fusion, Stellenabbau, Produktlaunch) | Web Search mit Zeitfilter, nur Treffer der letzten sechs Monate | optional, nur im verbleibenden Budget |
 
-**Entscheidung:** Die Reihenfolge ist fest kodiert, nicht dem Modell überlassen – Ablaufplan im System-Prompt, keine freie Recherchestrategie. **Begründung:** Das Impressum ist die verbindlichste kostenlose Quelle für Firmenname/Rechtsform und sollte dem Handelsregister-Abgleich vorausgehen ([§ 5 DDG](https://www.gesetze-im-internet.de/ddg/__5.html)); LinkedIn/XING automatisiert zu befragen, verstößt gegen deren Nutzungsbedingungen und war im Fall *hiQ Labs v. LinkedIn* trotz eines Teilerfolgs zum Ausspähungsvorwurf am Ende ein verlorener Rechtsstreit auf Vertragsbruch-Basis [Privacy World: hiQ/LinkedIn](https://www.privacyworld.blog/2022/12/linkedins-data-scraping-battle-with-hiq-labs-ends-with-proposed-judgment/) [LinkedIn User Agreement](https://www.linkedin.com/help/linkedin/answer/a1341387). **Alternative:** ein einziger breiter Web-Search-Aufruf statt der Stufenfolge – schneller, aber ungeprüfte Drittquellen landen dann im Dossier, bevor das Impressum überhaupt geprüft wurde.
+**Entscheidung:** Die Reihenfolge ist fest kodiert, nicht dem Modell überlassen – Ablaufplan im System-Prompt, keine freie Recherchestrategie. **Begründung:** Das Impressum ist die verbindlichste kostenlose Quelle für Firmenname/Rechtsform und sollte dem Handelsregister-Abgleich vorausgehen ([§ 5 DDG](https://www.gesetze-im-internet.de/ddg/__5.html)); LinkedIn/XING automatisiert zu befragen, verstößt gegen deren Nutzungsbedingungen und war im Fall *hiQ Labs v. LinkedIn* trotz eines Teilerfolgs zum Ausspähungsvorwurf am Ende ein verlorener Rechtsstreit auf Vertragsbruch-Basis [Privacy World: hiQ/LinkedIn](https://www.privacyworld.blog/2022/12/linkedins-data-scraping-battle-with-hiq-labs-ends-with-proposed-judgment/) [LinkedIn User Agreement](https://www.linkedin.com/help/linkedin/answer/a1341387). **Alternative:** ein einziger breiter Web-Search-Aufruf statt der Stufenfolge – schneller, aber ungeprüfte Drittquellen landen dann im Dossier, bevor das Impressum überhaupt geprüft wurde. Stufe 6 (Kununu) läuft standardmäßig deaktiviert, damit sie nicht automatisch greift, wo Kapitel 9.5 als Default-Annahme „keine automatisierte Drittanbieter-Abfrage, nur manuelle/stichprobenartige Prüfung“ festlegt; aktivierst du sie in der Konfiguration, bleibt der Zugriff auf einen einzelnen Fetch der öffentlichen Profilseite je Firma begrenzt, nicht auf ein systematisches Erfassen aller Bewertungen.
 
 ### 10.2 Konfidenzstufen pro Feld
 
@@ -74,13 +74,15 @@ Ein Abbruchkriterium beendet nicht die Bewerbung, sondern die *automatische* Wei
 }
 ```
 
-Drei Fragetypen kommen in der Praxis vor, jeder mit eigenem Verhalten bei Ablauf (`status = verfallen`, `expires_at` Default: Beginn des nächsten Tageslaufs, Kapitel 7.5):
+Drei Fragetypen kommen in der Praxis vor. Entscheidend für ihr Verhalten bei Ablauf ist, ob ein Default existiert – Rückfragen mit Default löst der Orchestrator beim nächsten Tageslauf automatisch auf, Rückfragen ohne Default bleiben offen, bis du antwortest oder die Frist verstreicht (Kapitel 14.1, Kapitel 14.6):
 
-1. **Adress-Konflikt** (Anzeige-Standort ≠ Impressum/Karriereseite): Optionen sind die konkreten Standorte selbst, kein Textbaustein. Es gibt **keinen** automatischen Default – die Anschrift ist ein Pflichtfeld im Setzer (Kapitel 13), also bleibt `rueckfrage_offen` bestehen, bis du antwortest oder die Bewerbung verwirfst.
-2. **Kein Name mit brauchbarer Konfidenz** (kein Ansprechpartner mit Konfidenz ≥ 0,5 auffindbar): Optionen sind „Team-Anrede“ und „klassisch“. **Default bei Nichtantwort:** „Sehr geehrtes Recruiting-Team [Firma]“ – warm genug, um nicht generisch zu wirken, aber ohne das Risiko einer falsch geratenen Anrede.
-3. **Name sicher, Anrede/Titel unsicher** (wie im Beispiel oben): Optionen sind „Guten Tag [Vorname] [Nachname]“, „Team-Anrede“, „klassisch“. **Default bei Nichtantwort:** „Guten Tag [Vorname] [Nachname]“ – nutzt den bereits belegten Namen, ohne ein Geschlecht zu erraten.
+1. **Adress-Konflikt** (Anzeige-Standort ≠ Impressum/Karriereseite), **ohne Default:** Optionen sind die konkreten Standorte selbst, kein Textbaustein. Es gibt **keinen** automatischen Default – die Anschrift ist ein Pflichtfeld im Setzer (Kapitel 13). `expires_at` = `created_at` + 5 Werktage. Nach vier Stunden ohne Antwort erinnert der Telegram-Bot einmalig, danach erscheint die Rückfrage täglich im Digest, solange sie offen ist (Kapitel 14.6). Antwortest du nicht innerhalb der 5 Werktage, archiviert der Orchestrator die betroffene Stelle mit `archive_reason: "rueckfrage_nicht_beantwortet"` statt sie zu senden oder selbst eine Option zu wählen – ein Timeout ist nie eine Freigabe (Kapitel 14.1).
+2. **Kein Name mit brauchbarer Konfidenz** (kein Ansprechpartner mit Konfidenz ≥ 0,5 auffindbar), **mit Default:** Optionen sind „Team-Anrede“ und „klassisch“. **Default bei Nichtantwort:** „Sehr geehrtes Recruiting-Team [Firma]“ – warm genug, um nicht generisch zu wirken, aber ohne das Risiko einer falsch geratenen Anrede. `expires_at` = Beginn des nächsten Tageslaufs.
+3. **Name sicher, Anrede/Titel unsicher** (wie im Beispiel oben), **mit Default:** Optionen sind „Guten Tag [Vorname] [Nachname]“, „Team-Anrede“, „klassisch“. **Default bei Nichtantwort:** „Guten Tag [Vorname] [Nachname]“ – nutzt den bereits belegten Namen, ohne ein Geschlecht zu erraten. `expires_at` = Beginn des nächsten Tageslaufs.
 
-Findet der Rechercheur überhaupt keinen Ansprechpartner (kein Fragetyp 2 oder 3 ausgelöst, weil gar kein Kandidat vorliegt), greift kein Rückfrage-Mechanismus, sondern direkt der in Kapitel 13 festgelegte klassische Fallback „Sehr geehrte Damen und Herren“. Die Anrede liefert der Rechercheur in zwei grammatischen Formen – Nominativ für die Anrede-Zeile, Akkusativ für das Anschriftfeld („Herr“/„Herrn“, „Frau“/„Frau“) –, der Setzer kombiniert sie nur (Kapitel 13). Offene Rückfragen erscheinen im Review-Cockpit mit den Optionen als Klick-Auswahl und zusätzlich per Telegram-Kurzaktion (Kapitel 14, Kapitel 7.7.9); ihre Auflösung (Antwort oder Verfall) schreibt der Orchestrator als `event_log`-Eintrag fest.
+Bei Fragetyp 2 und 3 setzt der Orchestrator, wenn `expires_at` erreicht ist, ohne dass du geantwortet hast, den Datensatz automatisch auf `status: "beantwortet"`, `antwort_quelle: "default"` und trägt den genannten Default in die Pipeline ein, damit der Tageslauf weiterläuft; der Punkt erscheint in der Review-Checkliste (Kapitel 14.4) als „per Default beantwortet – bitte prüfen“, sodass du ihn vor der endgültigen Freigabe trotzdem siehst. Bei Fragetyp 1 gibt es diesen automatischen Übergang nicht: Ohne Default bleibt `rueckfrage_offen` bestehen, bis du antwortest oder die 5-Werktage-Frist verstreicht und die Stelle archiviert wird.
+
+Findet der Rechercheur überhaupt keinen Ansprechpartner (kein Fragetyp 2 oder 3 ausgelöst, weil gar kein Kandidat vorliegt), greift kein Rückfrage-Mechanismus, sondern direkt der in Kapitel 13 festgelegte klassische Fallback „Sehr geehrte Damen und Herren“. Die Anrede liefert der Rechercheur in zwei grammatischen Formen – Nominativ für die Anrede-Zeile, Akkusativ für das Anschriftfeld („Herr“/„Herrn“, „Frau“/„Frau“) –, der Setzer kombiniert sie nur (Kapitel 13). Offene Rückfragen erscheinen im Review-Cockpit mit den Optionen als Klick-Auswahl und zusätzlich per Telegram-Kurzaktion (Kapitel 14, Kapitel 7.7.8); ihre Auflösung (Antwort oder Verfall) schreibt der Orchestrator als `event_log`-Eintrag fest.
 
 ### 10.5 Ausgabeschema: company_dossier.json
 
@@ -99,7 +101,7 @@ Der Rechercheur antwortet ausschließlich im Schema `schemas/dossier.json` (Kapi
 | `ats` | object | ja | exakt die Struktur `ats_profile` aus Kapitel 4.6 (`vendor`, `detected_by`, `confidence`, `parser_hint`, `ai_ranking`, `knockout_expected`, `format_default`, `ki_screening_hinweis`, `rules_version`, `checked_at`) |
 | `kultur_und_ton.{zusammenfassung, belege[]}` | object | nein | nie als Fakt-Claim, nur Hinweis für Kapitel 11 |
 | `aktuelle_themen[]` | array | nein | je Eintrag: `thema`, `datum`, `quelle_url` |
-| `kununu.{score, anzahl_bewertungen, quelle_url}` | object | nein | nur bei Stufe 6 |
+| `kununu.{score, anzahl_bewertungen, quelle_url}` | object | nein | nur bei Stufe 6, sofern in der Konfiguration aktiviert; ohne Aktivierung bleibt das Feld leer, kein Standardwert |
 | `manuelle_pruefung.{linkedin_suchlink, xing_suchlink, hinweis}` | object | nein | für Stufe 5, Kapitel 14 |
 | `signale.{prompt_injection_verdacht, anzeige_alt, fundstelle_url}` | object | ja | siehe 10.3, 10.9 |
 | `fragen[]` | array | nein | Referenzen auf `question.id` (10.4) |
@@ -114,16 +116,16 @@ Der Rechercheur antwortet ausschließlich im Schema `schemas/dossier.json` (Kapi
   "recherchiert_am": "2026-09-09T05:41:12+02:00",
   "quellenkette": [
     {"stufe": 1, "typ": "anzeige", "url": "<Anzeigen-URL>", "abgerufen_am": "2026-09-09T05:38:00+02:00", "status": "ok"},
-    {"stufe": 2, "typ": "karriereseite", "url": "https://www.musterhandel-solutions.example/karriere", "abgerufen_am": "2026-09-09T05:38:40+02:00", "status": "ok"},
-    {"stufe": 3, "typ": "impressum", "url": "https://www.musterhandel-solutions.example/impressum", "abgerufen_am": "2026-09-09T05:39:05+02:00", "status": "ok"},
-    {"stufe": 6, "typ": "kununu", "url": "https://www.kununu.com/de/musterhandel-solutions", "abgerufen_am": "2026-09-09T05:40:10+02:00", "status": "ok"}
+    {"stufe": 2, "typ": "karriereseite", "url": "{URL Karriereseite der Beispielfirma}", "abgerufen_am": "2026-09-09T05:38:40+02:00", "status": "ok"},
+    {"stufe": 3, "typ": "impressum", "url": "{URL Impressum der Beispielfirma}", "abgerufen_am": "2026-09-09T05:39:05+02:00", "status": "ok"},
+    {"stufe": 6, "typ": "kununu", "url": "{URL Kununu-Profil der Beispielfirma}", "abgerufen_am": "2026-09-09T05:40:10+02:00", "status": "ok"}
   ],
   "firma": {
     "name": "Musterhandel Solutions GmbH",
     "rechtsform": "GmbH",
     "konfidenz": 0.93,
     "quelle": "impressum",
-    "quelle_url": "https://www.musterhandel-solutions.example/impressum"
+    "quelle_url": "{URL Impressum der Beispielfirma}"
   },
   "anschrift": {
     "strasse": "Beispielallee 12",
@@ -146,7 +148,7 @@ Der Rechercheur antwortet ausschließlich im Schema `schemas/dossier.json` (Kapi
     "konfidenz_name": 0.82,
     "konfidenz_anrede": 0.55,
     "quelle": "karriereseite",
-    "quelle_url": "https://www.musterhandel-solutions.example/karriere/team",
+    "quelle_url": "{URL Team-Seite der Beispielfirma}",
     "zuletzt_bestaetigt_am": "2026-06-15"
   },
   "bewerbungsadresse": {
@@ -170,16 +172,16 @@ Der Rechercheur antwortet ausschließlich im Schema `schemas/dossier.json` (Kapi
   "kultur_und_ton": {
     "zusammenfassung": "Karriereseite duzt durchgängig, wirbt mit flachen Hierarchien; Kununu-Bewertungen (n=<Platzhalter>) bestätigen informellen Umgangston.",
     "belege": [
-      {"aussage": "\"Bei uns duzen sich alle, vom Azubi bis zur Geschäftsführung.\"", "quelle_url": "https://www.musterhandel-solutions.example/karriere", "quelle_typ": "karriereseite"}
+      {"aussage": "\"Bei uns duzen sich alle, vom Azubi bis zur Geschäftsführung.\"", "quelle_url": "{URL Karriereseite der Beispielfirma}", "quelle_typ": "karriereseite"}
     ]
   },
   "aktuelle_themen": [
     {"thema": "<Platzhalter: z. B. neue Produktlinie/Standorteröffnung>", "datum": "2026-07", "quelle_url": "<News-URL>"}
   ],
-  "kununu": {"score": 3.8, "anzahl_bewertungen": 142, "quelle_url": "https://www.kununu.com/de/musterhandel-solutions"},
+  "kununu": {"score": 3.8, "anzahl_bewertungen": 142, "quelle_url": "{URL Kununu-Profil der Beispielfirma}"},
   "manuelle_pruefung": {
-    "linkedin_suchlink": "https://www.linkedin.com/search/results/people/?keywords=Erika%20Musterfrau%20Musterhandel%20Solutions",
-    "xing_suchlink": "https://www.xing.com/search/members?keywords=Erika%20Musterfrau%20Musterhandel%20Solutions",
+    "linkedin_suchlink": "{LinkedIn-Personensuchlink für Name + Firma}",
+    "xing_suchlink": "{XING-Personensuchlink für Name + Firma}",
     "hinweis": "Bitte manuell bestätigen, ob Erika Musterfrau noch bei Musterhandel Solutions tätig ist (letzte Quelle: Juni 2026)."
   },
   "signale": {"prompt_injection_verdacht": false, "anzeige_alt": false, "fundstelle_url": null},
@@ -202,16 +204,16 @@ Automatisierte Massenabfragen bleiben ausgeschlossen: handelsregister.de nur als
 
 | Tool | Zweck | Zugriff | Kosten | Bewertung |
 |---|---|---|---|---|
-| Anthropic Web Search | Firmensuche, News, Fallback wenn Domain/URL unbekannt | serverseitiges Claude-Tool, `max_uses`, `allowed_domains` | 10 USD je 1.000 Suchen zzgl. Tokens [Preise](https://platform.claude.com/docs/en/about-claude/pricing) | empfohlen, Standardquelle (Kapitel 7.7.8) |
+| Anthropic Web Search | Firmensuche, News, Fallback wenn Domain/URL unbekannt | serverseitiges Claude-Tool, `max_uses`, `allowed_domains` | 10 USD je 1.000 Suchen zzgl. Tokens [Preise](https://platform.claude.com/docs/en/about-claude/pricing) | empfohlen, Standardquelle (Kapitel 7.7.9) |
 | Anthropic Web Fetch | bekannte URLs abrufen (Impressum, Karriereseite, Kununu-Profil) | serverseitig, nur URLs aus Nutzer-/Werkzeugkontext, `max_content_tokens` | keine Zusatzgebühr, nur Tokenkosten [Web Fetch Tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool) | empfohlen, Standardquelle für die Mehrzahl der Abrufe |
 | `mcp__bundesapi__handelsregister_suche` (lesend) | Register-Einzelabfrage in Stufe 4 | lesendes MCP-Tool, Teil des Agent-SDK-Werkzeugsatzes (Kapitel 7.6) | keine Zusatzgebühr über die Modellaufrufe hinaus | empfohlen für den Zweifelsfall, nicht für Massenabfragen |
 | Northdata (Web-UI/-Suche) | Firmen-/Registerdaten bei Widerspruch | öffentliche Ergebnisseite per Web Search/Fetch, kein Vertrag im MVP | Web-Suche eingeschränkt kostenlos, API-Preise nicht verifiziert [Northdata](https://www.northdata.de/) | optional, nur Einzelfall |
-| Kununu | Kultur/Ton, Erfahrungsberichte | einzelner Web-Fetch-Aufruf pro Firma | kostenlos lesbar | empfohlen, punktuell |
+| Kununu | Kultur/Ton, Erfahrungsberichte | einzelner Web-Fetch-Aufruf pro Firma, nur bei aktivierter Konfiguration | kostenlos lesbar | optional, nur nach expliziter Aktivierung in der Konfiguration |
 | Firecrawl | strukturiertes Crawlen mehrseitiger Team-/Karriereseiten, falls Web Fetch nicht reicht | API-Key, Credits | Preise in dieser Recherche nicht verifizierbar, vor Nutzung prüfen [Firecrawl](https://www.firecrawl.dev/) | optional, nur Ausnahmefall (JS-lastige Mehrseiten-Teamübersichten) |
 | Exa / Tavily | semantische bzw. RAG-freundliche Zweitsuche | API-Key, jeweils eigene Kontingente | Preise in dieser Recherche nicht zuverlässig verifizierbar [Exa](https://exa.ai/), [Tavily](https://tavily.com/) | optional, v2 |
 | Brave Search API | günstige, datenschutzfreundliche Zweitsuche | API-Key; kostenloser Tier seit Februar 2026 abgeschafft, seither ca. 5 USD Gratis-Guthaben/Monat je Plan, ca. 0,005 USD/Suche | niedrig, aber Kreditkarte Pflicht [Brave-Tier-Ende](https://www.implicator.ai/brave-drops-free-search-api-tier-puts-all-developers-on-metered-billing/), [Brave-Preise](https://agentdeals.dev/vendor/brave-search-api) | optional |
 
-Web Search/Fetch als Standardquelle ist dieselbe Entscheidung wie in Kapitel 7.7.8, hier nur auf die Stufen 1–3, 6 und 7 angewendet; Firecrawl/Exa/Tavily bleiben Ergänzung für die seltenen Fälle mehrseitiger, schwer zu erfassender Team-Übersichten, nicht Standard. Bei rund vier bis sechs Web-Fetch- und zwei bis drei Web-Search-Aufrufen pro Firma (10.1) bleiben die Kosten pro Recherche im Cent-Bereich; die Gesamtrechnung inklusive Modelltokens steht in Kapitel 18.
+Web Search/Fetch als Standardquelle ist dieselbe Entscheidung wie in Kapitel 7.7.9, hier nur auf die Stufen 1–3, 6 und 7 angewendet; Firecrawl/Exa/Tavily bleiben Ergänzung für die seltenen Fälle mehrseitiger, schwer zu erfassender Team-Übersichten, nicht Standard. Bei rund vier bis sechs Web-Fetch- und zwei bis drei Web-Search-Aufrufen pro Firma (10.1) bleiben die Kosten pro Recherche im Cent-Bereich; die Gesamtrechnung inklusive Modelltokens steht in Kapitel 18.
 
 ### 10.9 Prompt-Injection-Schutz beim Lesen fremder Webseiten
 
@@ -221,7 +223,7 @@ Der Rechercheur liest pro Tag Dutzende fremde Seiten – Karriereseiten, Impress
 - **Drittinhalte sind Daten, nie Befehle.** Jeder Web-Fetch-Treffer kommt als gekennzeichneter Werkzeugblock in den Kontext, nicht als System- oder Nutzertext; derselbe `untrusted_content_policy`-Grundsatz wie in Kapitel 7.8 gilt: eingebettete Anweisungen sind zu melden, nicht zu befolgen [Anthropic: Mitigate jailbreaks](https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks).
 - **Auffälligkeiten werden protokolliert, nicht verschwiegen.** Findet der Rechercheur eine anweisungsartige Passage, setzt er `signale.prompt_injection_verdacht = true` im Dossier (10.5), verwirft die Quelle für dieses Feld und meldet es ans Cockpit – dieselbe Struktur wie bei Scout/Matcher (`signals.injection`, Kapitel 7.8, Kapitel 9).
 
-Trotzdem prüfen zwei nachgeschaltete Instanzen jedes Feld erneut, bevor es Wirkung entfaltet: der Kritiker gleicht Behauptungen gegen die Story-Bank ab (Kapitel 11), der Setzer rendert nicht ohne Pflichtfeld über der Konfidenzschwelle (Kapitel 13) – und Web Fetch kann ohnehin keine URL abrufen, die nur das Modell selbst erzeugt hat, was gezielte Exfiltration zusätzlich ausschließt (Kapitel 7.7.8).
+Trotzdem prüfen zwei nachgeschaltete Instanzen jedes Feld erneut, bevor es Wirkung entfaltet: der Kritiker gleicht Behauptungen gegen die Story-Bank ab (Kapitel 11), der Setzer rendert nicht ohne Pflichtfeld über der Konfidenzschwelle (Kapitel 13) – und Web Fetch kann ohnehin keine URL abrufen, die nur das Modell selbst erzeugt hat, was gezielte Exfiltration zusätzlich ausschließt (Kapitel 7.7.9).
 
 **Quellen dieses Kapitels:**
 - [§ 5 DDG – Digitale-Dienste-Gesetz](https://www.gesetze-im-internet.de/ddg/__5.html)

@@ -1,6 +1,6 @@
 ## 9. Modul Scout und Matcher: Suche, Normalisierung, Dedup, Scoring, Tagesauswahl
 
-Scout und Matcher sind die ersten beiden Stationen der Status-Pipeline (Kapitel 3). Der Scout überführt eine Stellenanzeige von „nicht im System“ zu „entdeckt“, entfernt Duplikate (Status „dedupliziert“) und normalisiert sie in ein festes Schema. Der Matcher bewertet jede normalisierte Anzeige (Status „bewertet“) und wählt daraus die Tagesauswahl (Status „ausgewählt“), die anschließend an den Rechercheur übergeht (Kapitel 10). Die Quellenmatrix selbst — welche Jobbörse, welches ATS-Feed, welche API — ist Gegenstand von Kapitel 6; dieses Kapitel beschreibt, wie der Scout diese Quellen technisch anzapft, und wie der Matcher aus der Masse der gefundenen Anzeigen zehn belastbare Kandidaten für den Menschen herausfiltert.
+Scout und Matcher sind die ersten beiden Stationen der Status-Pipeline (Kapitel 7.4). Der Scout überführt eine Stellenanzeige von „nicht im System“ zu „entdeckt“, entfernt Duplikate (Status „dedupliziert“) und normalisiert sie in ein festes Schema. Der Matcher bewertet jede normalisierte Anzeige (Status „bewertet“) und wählt daraus die Tagesauswahl (Status „ausgewählt“), die anschließend an den Rechercheur übergeht (Kapitel 10). Die Quellenmatrix selbst — welche Jobbörse, welches ATS-Feed, welche API — ist Gegenstand von Kapitel 6; dieses Kapitel beschreibt, wie der Scout diese Quellen technisch anzapft, und wie der Matcher aus der Masse der gefundenen Anzeigen zehn belastbare Kandidaten für den Menschen herausfiltert.
 
 ### 9.1 Scout: Quellen-Adapter, Rate Limits, inkrementelles Crawlen
 
@@ -56,24 +56,31 @@ Jede Rohanzeige wird unabhängig von ihrer Quelle in ein festes Schema überfüh
     "contact_email": {"type": ["string", "null"]},
     "application_channel": {"type": "string", "enum": ["email", "ats_formular", "portal_upload", "unklar"]},
     "reference_number_raw": {"type": ["string", "null"]},
-    "is_temp_agency_suspected": {"type": "boolean"},
-    "temp_agency_signal": {"type": ["string", "null"]},
+    "signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vermittler_verdacht": {"type": "boolean"},
+        "vermittler_hinweis": {"type": ["string", "null"]}
+      },
+      "required": ["vermittler_verdacht"]
+    },
     "posted_at_text": {"type": ["string", "null"]},
     "language": {"type": "string", "enum": ["de", "en", "andere"]}
   },
   "required": ["source", "source_id", "url", "title_raw", "company_name_raw", "remote_type",
     "employment_type", "contract_type", "salary_period", "salary_is_estimated",
-    "must_haves", "nice_to_haves", "application_channel", "is_temp_agency_suspected", "language"]
+    "must_haves", "nice_to_haves", "application_channel", "signals", "language"]
 }
 ```
 
-Um dieses Schema herum ergänzt der Code (nicht das Modell) interne Felder: `id` (eigener Primärschlüssel), `ats_type` (regelbasiert erkannt, siehe 9.3), `dedup_group_id`, `status` (Wert aus der Status-Pipeline, Kapitel 3), `first_seen_at`/`last_seen_at`, sowie die in 9.4–9.6 berechneten Score- und Erklärungsfelder. Kontaktdaten aus Anzeigen sind personenbezogene Daten; ihre Aufbewahrung und Löschung regelt Kapitel 16.
+Um dieses Schema herum ergänzt der Code (nicht das Modell) interne Felder: `id` (eigener Primärschlüssel), `ats_type` (regelbasiert erkannt, siehe 9.3), `dedup_group_id`, `status` (Wert aus der Status-Pipeline, Kapitel 7.4), `first_seen_at`/`last_seen_at`, sowie die in 9.4–9.6 berechneten Score- und Erklärungsfelder. Das Feld `signals` aus dieser Extraktion liefert nur den Personalvermittler-Hinweis aus dem Anzeigentext; der Code füllt daraus zusammen mit dem Injection-Screen (`signals.injection`, `signals.scam`, Kapitel 7.8 Regel 5, siehe 9.5) und der in 9.4/9.7 berechneten Reposting-Häufigkeit (`signals.reposting_count`) sowie dem Ghost-Job-Malus (`signals.ghost_job`, 9.7) das vollständige `job_posting.signals`-Objekt aus Kapitel 7.3. Kontaktdaten aus Anzeigen sind personenbezogene Daten; ihre Aufbewahrung und Löschung regelt Kapitel 16.
 
 ### 9.3 Extraktion strukturierter Felder per Structured Outputs
 
 **Entscheidung:** Die Felder aus 9.2 werden pro Anzeige per Claude Structured Output (`output_config.format`, kein Beta-Header nötig) mit **Claude Haiku 4.5** ($1/$5 pro 1 Mio. Token Input/Output) extrahiert. **Begründung:** Es handelt sich um einen Massenschritt (200–500 Anzeigen/Tag laut Zielvolumen) mit vergleichsweise einfacher Aufgabe (Feldextraktion aus vorliegendem Text); der Kostenunterschied zu Fable 5.1 ($10/$50) ist bei diesem Volumen erheblich. **Alternative:** Bei Extraktionsfehlern (leere Pflichtfelder, Format-Ausreißer) eskaliert der Code den einzelnen Fall auf Claude Sonnet 5 als Fallback, statt das gesamte Volumen teurer zu fahren.
 
-Wichtige Einschränkung von Claude Structured Outputs: Schemas dürfen kein `pattern` (Regex), keine `minLength`/`maxLength`- oder numerischen Min/Max-Constraints und keine rekursiven Strukturen enthalten; `additionalProperties` muss `false` sein [Claude Structured Outputs](https://docs.claude.com/en/docs/build-with-claude/structured-outputs). Das Schema in 9.2 hält sich daran — Formatprüfung (z. B. das Muster einer Kennziffer) läuft deshalb nachgelagert im Code:
+Wichtige Einschränkung von Claude Structured Outputs: Schemas dürfen kein `pattern` (Regex), keine `minLength`/`maxLength`- oder numerischen Min/Max-Constraints und keine rekursiven Strukturen enthalten; `additionalProperties` muss `false` sein [Claude Structured Outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs). Das Schema in 9.2 hält sich daran — Formatprüfung (z. B. das Muster einer Kennziffer) läuft deshalb nachgelagert im Code:
 
 ```python
 import re
@@ -108,15 +115,16 @@ Ein Grenzband (Jaro-Winkler 0,75–0,90 bzw. MinHash-Jaccard 0,50–0,75) wird *
 
 ### 9.5 Scoring-Modell: harte Filter und gewichtete Dimensionen
 
-Bevor eine Anzeige einen kostenpflichtigen API-Aufruf auslöst, durchläuft sie ein Boolean-Gate aus harten Muss-Filtern — Sprache, maximale Pendelzeit/-distanz, Vertragsart, Arbeitserlaubnis. Die Schwellenwerte selbst kommen aus den Präferenzen des Kandidatenprofils (Kapitel 8); der Matcher wendet sie nur an, pflegt sie aber nicht. Ein zusätzlicher harter Ausschluss ist sicherheitsbedingt, nicht qualitätsbedingt: Kontaktaufnahme ausschließlich über WhatsApp/Telegram oder die Forderung nach Video-Ident-Verfahren bzw. Kontoeröffnung vor Vertragsabschluss gilt als Job-Scamming-Signal und führt zum sofortigen Ausschluss, unabhängig vom sonstigen Score — seriöse Arbeitgeber verlangen das laut Verbraucherzentrale nicht vor Vertragsschluss [Verbraucherzentrale: Jobscamming](https://www.verbraucherzentrale.de/jobscamming-was-tun-wenn-das-traumangebot-zur-falle-wird-110906), [Verbraucherzentrale Niedersachsen](https://www.verbraucherzentrale-niedersachsen.de/wissen/digitale-welt/datenschutz/jobscamming-so-erkennen-sie-gefaelschte-jobangebote-und-schuetzen-ihre-daten-120421).
+Bevor eine Anzeige einen kostenpflichtigen API-Aufruf auslöst, durchläuft sie ein Boolean-Gate aus harten Muss-Filtern — Sprache, maximaler Umkreis, Vertragsart, Arbeitserlaubnis. Die Schwellenwerte selbst kommen aus den Präferenzen des Kandidatenprofils (Kapitel 8); der Matcher wendet sie nur an, pflegt sie aber nicht. Im MVP gibt es kein Werkzeug, das eine echte Pendelzeit in Minuten berechnet — der Hard-Filter arbeitet deshalb mit `max_umkreis_km`, angewendet auf den `umkreis`-Parameter der BA-Jobsuche-API beziehungsweise auf die PLZ-Zentroid-Distanz bei anderen Quellen. Ein optionales `max_pendelzeit_minuten` wird erst in v1 ausgewertet, sobald eine Routing-API zur Verfügung steht (Google Maps Routes API, Kapitel 17.4); bis dahin bleibt das Feld im Kandidatenprofil gespeichert, aber ungeprüft. Ein zusätzlicher harter Ausschluss ist sicherheitsbedingt, nicht qualitätsbedingt: Kontaktaufnahme ausschließlich über WhatsApp/Telegram oder die Forderung nach Video-Ident-Verfahren bzw. Kontoeröffnung vor Vertragsabschluss gilt als Job-Scamming-Signal und führt zum sofortigen Ausschluss, unabhängig vom sonstigen Score — seriöse Arbeitgeber verlangen das laut Verbraucherzentrale nicht vor Vertragsschluss [Verbraucherzentrale: Jobscamming](https://www.verbraucherzentrale.de/jobscamming-was-tun-wenn-das-traumangebot-zur-falle-wird-110906), [Verbraucherzentrale Niedersachsen](https://www.verbraucherzentrale-niedersachsen.de/wissen/digitale-welt/datenschutz/jobscamming-so-erkennen-sie-gefaelschte-jobangebote-und-schuetzen-ihre-daten-120421).
 
-Alles, was den Hard-Filter passiert, erhält einen gewichteten Gesamtscore aus fünf Dimensionen:
+Alles, was den Hard-Filter passiert, erhält einen gewichteten Gesamtscore aus fünf Dimensionen. Alle Teilscores und der Gesamtscore liegen einheitlich auf der Skala 0..1 mit zwei Nachkommastellen — auch das Judge-Schema in 9.6 liefert 0..1, nicht 0..100:
 
 ```yaml
 scoring:
   hard_filter:
     - sprache_erforderlich          # aus Kandidatenprofil, Kapitel 8
-    - max_pendelzeit_minuten        # aus Kandidatenprofil, Kapitel 8
+    - max_umkreis_km                # aus Kandidatenprofil, Kapitel 8; MVP: Ort/Umkreis der BA-API bzw. PLZ-Zentroid-Distanz
+    - max_pendelzeit_minuten        # optional, erst v1 mit Routing-API (Kapitel 17.4); im MVP nicht ausgewertet
     - vertragsart_ausgeschlossen    # aus Kandidatenprofil, Kapitel 8
     - arbeitserlaubnis_erforderlich
     - jobscamming_signal            # WhatsApp/Telegram-only, Video-Ident/Konto vor Vertragsschluss
@@ -130,13 +138,24 @@ scoring:
   schwelle_rueckfrage: [0.45, 0.60] # Band "unsicher" -> Nutzer fragen statt automatisch verwerfen
 ```
 
-**Passung** wird über eine dreistufige Retrieval-Pipeline ermittelt, nicht durch einen einzelnen LLM-Aufruf pro Anzeige — das hält die Kosten bei mehreren Hundert Anzeigen/Tag beherrschbar:
+Der Gesamtscore ergibt sich als gewichtete Summe:
 
-1. **Hybrid-Retrieval**: BM25 (`bm25s` mit deutschem Stemmer) plus Dense-Embeddings mit **BGE-M3** — MIT-lizenziert, 100+ Sprachen, selbst gehostet über `sentence-transformers`, keine Tokenkosten [bm25s](https://github.com/xhluca/bm25s), [FlagEmbedding/BGE-M3](https://github.com/FlagOpen/FlagEmbedding), [sentence-transformers](https://github.com/UKPLab/sentence-transformers) — kombiniert per Reciprocal Rank Fusion auf die Top 30–50 Kandidaten des Tages. Skill-Begriffe aus Anzeige und Kandidatenprofil (Kapitel 8) werden dabei über die ESCO-Taxonomie normalisiert, die kostenlos in deutscher Sprache vorliegt [ESCO](https://esco.ec.europa.eu/en/use-esco/download).
-2. **Reranking** der Top 30–50 auf die engere Top 20 mit **Cohere Rerank 3.5** (0,001 USD/Suche) [Cohere Rerank 3.5](https://openrouter.ai/cohere/rerank-v3.5); Voyage `rerank-2.5` ist eine Alternative mit Freikontingent, über die Bibliothek `rerankers` austauschbar implementiert, um keinen Anbieter fest zu verdrahten [rerankers](https://github.com/AnswerDotAI/rerankers).
-3. **LLM-Judge** mit **Claude Sonnet 5** ($2/$10 pro 1 Mio. Token) bewertet die verbleibende Top 20 gegen eine feste Rubrik und liefert `passung_score`, `attraktivitaet_score`, `erfolgschance_score` sowie eine kurze Begründung in einem Aufruf. **Begründung der Modellwahl:** Erklärbarkeit und Rubrik-Treue sind hier wichtiger als bei der Massenextraktion, das Volumen (Top 20/Tag) ist aber klein genug, dass Sonnet 5 die Kosten niedrig hält; Fable 5.1 bleibt den schreibkritischen Schritten in Kapitel 11 vorbehalten, wo der Nutzer die höchste Qualität ausdrücklich wünscht. **Alternative:** Fable 5.1 auch hier einsetzen, wenn dir Erklärbarkeit wichtiger ist als die 30-Tage-Datenspeicherung, die Fable 5.1 erfordert (Kapitel 16).
+```
+score_total = 0.35 * passung + 0.20 * attraktivitaet + 0.15 * erfolgschance
+            + 0.15 * arbeitgeberqualitaet + 0.15 * frische
+```
 
-**Erfolgschance** und **Frische** sind größtenteils regelbasiert (Posting-Alter, Zeit seit letzter Änderung, Reposting-Häufigkeit) und benötigen keinen LLM-Aufruf. **Arbeitgeberqualität** kombiniert, was ohne Vollautomatisierung verfügbar ist: Handelsregister-Status (Kapitel 10), grobe Größen-zu-offene-Stellen-Relation, und optional eine manuelle kununu-Stichprobe — eine automatisierte kununu-API existiert nicht, nur ToS-riskante Drittanbieter-Scraper [Apify kununu-Scraper](https://apify.com/lexis-solutions/kununu-scraper/api); eine Insolvenzprüfung läuft mangels offiziellem API entweder manuell auf dem Bundesportal oder über kostenpflichtiges Monitoring [Insolvenz-Radar](https://insolvenz-radar.de/funktionen/).
+**Passung** wird zweistufig ermittelt, gestaffelt nach Ausbaustufe, nicht durch einen einzelnen LLM-Aufruf pro Anzeige — das hält die Kosten bei mehreren Hundert Anzeigen/Tag beherrschbar:
+
+**MVP:**
+
+1. **BM25-Vorauswahl**: `bm25s` mit deutschem Stemmer wählt aus allen Anzeigen, die den Hard-Filter passiert haben, die 30–50 relevantesten Kandidaten des Tages [bm25s](https://github.com/xhluca/bm25s). Skill-Begriffe aus Anzeige und Kandidatenprofil (Kapitel 8) werden dabei über die ESCO-Taxonomie normalisiert, die kostenlos in deutscher Sprache vorliegt [ESCO](https://esco.ec.europa.eu/en/use-esco/download).
+2. **Injection-Screen**: Vor dem Judge prüft ein Haiku-4.5-Aufruf mit festem Schema jede der 30–50 Kandidaten-Anzeigen auf anweisungsartige Passagen, verborgenen Text und Scam-Signale (Kapitel 7.8 Regel 5). Ein Treffer setzt `signals.injection` beziehungsweise `signals.scam`; Anzeigen mit `signals.injection` bleiben von der Tagesauswahl ausgeschlossen, bis du sie im Review-Cockpit (Kapitel 14) ausdrücklich freigibst, `signals.scam` führt zum harten Ausschluss über den Hard-Filter oben.
+3. **LLM-Judge** mit **Claude Sonnet 5** ($2/$10 pro 1 Mio. Token, effort medium) bewertet die verbliebenen Kandidaten gegen eine feste Rubrik und liefert `passung_score`, `attraktivitaet_score`, `erfolgschance_score` sowie eine kurze Begründung. Die Bewertung läuft als **Message Batch** (50 Prozent Rabatt gegenüber dem Normalpreis, [Batch API](https://platform.claude.com/docs/en/build-with-claude/batch-processing)) über alle 30–50 Kandidaten des Tages; ist das Batch-Ergebnis um 05:30 Uhr nicht da, bewertet ein synchroner Fallback die Top 40 nach BM25-Score (Kapitel 7.5). **Begründung der Modellwahl:** Erklärbarkeit und Rubrik-Treue sind hier wichtiger als bei der Massenextraktion; Fable 5.1 bleibt den schreibkritischen Schritten in Kapitel 11 vorbehalten, wo der Nutzer die höchste Qualität ausdrücklich wünscht. **Alternative:** Fable 5.1 auch hier einsetzen, wenn dir Erklärbarkeit wichtiger ist als die 30-Tage-Datenspeicherung, die Fable 5.1 erfordert (Kapitel 16).
+
+**v1** (Auslöser V-11, Kapitel 19.7 — erst wenn der Betrieb zeigt, dass BM25 relevante Anzeigen verfehlt): zusätzlich **Dense-Embeddings** mit **BGE-M3** — MIT-lizenziert, 100+ Sprachen, über `sentence-transformers` nutzbar [FlagEmbedding/BGE-M3](https://github.com/FlagOpen/FlagEmbedding), [sentence-transformers](https://github.com/UKPLab/sentence-transformers) — per Reciprocal Rank Fusion mit dem BM25-Ergebnis kombiniert, danach **Reranking** der erweiterten Kandidatenliste auf die engere Top 20 mit **Cohere Rerank 3.5** (0,001 USD/Suche) [Cohere Rerank 3.5](https://openrouter.ai/cohere/rerank-v3.5); Voyage `rerank-2.5` ist eine Alternative mit Freikontingent, über die Bibliothek `rerankers` austauschbar implementiert, um keinen Anbieter fest zu verdrahten [rerankers](https://github.com/AnswerDotAI/rerankers). Diese Stufe braucht entweder ein API-Embedding oder einen größeren Server als die MVP-Grundausstattung: Ein lokal gehostetes BGE-M3 passt nicht in die 4 GB RAM des Hetzner CPX22 (Kapitel 19.5); die Entscheidung zwischen API-Embedding, größerem Server oder Verzicht fällt erst nach den ersten Betriebswochen (Kapitel 19.7). Die verbindliche Kostenrechnung für den laufenden Betrieb — MVP wie v1-Erweiterung — steht in Kapitel 18, nicht in diesem Kapitel.
+
+**Erfolgschance** und **Frische** sind größtenteils regelbasiert (Posting-Alter, Zeit seit letzter Änderung, Reposting-Häufigkeit aus `signals.reposting_count`, Kapitel 9.4) und benötigen keinen LLM-Aufruf. **Arbeitgeberqualität** kombiniert, was ohne Vollautomatisierung verfügbar ist: Handelsregister-Status (Kapitel 10), grobe Größen-zu-offene-Stellen-Relation, und optional eine manuelle kununu-Stichprobe — eine automatisierte kununu-API existiert nicht, nur ToS-riskante Drittanbieter-Scraper [Apify kununu-Scraper](https://apify.com/lexis-solutions/kununu-scraper/api); eine Insolvenzprüfung läuft mangels offiziellem API entweder manuell auf dem Bundesportal oder über kostenpflichtiges Monitoring [Insolvenz-Radar](https://insolvenz-radar.de/funktionen/). Liegt für eine Anzeige weder Handelsregister-Status noch Größenangabe noch kununu-Stichprobe vor, setzt der Code `arbeitgeberqualitaet` (beziehungsweise, bei fehlendem `posted_at`, auch `frische`) auf einen neutralen Default von 0,50, statt eine unbelegte Bewertung zu erzeugen.
 
 ### 9.6 Erklärbarkeit: das „Warum“ zu jeder Bewertung
 
@@ -144,9 +163,9 @@ Jede bewertete Anzeige trägt ein strukturiertes Begründungsfeld, das der LLM-J
 
 ```json
 {
-  "passung_score": 78,
-  "attraktivitaet_score": 65,
-  "erfolgschance_score": 55,
+  "passung_score": 0.78,
+  "attraktivitaet_score": 0.65,
+  "erfolgschance_score": 0.55,
   "begruendung_kurz": "Kernanforderungen A und B klar erfüllt; Sprachanforderung C nur teilweise durch die Story-Bank belegt.",
   "unsichere_felder": ["sprachanforderung_c"],
   "rueckfrage_notwendig": false
@@ -173,11 +192,11 @@ zaehler_personalvermittler = 0
 für jeden Kandidaten in der sortierten Liste:
     wenn len(top10) == 10: stoppe
     wenn zaehler_firma[Kandidat.firma] >= 2: in Warteliste, weiter
-    wenn Kandidat.ist_personalvermittler_verdacht und zaehler_personalvermittler >= 2:
+    wenn Kandidat.signals.vermittler_verdacht und zaehler_personalvermittler >= 2:
         in Warteliste, weiter
     top10.anhängen(Kandidat)
     zaehler_firma[Kandidat.firma] += 1
-    wenn Kandidat.ist_personalvermittler_verdacht: zaehler_personalvermittler += 1
+    wenn Kandidat.signals.vermittler_verdacht: zaehler_personalvermittler += 1
 ```
 
 Maximal zwei Anzeigen pro Arbeitgeber und maximal zwei Personalvermittler-Anzeigen sind Startwerte; übersprungene Kandidaten verschwinden nicht, sondern bleiben in der Warteliste sichtbar. Diese Top-10-Liste mit Status „ausgewählt“ geht an den Rechercheur (Kapitel 10) und wird im Review-Cockpit (Kapitel 14) präsentiert.
@@ -193,17 +212,18 @@ Maximal zwei Anzeigen pro Arbeitgeber und maximal zwei Personalvermittler-Anzeig
 | Extraktion normalisierter Felder | Claude Haiku 4.5 ($1/$5 pro 1 Mio. Token) | pro Anzeige, Massenschritt |
 | ATS-Typ-Erkennung | regelbasiert (URL-/HTML-Muster) | $0 |
 | Dedup (Blocking + MinHashLSH) | `datasketch`, lokal | $0, nur Rechenzeit |
-| Hybrid-Retrieval (Embeddings) | BGE-M3, selbst gehostet | $0, Compute separat (Kapitel 18) |
-| Reranking Top 30–50 → Top 20 | Cohere Rerank 3.5 (0,001 USD/Suche) | pro Anzeige im Retrieval-Fenster |
-| LLM-Judge mit Begründung | Claude Sonnet 5 ($2/$10 pro 1 Mio. Token) | nur für die engste Auswahl (Top 20) |
+| Injection-Screen | Claude Haiku 4.5 | pro Kandidat der BM25-Vorauswahl (30–50/Tag) |
+| LLM-Judge mit Begründung | Claude Sonnet 5, Message Batch (50 % Rabatt) | pro Kandidat der BM25-Vorauswahl (30–50/Tag), Fallback synchron Top 40 |
+| Hybrid-Retrieval (Embeddings) — **v1** | BGE-M3, API oder selbst gehostet | $0 bei Self-Hosting (RAM-Bedingung Kapitel 19.5) bzw. API-Kosten |
+| Reranking — **v1** | Cohere Rerank 3.5 (0,001 USD/Suche) | pro Anzeige im erweiterten Retrieval-Fenster |
 
-Grobe Rechnung für die Extraktion (Haiku 4.5): bei angenommen rund 1.500 Input-Token (Anzeigetext, Schema, Prompt) und 300 Output-Token pro Anzeige ergeben sich für 1.000 Anzeigen etwa 1,5 Mio. Input- und 0,3 Mio. Output-Token, also ca. 1,5 USD + 1,5 USD ≈ **3 USD pro 1.000 Anzeigen** allein für die Extraktion. Der LLM-Judge läuft nur auf der engsten Auswahl (rund 20 von durchschnittlich 200–500 gescannten Anzeigen pro Tag), verursacht dadurch pro 1.000 gescannte Anzeigen nur einen kleinen zweistelligen Cent- bis niedrigen Dollar-Betrag; Reranking-Kosten liegen im Cent-Bereich. In Summe ist für 1.000 gescannte Anzeigen eine Größenordnung von grob **5–10 USD** plausibel — eine Schätzung zur Orientierung, keine Preiszusage; die genaue Kostenrechnung für den laufenden Monatsbetrieb steht in Kapitel 18. Zu beachten: Modelle ab Claude 4.7 (dazu zählen Opus 5, Sonnet 5, Fable 5.x) nutzen einen neuen Tokenizer, der für denselben Text tendenziell mehr Token erzeugt als ältere Modelle — bei der Kalibrierung in Kapitel 19 einen Aufschlag einplanen. Prompt Caching (Cache-Read zu 0,1x des Normalpreises, bei Fable-Modellen 0,025x) kann die Kosten für wiederholt genutzte Schema- und Rubrik-Texte weiter senken [Anthropic Pricing](https://platform.claude.com/docs/en/about-claude/pricing).
+Grobe Rechnung für die Extraktion (Haiku 4.5): bei angenommen rund 1.500 Input-Token (Anzeigetext, Schema, Prompt) und 300 Output-Token pro Anzeige ergeben sich für 1.000 Anzeigen etwa 1,5 Mio. Input- und 0,3 Mio. Output-Token, also ca. 1,5 USD + 1,5 USD ≈ **3 USD pro 1.000 Anzeigen** allein für die Extraktion. Der LLM-Judge läuft im MVP als Message Batch nur auf der BM25-Vorauswahl (rund 30–50 von durchschnittlich 200–500 gescannten Anzeigen pro Tag) und profitiert vom 50-Prozent-Batch-Rabatt, verursacht dadurch pro 1.000 gescannte Anzeigen nur einen kleinen zweistelligen Cent- bis niedrigen Dollar-Betrag. In Summe ist für 1.000 gescannte Anzeigen im MVP eine Größenordnung von grob **3–6 USD** plausibel — eine Schätzung zur Orientierung, keine Preiszusage. Kommen in v1 Embeddings und Reranking hinzu, liegen deren Kosten im niedrigen Cent-Bereich pro 1.000 Anzeigen zusätzlich zum MVP-Betrag. Kapitel 18 ist in jedem Fall die verbindliche Kostenquelle für den laufenden Monatsbetrieb, MVP wie v1; diese Rechnung hier ist nur eine grobe Einordnung pro 1.000 Anzeigen. Zu beachten: Modelle ab Claude 4.7 (dazu zählen Opus 5, Sonnet 5, Fable 5.x) nutzen einen neuen Tokenizer, der für denselben Text tendenziell mehr Token erzeugt als ältere Modelle — bei der Kalibrierung in Kapitel 19 einen Aufschlag einplanen. Prompt Caching (Cache-Read zu 0,1x des Normalpreises, bei Fable-Modellen 0,025x) kann die Kosten für wiederholt genutzte Schema- und Rubrik-Texte weiter senken [Anthropic Pricing](https://platform.claude.com/docs/en/about-claude/pricing).
 
 ### Offene Fragen
 
 - Sollen Personalvermittler-/Zeitarbeit-Anzeigen standardmäßig einbezogen, ausgeschlossen oder nur markiert werden? **Default-Annahme:** einbeziehen, aber mit Label und Rückfrage bei Unsicherheit (9.7).
 - Sind die vorgeschlagenen Standardgewichte (Passung 35 %, Attraktivität 20 %, Erfolgschance 15 %, Arbeitgeberqualität 15 %, Frische 15 %) passend, oder sollen sie von Anfang an anders justiert werden? **Default-Annahme:** wie in 9.5 angegeben, Anpassung über das Feedback-Lernen (9.9).
-- Ist die Nutzung kostenpflichtiger Rerank-/Embedding-APIs (Cohere/Voyage, geschätzt Cent-Bereich/Tag) akzeptabel, oder soll ausschließlich mit selbst gehosteten Modellen (BGE-M3) gearbeitet werden? **Default-Annahme:** BGE-M3 selbst gehostet für Embeddings, Cohere Rerank 3.5 für Reranking (Kosten vernachlässigbar).
+- Wann genau soll v1 die Embeddings-/Reranking-Stufe (BGE-M3, Cohere Rerank 3.5) einführen, und mit API-Embedding oder größerem Server, weil ein lokales BGE-M3 nicht in die 4 GB RAM des Hetzner CPX22 passt (Kapitel 19.5)? **Default-Annahme:** Im MVP kein Embedding/Reranking (BM25 plus Judge genügt); Einführung erst nach dem Auslöser V-11 (Kapitel 19.7), dann API-Embedding statt lokalem BGE-M3, Cohere Rerank 3.5 für Reranking (Kosten vernachlässigbar, Kapitel 18).
 - Wie viele „unsichere“ Kandidaten pro Tag (Rückfrage-Band aus 9.5) sind akzeptabel, bevor sie dem Nutzer vorgelegt statt automatisch verworfen werden? **Default-Annahme:** kein festes Limit, alle im Band werden angezeigt; Feinjustierung in der MVP-Phase (Kapitel 19).
 - Soll automatisiertes kununu-Scraping über einen Drittanbieter (ToS-Grauzone) für die Arbeitgeberqualität genutzt werden, oder nur manuelle Stichproben? **Default-Annahme:** keine automatisierte Drittanbieter-Abfrage, nur manuelle/stichprobenartige Prüfung.
 
@@ -222,7 +242,8 @@ Grobe Rechnung für die Extraktion (Haiku 4.5): bei angenommen rund 1.500 Input-
 - Arbeitnow Job Board API — https://arbeitnow.com/api/job-board-api
 - Jooble API — https://jooble.org/api/about
 - webappanalyzer (GitHub) — https://github.com/enthec/webappanalyzer
-- Claude Structured Outputs — https://docs.claude.com/en/docs/build-with-claude/structured-outputs
+- Claude Structured Outputs — https://platform.claude.com/docs/en/build-with-claude/structured-outputs
+- Claude Batch Processing — https://platform.claude.com/docs/en/build-with-claude/batch-processing
 - Anthropic Pricing — https://platform.claude.com/docs/en/about-claude/pricing
 - FlagEmbedding / BGE-M3 (GitHub) — https://github.com/FlagOpen/FlagEmbedding
 - sentence-transformers (GitHub) — https://github.com/UKPLab/sentence-transformers

@@ -2,7 +2,7 @@
 
 Dieses Kapitel sammelt jede Frage, die in Kapitel 1 bis 21 als „offene Frage an dich“ markiert wurde, sowie alle `open_questions_for_user` aus den 15 Recherche-Dateien. Dedupliziert, gruppiert, mit Antwortoptionen und der Default-Annahme, die der Plan bis zu deiner Antwort verwendet. Die Default-Annahmen sind identisch mit denen, die in den jeweiligen Kapiteln bereits als **Entscheidung** oder **Default-Annahme** stehen – dieses Kapitel widerspricht ihnen an keiner Stelle, sondern bündelt sie an einem Ort zum Durcharbeiten.
 
-45 Fragen in sieben Gruppen: Profil & Ziele, Quellen & Regionen, Sprache & Ton, Versand & Konten, Technik & Budget, Recht & Grenzen, Produktname. Acht davon sind **Blocker vor Phase 0** (Kapitel 19.3, Arbeitspaket P0-01) – ohne Antwort auf diese acht kann Woche 0 nicht sauber starten, weil kein sinnvoller Platzhalter existiert oder weil die Architektur zwei grundverschiedene Wege vorsieht. Für alle übrigen Fragen gilt: Die genannte Default-Annahme ist bereits aktiv in der Architektur verankert; du kannst mit dem Bau beginnen, ohne sie einzeln zu bestätigen, und sie später über `config/` oder das Onboarding-Interview (Kapitel 8) ändern.
+53 Fragen in acht Gruppen: Profil & Ziele, Quellen & Regionen, Sprache & Ton, Versand & Konten, Technik & Budget, Recht & Grenzen, Produktname, Roadmap & Tempo. Acht davon sind **Blocker vor Phase 0** (Kapitel 19.3, Arbeitspaket P0-01) – ohne Antwort auf diese acht kann Woche 0 nicht sauber starten, weil kein sinnvoller Platzhalter existiert oder weil die Architektur zwei grundverschiedene Wege vorsieht. Für alle übrigen Fragen gilt: Die genannte Default-Annahme ist bereits aktiv in der Architektur verankert; du kannst mit dem Bau beginnen, ohne sie einzeln zu bestätigen, und sie später über `config/` oder das Onboarding-Interview (Kapitel 8) ändern.
 
 ### 22.1 Die acht Blocker im Überblick
 
@@ -15,7 +15,7 @@ Dieses Kapitel sammelt jede Frage, die in Kapitel 1 bis 21 als „offene Frage a
 | 30 | Commercial-API-Key oder Pro/Max-Abo | Commercial-API-Key | 7, 16 |
 | 31 | Hosting: Hetzner-VPS, Mac lokal oder Managed Agents | Hetzner-VPS in Deutschland | 7 |
 | 32 | Fable 5.1 (30-Tage-Speicherung) oder durchgängig Opus 5 (ZDR) | Fable 5.1 mit Offenlegung, Opus-5-Umschalter vorhanden | 7, 11, 16 |
-| 33 | Tägliches/monatliches Kostenlimit | 10 USD je Tageslauf, Monatsdeckel offen | 7, 18 |
+| 33 | Tägliches/monatliches Kostenlimit | 45 USD je Tageslauf (Kapitel 18.2); Monatsdeckel offen, Orientierung rund 262–1.151 EUR/Monat je nach Szenario, rund 789 EUR im empfohlenen Szenario | 7, 18 |
 
 Fragen 1 und 8 haben bewusst keine Default-Annahme: Der Plan enthält an keiner Stelle eine geratene Branche, einen geratenen Beruf oder einen geratenen Ort – jedes Beispiel im Dokument ist ein Platzhalter. Ohne diese zwei Antworten kann der Scout (Kapitel 6, 9) keine einzige Quelle sinnvoll konfigurieren.
 
@@ -51,7 +51,7 @@ Fragen 1 und 8 haben bewusst keine Default-Annahme: Der Plan enthält an keiner 
 
 **14. Ansprechpartner-Recherche auf LinkedIn/XING.** Bist du bereit, diesen Schritt selbst manuell zu übernehmen (der Agent liefert dir einen vorbereiteten Link), oder soll stärker automatisiert werden trotz ToS-Risiko? **Default-Annahme:** du übernimmst es manuell (company_research.json).
 
-**15. Rückfrage-Schwelle beim Ansprechpartner.** Soll bei niedriger Konfidenz immer eine blockierende Rückfrage kommen, oder reicht eine Kennzeichnung im Cockpit ohne Unterbrechung des Tageslaufs? **Default-Annahme:** nur die Anschrift ist blockierend; Ansprechpartner/Anrede erhalten nur einen Konfidenz-Vermerk (Kapitel 10.4).
+**15. Rückfrage-Schwelle beim Ansprechpartner.** Soll bei niedriger Konfidenz immer eine Rückfrage ohne Default kommen, oder reicht eine Rückfrage mit Default, die sich von selbst auflöst? **Default-Annahme:** Nur eine unsichere oder widersprüchliche Anschrift löst eine Rückfrage ohne Default aus (kein Textbaustein möglich, Archivierung nach 5 Werktagen ohne Antwort); eine unsichere Ansprechperson/Anrede löst ebenfalls eine Rückfrage aus, aber mit Default, der bei Nichtantwort automatisch zu Beginn des nächsten Tageslaufs eingetragen und in der Review-Checkliste als „per Default beantwortet – bitte prüfen" markiert wird (Kapitel 10.4, 14.4).
 
 **16. Abweichender Firmenstandort.** Wenn Stellenanzeige und Impressum/Hauptsitz voneinander abweichen: automatisch den Anzeige-Standort übernehmen, oder immer nachfragen? **Default-Annahme:** Anzeige-Standort übernehmen, bei echter Unsicherheit Rückfrage (company_research.json).
 
@@ -91,9 +91,9 @@ Fragen 1 und 8 haben bewusst keine Default-Annahme: Der Plan enthält an keiner 
 
 **31. [Blocker] Hosting.** Eigener Hetzner-VPS in Deutschland, dein Mac lokal, oder vollständig Anthropic-verwaltete Managed Agents (Beta/Research Preview)? **Default-Annahme:** Hetzner-VPS in Deutschland (Kapitel 7.7.3, 7.11).
 
-**32. [Blocker] Modellwahl für die qualitätskritischen Schritte.** Claude Fable 5.1 (deine Wunschbasis, aber 30-Tage-Datenspeicherung bei Anthropic für Covered Models, [API and data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)) oder durchgängig Claude Opus 5 (ZDR-fähig, identische Preisstruktur $5/$25 statt $10/$50)? Der Kritiker läuft standardmäßig ohnehin auf einem anderen Modell als der Autor, um Selbstbewertungs-Bias zu vermeiden. **Default-Annahme:** Fable 5.1 mit Offenlegung und Zustimmung im Onboarding; Opus 5 als jederzeit aktivierbarer Umschalter; Kritiker = Opus 5 gegen Fable-5.1-Entwurf (Kapitel 7.11, 11.12, 16.2).
+**32. [Blocker] Modellwahl für die qualitätskritischen Schritte.** Claude Fable 5.1 (deine Wunschbasis für Rechercheur und Autor, aber 30-Tage-Datenspeicherung bei Anthropic für Covered Models, [API and data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)) oder durchgängig Claude Opus 5 (ZDR-fähig und mit $5/$25 pro 1 Mio. Token halb so teuer wie Fable 5.1 mit $10/$50)? Der Kritiker läuft unabhängig von dieser Wahl immer als eigenständiges, vom Autor getrenntes Grader-Modell auf Opus 5 – kein zusätzlicher Zweitgutachter obendrauf. **Default-Annahme:** Fable 5.1 mit Offenlegung und Zustimmung im Onboarding für Rechercheur und Autor; der Konfigurationsschalter `MODEL_TOP` schaltet bei Bedarf alle Fable-5.1-Schritte auf Opus 5 um (dann ohne 30-Tage-Speicherung); der Kritiker bleibt davon unberührt und läuft in jedem Fall auf Opus 5 (Kapitel 7.6, 7.11, 11.12, 16.2).
 
-**33. [Blocker] Kostenlimit.** Wie hoch darf das tägliche bzw. monatliche Budget für Modell-Tokens, Websuche und Session-Laufzeit sein? **Default-Annahme:** 10 USD je Tageslauf; eine feste Monatsobergrenze ist noch offen und sollte spätestens bei P0-02 (Ausgabenlimit in der Anthropic Console) konkret gesetzt werden (Kapitel 7.11, 18).
+**33. [Blocker] Kostenlimit.** Wie hoch darf das tägliche bzw. monatliche Budget für Modell-Tokens, Websuche und Session-Laufzeit sein? **Default-Annahme:** 45 USD je Tageslauf (abgeleitet aus Kapitel 18.2: rund 37 USD für zehn Bewerbungen im empfohlenen Szenario, plus Puffer); eine feste Monatsobergrenze ist noch offen und sollte spätestens bei P0-02 (Ausgabenlimit in der Anthropic Console) konkret gesetzt werden – als Orientierung nennt Kapitel 18 für 220 Bewerbungen im Monat (inkl. Massen-Scan 9 EUR und Server 20 EUR) rund 262 EUR im sparsamen, rund 789 EUR im empfohlenen und rund 1.151 EUR im maximalen Szenario (Kapitel 7.11, 18).
 
 **34. EU-Hosting der Bewerbungsdaten.** Sollen Kandidatenprofil und Bewerbungshistorie ausschließlich in der EU liegen? **Default-Annahme:** ja, konsistent mit der Hetzner-VPS-Wahl (Kapitel 7.7.3).
 
@@ -123,9 +123,29 @@ Fragen 1 und 8 haben bewusst keine Default-Annahme: Der Plan enthält an keiner 
 
 **45. Sichtbarkeit des Namens gegenüber Dritten.** Soll der Name in E-Mail-Signaturen, im Telegram-Bot-Anzeigenamen oder sonst gegenüber Empfängern auftauchen, oder komplett intern bleiben? **Default-Annahme:** intern bleiben; gegenüber Arbeitgebern tritt ausschließlich der Kandidat auf, nicht das Werkzeug (konsistent mit Kapitel 15, 16).
 
-### 22.9 Wie mit dieser Liste weiterarbeiten
+### 22.9 Roadmap & Tempo
 
-Kapitel 19.3 (Arbeitspaket P0-01) verlangt, die acht Blocker aus 22.1 vor Beginn von Phase 0 zu beantworten; für alle übrigen 37 Fragen gilt bis zu deiner Antwort die genannte Default-Annahme unverändert. Antworten trägst du am einfachsten direkt in `config/` bzw. in die entsprechenden Profildateien aus Kapitel 8 ein, sobald das Onboarding läuft – eine separate Antwortdatei ist nicht nötig, da jede Frage bereits auf die Stelle verweist, an der die Antwort technisch wirksam wird.
+Diese Gruppe bündelt die offenen Fragen aus der Roadmap (Kapitel 19.10), die kein anderes Kapitel als „offene Frage an dich" führt: Tempo, Umfang und Reihenfolge der ersten Monate. Keine davon ist ein Blocker vor Phase 0.
+
+**46. Startzeitpunkt und Wochenkapazität für Phase 0.** Wann startet Phase 0 tatsächlich, und wie viel Zeit kannst du dir verbindlich pro Woche dafür nehmen? **Default-Annahme:** Start noch in dieser Woche; rund 3 Personentage (PT) je Woche im MVP, danach 1 bis 2 PT je Woche plus die tägliche Review-Routine aus Kapitel 2.13 (Kapitel 19.9, 19.10).
+
+**47. Englischsprachige Zielrollen bereits im MVP.** Sind englischsprachige Zielrollen relevant genug, dass die Vorlage `international-en` (Kapitel 13.3) schon im MVP gebraucht wird? **Default-Annahme:** nein; `international-en` und `klassisch` folgen erst in v1, nach dem Test-Parsing der MVP-Vorlage `sachlich` (Kapitel 13.3, 19.5, 19.10).
+
+**48. Versandstart in Woche 5.** Ist der Start des echten Versands in Woche 5 mit Tageslimit 3 und Budget 5 USD akzeptabel, oder soll der Entwurf-Modus länger laufen? **Default-Annahme:** Woche 5; danach gelten die Limits aus Kapitel 7.11 (Kapitel 15.1, 19.4, 19.10).
+
+**49. Zuschnitt des Onboarding-Interviews.** Soll das Onboarding-Interview in zwei Sitzungen zu je 2 bis 3 Stunden laufen (P0-14 bis P0-16), oder lieber über mehrere kürzere Termine verteilt über die Woche? **Default-Annahme:** zwei Sitzungen (Kapitel 8, 19.9, 19.10).
+
+**50. Watchlist-Zusage in Phase 0.** Kannst du die Watchlist mit 20 bis 50 Wunscharbeitgebern (Frage 9) bereits in Phase 0 liefern (P0-13), oder erst im laufenden Betrieb nachreichen? **Default-Annahme:** ja, in Phase 0; sonst startet der MVP zunächst nur mit BA-API, Adzuna, Arbeitnow und Alert-Mails (Kapitel 6.9, 19.9, 19.10).
+
+**51. Managed-Agents-Test durchführen.** Soll der optionale Managed-Agents-Test für den Rechercheur (V-17) in v1 überhaupt stattfinden? **Default-Annahme:** optional, nur wenn Zeit bleibt; das Ergebnis fließt erst in eine spätere v2-Entscheidung ein (Kapitel 7.10, 19.5, 19.10).
+
+**52. Reihenfolge der Portalfamilien im Co-Pilot.** Welche Portalfamilien sollen im Portal-Co-Pilot (W-02, v2) zuerst unterstützt werden? **Default-Annahme:** Personio, softgarden, JOIN zuerst; SAP SuccessFactors und Workday danach; Plattform-Schnellbewerbungen nur nach ausdrücklicher Entscheidung (Kapitel 15.5, 19.6, 19.10).
+
+**53. Anwaltliche Prüfung vor v2 budgetieren.** Soll die anwaltliche Prüfung (W-12) schon vor v2 budgetiert werden, oder erst bei einer Go-Entscheidung? **Default-Annahme:** erst bei einer Go-Entscheidung nach Kapitel 21.5 (Kapitel 19.6, 19.10).
+
+### 22.10 Wie mit dieser Liste weiterarbeiten
+
+Kapitel 19.3 (Arbeitspaket P0-01) verlangt, die acht Blocker aus 22.1 vor Beginn von Phase 0 zu beantworten; für alle übrigen 45 Fragen gilt bis zu deiner Antwort die genannte Default-Annahme unverändert. Antworten trägst du am einfachsten direkt in `config/` bzw. in die entsprechenden Profildateien aus Kapitel 8 ein, sobald das Onboarding läuft – eine separate Antwortdatei ist nicht nötig, da jede Frage bereits auf die Stelle verweist, an der die Antwort technisch wirksam wird.
 
 **Quellen dieses Kapitels:**
 

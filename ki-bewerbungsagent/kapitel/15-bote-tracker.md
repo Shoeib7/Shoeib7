@@ -34,34 +34,33 @@ Von Managed-E-Mail-Konnektoren wie Composio, Pipedream oder Zapier MCP wird für
 Sobald v1 echten Versand erlaubt, protokolliert der Bote jeden Versandversuch unveränderlich. Feste Regeln, unabhängig vom gewählten Konto:
 
 - **Zeitfenster mit Jitter:** Kernfenster Dienstag–Donnerstag, ca. 7:00–9:30 Uhr (optional zusätzlich 14:00–16:00 Uhr), mit zufälligem Versatz von ±15–40 Minuten je E-Mail. Das ist HR-Ratgeber-Konsens, keine belastbare Studie – als Heuristik gegen ein erkennbares Cron-Muster nutzen, nicht als Fakt zitieren [arwa.de](https://arwa.de/de/blog/wann-sollte-man-eine-bewerbung-abschicken).
-- **Tageslimit:** 10–15 E-Mails/Tag, unabhängig von den Provider-Limits selbst überwacht (weit unter jeder Missbrauchsschwelle bei iCloud oder Gmail).
+- **Tageslimit:** 10 E-Mails/Tag (Default aus `config/zeitplan.yaml`, konfigurierbar, hart im Boten geprüft; Kapitel 7.5), unabhängig von den Provider-Limits selbst überwacht (weit unter jeder Missbrauchsschwelle bei iCloud oder Gmail). Zum Start des echten Versands in v1 (Woche 5) gilt zunächst ein reduziertes Tageslimit von 3, danach greift der Default von 10 (Kapitel 19.5).
 - **Format:** Plaintext oder schlichtes HTML, kein Tracking-Pixel, kein Link-Tracking, keine Lesebestätigung – Tracking-Pixel senken nachweislich die Zustellbarkeit und wirken unseriös [Instantly](https://instantly.ai/blog/email-tracking-and-deliverability-why-tracking-pixels-can-hurt-your-inbox-placement/).
 - **Betreffkonvention:** `Bewerbung als [Position] – [Referenznummer, falls vorhanden]`. Kein Marketing-Ton, keine Emojis.
 - **Signatur:** Name, Postanschrift, Telefon, ggf. LinkedIn/Portfolio-Link – Foto, Geburtsdatum und Familienstand gehören nicht in die Signatur (AGG-Risiko, Details Kapitel 16).
 - **Anhang:** genau eine kombinierte PDF-Datei (Anschreiben, Lebenslauf, ggf. Zeugnisse), erzeugt vom Setzer (Kapitel 13); Zielgröße 1–3 MB, hartes Limit 5 MB.
 
-```sql
-CREATE TABLE sendeprotokoll (
-  id               INTEGER PRIMARY KEY AUTOINCREMENT,
-  bewerbung_id     TEXT NOT NULL,        -- FK zur Bewerbung (Kapitel 7)
-  konto            TEXT NOT NULL,        -- z.B. 'icloud:privat', 'gmail:privat'
-  empfaenger_domain TEXT NOT NULL,       -- nur Domain, keine volle Adresse im Log
-  betreff_hash     TEXT NOT NULL,        -- SHA-256 statt Klartext
-  message_id       TEXT,                 -- eigene Message-ID, RFC 2822
-  status           TEXT NOT NULL CHECK (status IN ('entwurf','freigegeben','gesendet','fehler')),
-  geplant_um       TEXT,                 -- Zielzeit inkl. Jitter-Versatz
-  versendet_um     TEXT,
-  anhang_groesse_kb INTEGER,
-  fehlermeldung    TEXT,
-  erzeugt_um       TEXT NOT NULL DEFAULT (datetime('now'))
-);
+Der Bote führt dafür keine eigene Tabelle: Eine dritte Ablage neben `application` und `event_log` (Kapitel 7.3) würde nur ein zusätzliches, konkurrierendes Statusvokabular schaffen. Stattdessen schreibt er Versandtatsachen in die dort bereits vorhandenen Spalten der Tabelle `application` (`sent_at`, `sent_to`, `message_id`, `sent_account`, `send_window_start`) und protokolliert jeden einzelnen Versuch – auch Entwürfe und Fehlschläge – als eigenen, unveränderlichen Eintrag im `event_log`:
+
+```json
+{
+  "actor": "bote",
+  "action": "draft | send | error",
+  "entity_type": "application",
+  "payload": {
+    "empfaenger_domain": "beispielfirma.de",
+    "betreff_hash": "sha256-hex …",
+    "anhang_groesse_kb": 1820,
+    "fehlermeldung": null
+  }
+}
 ```
 
-Diese Tabelle liegt in derselben SQLite-Datenbank wie der übrige Zustand (Kapitel 7); sie ist die Grundlage für das Tageslimit, für Statistiken (15.7) und für den Audit-Nachweis „wann wurde was an wen mit welchem Status verschickt“.
+`empfaenger_domain` (nur die Domain, keine volle Adresse), `betreff_hash` (SHA-256 statt Klartext) und `anhang_groesse_kb` brauchen keine eigenen Tabellenspalten, weil `event_log.payload` laut Kapitel 7.3 bereits ein geprüftes JSON-Feld ist. Diese Kombination aus `application`-Spalten und `event_log`-Einträgen ist die Grundlage für das Tageslimit, für Statistiken (15.7) und für den Audit-Nachweis „wann wurde was an wen mit welchem Status verschickt“.
 
 ### 15.4 Sicherheit der Zugangsdaten
 
-App-spezifische Passwörter und OAuth-Tokens gehören nie in eine Klartext-`.env`-Datei oder ins Git-Repo. Empfehlung: macOS-Keychain (`security add-generic-password` / `find-generic-password`, kostenlos, systemeigen) [ss64](https://ss64.com/mac/security-password.html) oder, falls der Nutzer bereits ein Abo hat, 1Password CLI mit Secret-Reference-URIs (`op read op://vault/item/field`) [1Password](https://developer.1password.com/docs/cli/secrets-scripts). Beide injizieren das Secret nur zur Laufzeit, nie in eine Datei.
+App-spezifische Passwörter und OAuth-Tokens gehören nie in eine Klartext-`.env`-Datei oder ins Git-Repo. **Entscheidung:** Auf dem VPS ist sops + age der verbindliche Weg (Kapitel 7.7.6): Die Zugangsdaten des Boten liegen verschlüsselt in `config/secrets.enc.yaml` und werden zur Laufzeit per `sops exec-env` als Umgebungsvariablen in den Prozess injiziert, nie in eine Klartextdatei und nie in den Modellkontext geschrieben. macOS-Keychain oder 1Password CLI kommen für den Boten selbst nicht zum Einsatz; sie sind ausschließlich für den lokal auf dem Rechner des Nutzers laufenden Portal-Co-Piloten in v2 vorgesehen (Kapitel 15.5), sobald dort pro Arbeitgeber getrennte Zugangsdaten außerhalb des VPS verwaltet werden müssen.
 
 Zwei betriebliche Besonderheiten muss der Bote aktiv behandeln, statt sie zu ignorieren:
 
@@ -93,7 +92,7 @@ Ein Standardantworten-Profil deckt die immer wiederkehrenden Knockout-Fragen ab 
 
 ### 15.6 Tracker: Statusmodell und Antwortklassifikation
 
-Der Tracker überwacht die konfigurierten Postfächer per IMAP IDLE (Push statt Poll), providerunabhängig über Standard-IMAP [ikvk/imap_tools](https://github.com/ikvk/imap_tools). Eine eingehende Antwort wird über die Header `Message-ID`, `In-Reply-To` und `References` (RFC 2822) der ursprünglichen Bewerbung zugeordnet, wenn der Bote beim Versand eine eigene `Message-ID` gesetzt hat. Die Statuspipeline selbst (entdeckt → … → gesendet → Rückmeldung → Interview → Absage/Zusage/archiviert, plus „Rückfrage offen“) ist in Kapitel 3 definiert; der Tracker ist die Komponente, die eine eingehende E-Mail in einen dieser Statusübergänge übersetzt.
+Der Tracker überwacht die konfigurierten Postfächer per IMAP IDLE (Push statt Poll), providerunabhängig über Standard-IMAP [ikvk/imap_tools](https://github.com/ikvk/imap_tools). Eine eingehende Antwort wird über die Header `Message-ID`, `In-Reply-To` und `References` (RFC 2822) der ursprünglichen Bewerbung zugeordnet, wenn der Bote beim Versand eine eigene `Message-ID` gesetzt hat. Die Statuspipeline selbst (entdeckt → … → gesendet → Rückmeldung → Interview → Absage/Zusage/archiviert) ist in Kapitel 3 definiert; „Rückfrage offen“ ist dabei kein eigener Status, sondern ein Flag (`rueckfrage_offen`), das den aktuellen Status unverändert festhält, bis die Frage beantwortet ist (Kapitel 7.4). Der Tracker ist die Komponente, die eine eingehende E-Mail in einen dieser Statusübergänge übersetzt oder das Flag setzt.
 
 Dafür klassifiziert ein LLM-Schritt jede neue Antwort strukturiert:
 
@@ -108,12 +107,14 @@ Dafür klassifiziert ein LLM-Schritt jede neue Antwort strukturiert:
 
 | Kategorie | Beispiel-Merkmal | Status-Übergang | Folgeaktion |
 |---|---|---|---|
-| Absage | „... entschieden uns für ...“ | → archiviert | Grund protokollieren, falls genannt |
-| Einladung (mit Termin) | ICS-Anhang oder Datum im Text | → Interview | Termin in Tracker + optionaler ICS-Export |
-| Einladung (ohne Termin) | Terminvorschlag gefordert | → Interview | „Rückfrage offen“ bis Nutzer Termin bestätigt |
-| Rückfrage | z. B. Gehaltsangabe fehlt | → Rückfrage offen | Benachrichtigung (Kapitel 14) |
-| Autoresponder | „Eingang bestätigt“ | bleibt gesendet | nur Protokolleintrag |
+| Absage | „... entschieden uns für ...“ | gesendet → Rückmeldung → Absage | Grund protokollieren, falls genannt; Archivierung erst im Wartungslauf (Kapitel 7.4, 7.5) |
+| Einladung (mit Termin) | ICS-Anhang oder Datum im Text | gesendet → Rückmeldung → Interview | Termin in Tracker + optionaler ICS-Export |
+| Einladung (ohne Termin) | Terminvorschlag gefordert | gesendet → Rückmeldung, Flag `rueckfrage_offen` | nach Terminbestätigung durch Nutzer → Interview |
+| Rückfrage | z. B. Gehaltsangabe fehlt | gesendet → Rückmeldung, Flag `rueckfrage_offen` | Benachrichtigung (Kapitel 14) |
+| Autoresponder | „Eingang bestätigt“ | bleibt gesendet | nur `event_log`-Eintrag |
 | Unklar / niedrige Konfidenz | – | unverändert | Eskalation an Nutzer |
+
+Bei Konfidenz unter dem Schwellenwert setzt der Tracker nie selbst einen Statusübergang; er legt dem Nutzer die Antwort zur Bestätigung im Cockpit vor (Kapitel 7.4, 14).
 
 **Entscheidung:** Claude Haiku 4.5 klassifiziert im Standardfall; bei Konfidenz unter einem konfigurierbaren Schwellenwert (Default 0,7) eskaliert der Tracker an Claude Sonnet 5 für einen zweiten Versuch, bevor er dem Nutzer eine ungeklärte Antwort vorlegt.
 
@@ -145,7 +146,6 @@ Der Bote klickt nie selbst auf einen ToS-geschützten „Absenden“-Button eine
 - Soll LinkedIn/XING Easy-Apply überhaupt automatisiert werden (auch nur als Co-Pilot), oder grundsätzlich manuell bleiben? Default-Annahme: nur Co-Pilot, sehr geringe Frequenz.
 - Sollen für SAP SuccessFactors/Workday automatisch neue Bewerberkonten pro Arbeitgeber angelegt werden, oder erfolgt die Kontoerstellung immer manuell? Default-Annahme: manuell in v1.
 - Welches Nachfass-Intervall ist gewünscht (z. B. 7, 10 oder 14 Werktage)? Default-Annahme: 10 Werktage.
-- macOS-Keychain oder 1Password CLI für die Zugangsdaten? Default-Annahme: macOS-Keychain, falls das System auf macOS läuft, sonst 1Password CLI.
 
 **Quellen dieses Kapitels:**
 - [Apple: iCloud Mail – Sende- und Empfängerlimits](https://support.apple.com/en-us/102198)
@@ -160,8 +160,6 @@ Der Bote klickt nie selbst auf einen ToS-geschützten „Absenden“-Button eine
 - [Woodpecker: SPF/DKIM einrichten](https://woodpecker.co/blog/spf-dkim/)
 - [Instantly: Tracking-Pixel und Zustellbarkeit](https://instantly.ai/blog/email-tracking-and-deliverability-why-tracking-pixels-can-hurt-your-inbox-placement/)
 - [arwa.de: Beste Sendezeit für Bewerbungen](https://arwa.de/de/blog/wann-sollte-man-eine-bewerbung-abschicken)
-- [ss64: macOS Keychain (security)](https://ss64.com/mac/security-password.html)
-- [1Password: CLI Secrets in Skripten](https://developer.1password.com/docs/cli/secrets-scripts)
 - [GitHub: ikvk/imap_tools (IMAP IDLE)](https://github.com/ikvk/imap_tools)
 - [PyPI: icalendar](https://pypi.org/project/icalendar)
 - [LinkedIn: Nutzungsbedingungen (Automatisierung verboten)](https://www.linkedin.com/help/linkedin/answer/a1341387)

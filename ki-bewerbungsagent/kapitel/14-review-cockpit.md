@@ -20,49 +20,51 @@ Eine zweite Regel betrifft externe Texte: Zitate aus Stellenanzeigen oder Firmen
 
 **Entscheidung:** Der MVP nutzt einen Telegram-Bot als primären Push- und Freigabekanal, ergänzt um eine schlanke lokale FastAPI+htmx-Seite auf demselben Server wie das Agent SDK (Kapitel 7) für die vertiefte Prüfung (Diff, Checkliste, Seitenvorschau, Statistik). v1 baut daraus eine vollwertige lokale Web-App mit Kanban-Ansicht über alle Pipeline-Zustände und einer Statistikseite; eine optionale Notion-Spiegelung bleibt eine spätere Erweiterung, kein Bestandteil von v1 selbst.
 
-**Begründung:** python-telegram-bot ist aktiv gepflegt (29.500 Sterne, 3.229 Commits, Stand 9.9.2026), asynchron und passt zur Python-Basis des Agent SDK ([GitHub](https://github.com/python-telegram-bot/python-telegram-bot)); ein Bot-Token ist in Minuten eingerichtet, liefert native mobile Push-Benachrichtigungen und Datei-Anhänge, ohne dass eine eigene App gebaut werden muss. Für die vertiefte Prüfung reicht Telegram nicht: Ein Wort-Diff über einen ganzen Lebenslauf oder eine mehrseitige PDF-Vorschau passt nicht sinnvoll in eine Chat-Nachricht. FastAPI ist mit 102.200 Sternen die am weitesten verbreitete, MIT-lizenzierte Basis für einen solchen Endpunkt ([GitHub](https://github.com/fastapi/fastapi)); htmx (49.400 Sterne) erlaubt Teil-Updates einer Seite über einfache HTML-Attribute, ohne ein SPA-Framework zu benötigen ([GitHub](https://github.com/bigskysoftware/htmx)) – die Lizenzangabe ließ sich per Abruf nicht eindeutig aus dem Repository extrahieren und ist vor Einsatz direkt in der LICENSE-Datei zu prüfen. Reines Markdown/PDF im Git-Ordner scheitert an einem technischen Fakt: PDFs sind binär und werden von Git nicht sinnvoll als Diff dargestellt; ohne parallele Versionierung der Textquelle wäre die geforderte Diff-Ansicht wertlos. Ein Claude Artifact ist auffällig günstig umzusetzen, weil es Datenbank-, Datei- und Kommentar-Fähigkeiten ohne eigenes Hosting mitbringt, ist aber laut dieser Recherche ein sich weiterentwickelnder Produktbereich ohne dokumentierte Stabilitätsgarantie und wird deshalb nur als Experiment behandelt, nicht als Produktionsschicht neben der SQLite-Datenbank.
+**Begründung:** python-telegram-bot ist aktiv gepflegt (29.500 Sterne, 3.229 Commits, Stand 9.9.2026), asynchron und passt zur Python-Basis des Agent SDK ([GitHub](https://github.com/python-telegram-bot/python-telegram-bot)); ein Bot-Token ist in Minuten eingerichtet und liefert native mobile Push-Benachrichtigungen mit Inline-Buttons, ohne dass eine eigene App gebaut werden muss. Für die vertiefte Prüfung reicht Telegram nicht: Ein Wort-Diff über einen ganzen Lebenslauf oder eine mehrseitige PDF-Vorschau passt nicht sinnvoll in eine Chat-Nachricht. FastAPI ist mit 102.200 Sternen die am weitesten verbreitete, MIT-lizenzierte Basis für einen solchen Endpunkt ([GitHub](https://github.com/fastapi/fastapi)); htmx (49.400 Sterne) erlaubt Teil-Updates einer Seite über einfache HTML-Attribute, ohne ein SPA-Framework zu benötigen ([GitHub](https://github.com/bigskysoftware/htmx)) – die Lizenzangabe ließ sich per Abruf nicht eindeutig aus dem Repository extrahieren und ist vor Einsatz direkt in der LICENSE-Datei zu prüfen. Reines Markdown/PDF im Git-Ordner scheitert an einem technischen Fakt: PDFs sind binär und werden von Git nicht sinnvoll als Diff dargestellt; ohne parallele Versionierung der Textquelle wäre die geforderte Diff-Ansicht wertlos. Ein Claude Artifact ist auffällig günstig umzusetzen, weil es Datenbank-, Datei- und Kommentar-Fähigkeiten ohne eigenes Hosting mitbringt, ist aber laut dieser Recherche ein sich weiterentwickelnder Produktbereich ohne dokumentierte Stabilitätsgarantie und wird deshalb nur als Experiment behandelt, nicht als Produktionsschicht neben der SQLite-Datenbank.
+
+**Datenschutz-Entscheidung Telegram-Kanal:** Kapitel 8.10 hält als Grundsatz fest, dass `profil/`-Daten nie in einem SaaS-Werkzeug eines Dritten liegen dürfen; ein vollständiger Lebenslauf oder Zeugnisse als Telegram-Anhang würden dagegen verstoßen, weil Telegram-Server außerhalb der eigenen Infrastruktur liegen. Über den Telegram-Kanal gehen deshalb ausschließlich Metadaten – Firmenname, Rolle, Score, Matcher-Begründung und die ersten Sätze des Anschreibens – sowie ein Link auf die Detailseite. PDF, Seitenvorschau und der vollständige Anschreibentext bleiben auf dem Server und sind nur über die per SSH-Tunnel erreichbare FastAPI+htmx-Seite (Kapitel 7.7.8) einsehbar, nie als Anhang einer Telegram-Nachricht. Das kostet Komfort bei der Schnellprüfung unterwegs, ist aber Voraussetzung dafür, dass ein Drittanbieter außerhalb der eigenen Kontrolle nie Lebenslauf- oder Zeugnisinhalte zu Gesicht bekommt.
 
 **Alternativen:** NiceGUI (16.200 Sterne, MIT) und Reflex (28.900 Sterne, Apache-2.0) wären fertige Python-UI-Baukästen mit weniger eigenem HTML/CSS, aber mehr Lernaufwand für ein Ein-Personen-MVP ([NiceGUI](https://github.com/zauberzeug/nicegui), [Reflex](https://github.com/reflex-dev/reflex)). Streamlit (45.700 Sterne) ist ebenso naheliegend, aber sein Rerun-Modell – das gesamte Skript läuft bei jeder Interaktion neu – wird unhandlich, sobald zehn Zeilen je mehrere unabhängige Buttons (Freigeben/Ablehnen/Kommentar) tragen ([Streamlit](https://github.com/streamlit/streamlit)); zudem nimmt das Projekt aktuell keine externen Pull Requests mehr an. GitHub Issues/PRs als Diff- und Kommentar-Kanal ist für einen Git-affinen Nutzer attraktiv und würde zur ohnehin geplanten Repo-Versionierung passen, verschiebt aber die Prüfoberfläche in ein Werkzeug, das nicht für PDF-Vorschau gebaut ist; als v1-Option offen, nicht MVP.
 
 ### 14.3 Funktionsliste
 
 1. Sofort-Push pro Stelle, sobald der Status „bereit zur Freigabe“ erreicht ist, plus ein Tagesdigest am Ende des Tageslaufs mit allen offenen Punkten.
-2. Pro Stelle: Score und „Warum diese Stelle“-Begründung des Matchers (Kapitel 9), Kurzvorschau des Anschreibens, PDF-Anhang.
+2. Pro Stelle: Score und „Warum diese Stelle“-Begründung des Matchers (Kapitel 9), Kurzvorschau des Anschreibens, Link zur Detailseite mit PDF-Vorschau (14.2).
 3. Automatisch vorausgefüllte Checkliste (14.4) mit Sprungmarken zu unsicheren Punkten.
 4. Wort-Diff des Lebenslaufs, Master-Fassung gegen angepasste Fassung (14.5).
 5. Seitenvorschau (PNG) aller erzeugten Dokumente, aus dem Setzer übernommen (Kapitel 13.10).
 6. Rückfrage-Kanal mit Auswahloptionen und asynchroner Antwort (14.6).
 7. Vier getrennte Aktionen: Freigeben, Ändern mit Kommentar, Ablehnen mit Grund, Später (14.7).
-8. Unveränderliches Audit-Log jeder Aktion (14.8).
-9. Statistik-Ansicht über Kennzahlen der laufenden Pipeline (14.9).
+8. Unveränderliches Audit-Log jeder Aktion (14.9).
+9. Statistik-Ansicht über Kennzahlen der laufenden Pipeline (14.10).
 10. Bedienung von unterwegs über die Telegram-App; responsive Detailseite für die vertiefte Prüfung vom Telefon aus.
 
 ### 14.4 Die Review-Checkliste
 
-Jede Bewerbung im Zustand „bereit zur Freigabe“ trägt eine Checkliste aus 20 Punkten in sieben Gruppen. Die meisten Punkte sind bereits durch vorgelagerte Module automatisch geprüft und grün oder rot markiert; das Cockpit fasst diese Ergebnisse nur zusammen und verlinkt auf die Fundstelle. Nur wenige Punkte – vor allem in der Gruppe Ton – verlangen ein tatsächliches menschliches Urteil, weil kein vorgelagertes Modul „liest sich das wie ich“ zuverlässig beantworten kann.
+Jede Bewerbung im Zustand „bereit zur Freigabe“ trägt eine Checkliste aus 20 Punkten in sieben Gruppen, 14 davon automatisch geprüft und 6 manuell. Die meisten Punkte sind bereits durch vorgelagerte Module automatisch geprüft und grün oder rot markiert; das Cockpit fasst diese Ergebnisse nur zusammen und verlinkt auf die Fundstelle. Nur wenige Punkte – vor allem in der Gruppe Ton – verlangen ein tatsächliches menschliches Urteil, weil kein vorgelagertes Modul „liest sich das wie ich“ zuverlässig beantworten kann. Jeder Punkt trägt eine feste ID (C01–C20); `review_item.checklist` (Kapitel 7.3) verweist maschinenlesbar auf genau diese IDs, statt den Prüftext jedes Mal neu zu speichern.
 
-| Gruppe | Prüfpunkt | Herkunft |
-|---|---|---|
-| Fakten | Jede Aussage im Anschreiben trägt eine Quellenmarkierung (CV-Fakt / Stellenanzeige / Recherche-Fakt); unmarkierte Sätze sind rot hervorgehoben | automatisch (Autor, Kapitel 11) |
-| Fakten | Zahlen, Zeiträume und Titel stimmen mit dem Master-Lebenslauf und der Story-Bank überein | automatisch (Kritiker, Kapitel 11) |
-| Fakten | Keine Tätigkeit, kein Titel, kein Datum wurde gegenüber dem Master-Lebenslauf erweitert oder übertrieben | automatisch (Kritiker, Kapitel 11) |
-| Adressat | Firmenname, Anschrift und Ansprechpartner stimmen mit dem Rechercheur-Datensatz überein, Konfidenz über der Schwelle | automatisch (Rechercheur, Kapitel 10) |
-| Adressat | Anredeform im Anschriftfeld (Akkusativ) und in der Anrede (Nominativ) sind konsistent und korrekt | automatisch (Setzer-QA, Kapitel 13.10) |
-| Adressat | Betreffzeile enthält Stellentitel und Kennziffer korrekt aus der Stellenanzeige | automatisch (Setzer-QA, Kapitel 13.10) |
-| Dokumente | Layout und Sprache (sachlich/klassisch/international-en, de/en) passen zu Stellenanzeige und Branche | manuell (Du) |
-| Dokumente | Lebenslauf-Diff zeigt nur Umordnung, Betonung und Formulierung, keine neuen Fakten | manuell (Du, mit Diff aus 14.5) |
-| Dokumente | Seitenzahlen eingehalten, Setzer-QA vollständig grün | automatisch (Setzer, Kapitel 13.10) |
-| Ton | Stimmprofil eingehalten, keine Anti-Generik-Verstöße, Text liest sich wie du selbst | manuell (Du) |
-| Ton | Keine unbelegte Selbsteinschätzung („hochmotiviert“, „Teamplayer“) ohne Beleg aus der Story-Bank | manuell (Du) |
-| ATS | ATS-Prüfer-Bericht ist grün: Keyword-Abdeckung und Test-Parsing bestanden | automatisch (ATS-Prüfer, Kapitel 12) |
-| ATS | Textebene, Schrifteinbettung, kein Text in Tabellen oder Bildern | automatisch (Setzer-QA, Kapitel 13.10) |
-| Anhänge | Ausgewählte Zeugnisse und Zertifikate sind die für diese Stelle relevanten, Reihenfolge korrekt | automatisch (Setzer-Regel, Kapitel 13.8) |
-| Anhänge | Gesamtgröße innerhalb des Budgets für den gewählten Bewerbungsweg | automatisch (Setzer-QA, Kapitel 13.10) |
-| Anhänge | Keine veraltete oder falsche Anlage versehentlich mitgeschickt | manuell (Du) |
-| Versandweg | Bewerbungsweg (E-Mail, Portal getrennt, Portal einzeln, Freitext) korrekt erkannt und Formularfelder passend zugeordnet | automatisch (Rechercheur/Bote, Kapitel 10/15) |
-| Versandweg | E-Mail- oder Portal-Entwurf stimmt inhaltlich mit dem Anschreiben überein | manuell (Du) |
-| Versandweg | Sonderanforderungen aus der Stellenanzeige erfüllt (Gehaltsangabe, geforderte Anlagen, Sprache) | automatisch (Rechercheur, Kapitel 10) |
-| Versandweg | Bei Portalen: Testbefüllung des Formulars ohne Absenden liegt als Nachweis vor | automatisch (Bote, Kapitel 15) |
+| ID | Gruppe | Prüfpunkt | Herkunft |
+|---|---|---|---|
+| C01 | Fakten | Jede Aussage im Anschreiben trägt eine Quellenmarkierung (CV-Fakt / Stellenanzeige / Recherche-Fakt); unmarkierte Sätze sind rot hervorgehoben | automatisch (Autor, Kapitel 11) |
+| C02 | Fakten | Zahlen, Zeiträume und Titel stimmen mit dem Master-Lebenslauf und der Story-Bank überein | automatisch (Kritiker, Kapitel 11) |
+| C03 | Fakten | Keine Tätigkeit, kein Titel, kein Datum wurde gegenüber dem Master-Lebenslauf erweitert oder übertrieben | automatisch (Kritiker, Kapitel 11) |
+| C04 | Adressat | Firmenname, Anschrift und Ansprechpartner stimmen mit dem Rechercheur-Datensatz überein, Konfidenz über der Schwelle | automatisch (Rechercheur, Kapitel 10) |
+| C05 | Adressat | Anredeform im Anschriftfeld (Akkusativ) und in der Anrede (Nominativ) sind konsistent und korrekt | automatisch (Setzer-QA, Kapitel 13.10) |
+| C06 | Adressat | Betreffzeile enthält Stellentitel und Kennziffer korrekt aus der Stellenanzeige | automatisch (Setzer-QA, Kapitel 13.10) |
+| C07 | Dokumente | Layout und Sprache (sachlich/klassisch/international-en, de/en) passen zu Stellenanzeige und Branche | manuell (Du) |
+| C08 | Dokumente | Lebenslauf-Diff zeigt nur Umordnung, Betonung und Formulierung, keine neuen Fakten | manuell (Du, mit Diff aus 14.5) |
+| C09 | Dokumente | Seitenzahlen eingehalten, Setzer-QA vollständig grün | automatisch (Setzer, Kapitel 13.10) |
+| C10 | Ton | Stimmprofil eingehalten, keine Anti-Generik-Verstöße, Text liest sich wie du selbst | manuell (Du) |
+| C11 | Ton | Keine unbelegte Selbsteinschätzung („hochmotiviert“, „Teamplayer“) ohne Beleg aus der Story-Bank | manuell (Du) |
+| C12 | ATS | ATS-Prüfer-Bericht ist grün: Keyword-Abdeckung und Test-Parsing bestanden | automatisch (ATS-Prüfer, Kapitel 12) |
+| C13 | ATS | Textebene, Schrifteinbettung, kein Text in Tabellen oder Bildern | automatisch (Setzer-QA, Kapitel 13.10) |
+| C14 | Anhänge | Ausgewählte Zeugnisse und Zertifikate sind die für diese Stelle relevanten, Reihenfolge korrekt | automatisch (Setzer-Regel, Kapitel 13.8) |
+| C15 | Anhänge | Gesamtgröße innerhalb des Budgets für den gewählten Bewerbungsweg | automatisch (Setzer-QA, Kapitel 13.10) |
+| C16 | Anhänge | Keine veraltete oder falsche Anlage versehentlich mitgeschickt | manuell (Du) |
+| C17 | Versandweg | Bewerbungsweg (E-Mail, Portal getrennt, Portal einzeln, Freitext) korrekt erkannt und Formularfelder passend zugeordnet | automatisch (Rechercheur/Bote, Kapitel 10/15) |
+| C18 | Versandweg | E-Mail- oder Portal-Entwurf stimmt inhaltlich mit dem Anschreiben überein | manuell (Du) |
+| C19 | Versandweg | Sonderanforderungen aus der Stellenanzeige erfüllt (Gehaltsangabe, geforderte Anlagen, Sprache) | automatisch (Rechercheur, Kapitel 10) |
+| C20 | Versandweg | Bei Portalen: Testbefüllung des Formulars ohne Absenden liegt als Nachweis vor | automatisch (Bote, Kapitel 15) |
 
 Rot markierte oder fehlende automatische Prüfpunkte verhindern nicht den Aufruf im Cockpit, aber sie werden optisch hervorgehoben und öffnen standardmäßig aufgeklappt. Die manuellen Punkte sind bewusst wenige: Wenn Ton-Prüfung dauernd zu Ablehnungen führt, ist das ein Signal an Kapitel 11, das Stimmprofil zu schärfen – nicht ein Grund, mehr automatische Prüfpunkte zu erfinden, die am Ende doch wieder Vertrauensfragen an ein Modell wären.
 
@@ -74,65 +76,64 @@ Die Diff-Ansicht beantwortet die Frage, die die Fakten-Checkliste stellt, aber n
 
 ### 14.6 Rückfrage-Kanal
 
-Rückfragen entstehen in Kapitel 10 (Rechercheur, z. B. bei niedriger Konfidenz zum Ansprechpartner) und Kapitel 11 (Autor, z. B. bei fehlender Information für einen Pflichttext), nicht im Cockpit selbst; das Cockpit ist der Kanal, über den eine Rückfrage angezeigt und beantwortet wird. Jede Rückfrage ist ein eigener Datensatz:
+Rückfragen entstehen in Kapitel 10 (Rechercheur, z. B. bei niedriger Konfidenz zum Ansprechpartner) und Kapitel 11 (Autor, z. B. bei fehlender Information für einen Pflichttext), nicht im Cockpit selbst; das Cockpit ist der Kanal, über den eine Rückfrage angezeigt und beantwortet wird. Jede Rückfrage ist ein eigener Datensatz in der Tabelle `question` (Kapitel 7.3) – das Cockpit führt keine eigene Rückfrage-Tabelle, sondern liest und schreibt ausschließlich dort. Beispiel für eine Rückfrage ohne Default (Pflichtfeld eines Portals):
 
 ```json
 {
-  "rueckfrage_id": "rf-4711",
-  "bewerbung_id": "a1b2c3",
-  "gestellt_von": "Rechercheur",
-  "gestellt_am": "2026-09-08T06:40:00+02:00",
-  "frage": "Für dieses Portal ist eine Gehaltsvorstellung Pflichtfeld. Welchen Betrag?",
-  "kontext_zitat": "Feld „Gehaltswunsch p.a.“ – Pflichtangabe laut Bewerbungsformular",
-  "optionen": [
-    "Bandbreite aus dem Profil verwenden (65.000–72.000 €)",
-    "Anderen Betrag angeben",
-    "Feld mit „nach Vereinbarung“ versuchen"
+  "id": "q-4711",
+  "application_id": "a1b2c3",
+  "job_posting_id": null,
+  "company_id": null,
+  "asked_by": "autor",
+  "text": "Für dieses Portal ist eine Gehaltsvorstellung Pflichtfeld (Feld „Gehaltswunsch p.a.“ laut Bewerbungsformular). Welchen Betrag?",
+  "options": [
+    {"value": "bandbreite_profil", "label": "Bandbreite aus dem Profil verwenden (65.000–72.000 €)", "konfidenz": null},
+    {"value": "anderer_betrag", "label": "Anderen Betrag angeben", "konfidenz": null},
+    {"value": "nach_vereinbarung", "label": "Feld mit „nach Vereinbarung“ versuchen", "konfidenz": null}
   ],
-  "erlaubt_freitext": true,
+  "blocks_status": "geschrieben",
+  "answer": null,
+  "answered_at": null,
   "status": "offen",
-  "antwort": null,
-  "beantwortet_am": null,
-  "faellig_bis": "2026-09-15"
+  "expires_at": "2026-09-15T06:00:00+02:00",
+  "created_at": "2026-09-08T06:40:00+02:00"
 }
 ```
 
-Ist die Zahl der Optionen klein (in der Praxis bis zu vier bis fünf), erscheinen sie im Telegram-Kanal als Inline-Buttons; ist Freitext sinnvoll oder nötig, bietet der Bot zusätzlich eine Antwort per Textnachricht an, die der Bot dem offenen `rueckfrage_id` zuordnet. Die Antwort fließt strukturiert zurück in die Pipeline – an das Modul, das die Rückfrage gestellt hat – statt einen kompletten Neustart der Stelle auszulösen.
+Ist die Zahl der Optionen klein (in der Praxis bis zu vier bis fünf), erscheinen sie im Telegram-Kanal als Inline-Buttons; ist Freitext sinnvoll oder nötig, bietet der Bot zusätzlich eine Antwort per Textnachricht an, die der Bot der offenen `question.id` zuordnet. Die Antwort fließt strukturiert zurück in die Pipeline – an das Modul, das die Rückfrage gestellt hat (`asked_by`) – statt einen kompletten Neustart der Stelle auszulösen.
 
-**Timeout-Verhalten:** Eine offene Rückfrage läuft nie in eine automatische Entscheidung. Nach vier Stunden ohne Antwort erinnert der Bot einmalig; solange die Rückfrage offen ist, erscheint sie täglich im Tagesdigest. Bleibt sie länger als eine konfigurierbare Frist (Default fünf Werktage) unbeantwortet, wechselt die betroffene Stelle auf „archiviert“ mit dem Grund „Rückfrage nicht beantwortet, Frist überschritten“ – nicht auf „gesendet“ und nicht auf eine automatisch gewählte Option. Diese Regel ist eine direkte Konsequenz aus 14.1: Verstreichen ist niemals gleich Zustimmung.
+**Timeout-Verhalten:** Was beim Verstreichen der Frist passiert, hängt davon ab, ob die Rückfrage einen Default trägt (Kapitel 10.4). Rückfragen **mit** hinterlegtem Default – etwa „Sehr geehrtes Recruiting-Team [Firma]“ bei fehlendem Ansprechpartner oder „Guten Tag [Vorname] [Nachname]“ bei sicherem Namen, aber unsicherer Anrede – löst der Orchestrator beim nächsten Tageslauf automatisch auf: `question.status` wechselt auf „beantwortet“ mit `antwort_quelle: "default"`, und der Punkt erscheint in der Review-Checkliste (14.4) als „per Default beantwortet – bitte prüfen“, sodass du ihn vor der endgültigen Freigabe trotzdem siehst. Das ist keine Freigabe, sondern nur eine Textentscheidung; die Bewerbung bleibt danach ganz normal im Zustand „bereit zur Freigabe“ und durchläuft die volle Checkliste. Rückfragen **ohne** Default – etwa der Adresskonflikt oder die Gehaltsangabe im Beispiel oben – bleiben offen: Nach vier Stunden ohne Antwort erinnert der Bot einmalig, danach erscheint die Rückfrage täglich im Tagesdigest, solange sie offen ist. Bleibt sie länger als fünf Werktage unbeantwortet, wechselt die betroffene Stelle auf „archiviert“ mit dem Grund „Rückfrage nicht beantwortet, Frist überschritten“ – nicht auf „gesendet“ und nicht auf eine automatisch gewählte Option. Ein Zeitablauf ist nie eine Freigabe: Die Default-Auflösung schließt lediglich die Rückfrage selbst, nie die Bewerbung; die eigentliche Freigabe bleibt in jedem Fall dein expliziter Klick (14.1).
 
 ### 14.7 Aktionen
 
 Vier Aktionen, niemals eine binäre Freigabe/Ablehnung-Entscheidung:
 
-1. **Freigeben.** Setzt den Status auf „freigegeben“, schreibt Akteur und Zeitstempel. Ein Undo-Fenster von 60 Sekunden (Default, siehe 14.12) zeigt einen „Rückgängig“-Button; erst danach wird die Stelle für den Boten (Kapitel 15) zur Abholung sichtbar. Dieser Statuswechsel ist zugleich das Signal, das laut Kapitel 7 die Freigabesperre vor dem Versand-Werkzeug öffnet – das Cockpit setzt den Haken, der Bote führt aus.
-2. **Ändern mit Kommentar.** Freitext, was geändert werden soll (z. B. „dritter Absatz zu förmlich, bitte direkter“). Die Stelle geht zurück auf den Status „geschrieben“ – die Recherche bleibt gültig, nur Autor und Kritiker (Kapitel 11) laufen mit dem Kommentar als zusätzlichem Eingabetext erneut, danach automatisch wieder Setzer (Kapitel 13) und ATS-Prüfer (Kapitel 12). Die neue Version erscheint als eigener Eintrag in `render/v{n+1}` (Kapitel 13.11) wieder im Cockpit.
-3. **Ablehnen mit Grund.** Eine Kategorie aus einer festen Liste (z. B. „Rolle passt nicht“, „Unternehmen ausschließen“, „Ton nicht passend“, „Sonstiges“) plus optionaler Freitext. Status wechselt auf „archiviert“. Der Grund wird strukturiert erfasst und ist das Feedback-Signal für die Kalibrierung des Matchers (Kapitel 9) und, bei Ton-Gründen, für das Stimmprofil (Kapitel 8/11) – das Lernen selbst findet in jenen Kapiteln statt, das Cockpit liefert nur das saubere, kategorisierte Signal.
-4. **Später.** Kein Statuswechsel, sondern ein Feld `zurückgestellt_bis` (Datum) auf dem bestehenden Zustand „bereit zur Freigabe“. Die Stelle verschwindet bis zu diesem Datum aus dem aktiven Digest, ohne die Prüfung der übrigen Stellen aufzuhalten, und taucht danach automatisch wieder auf.
+1. **Freigeben.** Setzt `application.status` auf „freigegeben“, schreibt Akteur und Zeitstempel in `application.approved_at`/`approved_by`. Ein Undo-Fenster von 60 Sekunden (Default, siehe 14.13) zeigt einen „Rückgängig“-Button; erst danach wird die Stelle für den Boten (Kapitel 15) zur Abholung sichtbar. Dieser Statuswechsel ist zugleich das Signal, das laut Kapitel 7 die Freigabesperre vor dem Versand-Werkzeug öffnet – das Cockpit setzt den Haken, der Bote führt aus.
+2. **Ändern mit Kommentar.** Freitext, was geändert werden soll (z. B. „dritter Absatz zu förmlich, bitte direkter“). `review_item.status` wechselt auf „zurueck_an_autor“, die Stelle selbst zurück auf den Status „geschrieben“ – die Recherche bleibt gültig, nur Autor und Kritiker (Kapitel 11) laufen mit dem Kommentar als zusätzlichem Eingabetext erneut, danach automatisch wieder Setzer (Kapitel 13) und ATS-Prüfer (Kapitel 12). Die neue Version erscheint als eigener Eintrag in `render/v{n+1}` (Kapitel 13.11) wieder im Cockpit.
+3. **Ablehnen mit Grund.** Eine Kategorie aus einer festen Liste (z. B. „Rolle passt nicht“, „Unternehmen ausschließen“, „Ton nicht passend“, „Sonstiges“) plus optionaler Freitext. `application.status` wechselt auf „archiviert“, `review_item.status` auf „abgelehnt“. Der Grund wird strukturiert erfasst und ist das Feedback-Signal für die Kalibrierung des Matchers (Kapitel 9) und, bei Ton-Gründen, für das Stimmprofil (Kapitel 8/11) – das Lernen selbst findet in jenen Kapiteln statt, das Cockpit liefert nur das saubere, kategorisierte Signal.
+4. **Später.** Kein Statuswechsel bei `application.status`: `review_item.status` wechselt auf „spaeter“, bewusst ohne Zeitdruck und ohne festes Datum (Kapitel 7.3) – anders als bei den drei anderen Aktionen ist „Später“ ein reines Filterkriterium, kein Termin. Die Stelle bleibt im Zustand „bereit zur Freigabe“, verschwindet nur aus dem aktiven Tagesdigest, ohne die Prüfung der übrigen Stellen aufzuhalten, und taucht wieder auf, sobald du sie im Cockpit erneut öffnest oder gezielt nach zurückgestellten Stellen filterst (v1: eigene Spalte in der Kanban-Ansicht, 14.2).
 
 ### 14.8 Benachrichtigungen und Mobile
 
-Primärkanal ist der Telegram-Bot: Sofort-Push pro Stelle bei Erreichen von „bereit zur Freigabe“, zusätzlich ein Tagesdigest mit allen offenen Rückfragen und zurückgestellten Stellen. Als Rückfallebene bei ausgefallenem oder verpasstem Bot-Kanal dient ein tägliches E-Mail-Digest mit Zusammenfassung und Link zur Detailseite – Telegram als einziger interaktiver Kanal wäre ein Single Point of Failure. Mobile Bedienung ist über die Telegram-App bereits abgedeckt (native Push, Buttons, Datei-Vorschau); die FastAPI+htmx-Detailseite bekommt ein einfaches, mobilfreundliches Einspalten-Layout für den Fall, dass eine vertiefte Prüfung unterwegs nötig ist, ist aber primär für Desktop/Tablet gestaltet, wo Diff und Seitenvorschau nebeneinander Platz haben.
+Primärkanal ist der Telegram-Bot: Sofort-Push pro Stelle bei Erreichen von „bereit zur Freigabe“, zusätzlich ein Tagesdigest mit allen offenen Rückfragen und zurückgestellten Stellen. Als Rückfallebene bei ausgefallenem oder verpasstem Bot-Kanal dient ein tägliches E-Mail-Digest mit Zusammenfassung und Link zur Detailseite – Telegram als einziger interaktiver Kanal wäre ein Single Point of Failure. Mobile Bedienung ist über die Telegram-App bereits abgedeckt (native Push, Buttons, Link zur Detailseite; PDF und Seitenvorschau bleiben serverseitig, 14.2); die FastAPI+htmx-Detailseite bekommt ein einfaches, mobilfreundliches Einspalten-Layout für den Fall, dass eine vertiefte Prüfung unterwegs nötig ist, ist aber primär für Desktop/Tablet gestaltet, wo Diff und Seitenvorschau nebeneinander Platz haben.
 
 ### 14.9 Audit-Log
 
-Jede Statusänderung – Freigeben, Ändern, Ablehnen, Später, Rückfrage-Antwort – landet als eigener Eintrag in einer Protokolltabelle:
+Jede Statusänderung – Freigeben, Ändern, Ablehnen, Später, Rückfrage-Antwort – schreibt das Cockpit als eigenen Eintrag in die zentrale Protokolltabelle `event_log` (Kapitel 7.3). Ein zweites, eigenes Audit-Log führt das Cockpit nicht: Kapitel 7 legt `event_log` bereits als die einzige, per Trigger unveränderliche Protokolltabelle des Systems fest, und ein paralleles Log würde dieselbe Information doppelt und potenziell widersprüchlich vorhalten. Eine Cockpit-Aktion erzeugt genau einen Eintrag mit `entity_type` (`application` oder `question`), `entity_id`, `actor` (`nutzer` für einen Klick, `cockpit` für eine automatische Default-Auflösung, 14.6), `action` (`status_change` oder `decision`), `from_status`/`to_status` sowie `payload` mit Kanal, Kommentar bzw. Ablehnungsgrund:
 
-```sql
-CREATE TABLE audit_log (
-  id INTEGER PRIMARY KEY,
-  bewerbung_id TEXT NOT NULL,
-  zeitstempel TEXT NOT NULL,      -- ISO 8601, Europe/Berlin
-  akteur TEXT NOT NULL,           -- 'Nutzer' oder Modulname
-  aktion TEXT NOT NULL,           -- freigeben | aendern | ablehnen | spaeter | rueckfrage_antwort
-  alter_status TEXT,
-  neuer_status TEXT,
-  kommentar TEXT,
-  kanal TEXT NOT NULL             -- telegram | web | api
-);
+```json
+{
+  "entity_type": "application",
+  "entity_id": "a1b2c3",
+  "actor": "nutzer",
+  "action": "status_change",
+  "from_status": "bereit zur Freigabe",
+  "to_status": "freigegeben",
+  "payload": {"kanal": "telegram", "kommentar": null}
+}
 ```
 
-SQLite kennt keine tabellenweisen Schreibrechte wie Postgres; Unveränderlichkeit wird deshalb auf Anwendungsebene erzwungen (kein UPDATE- oder DELETE-Codepfad für diese Tabelle) und zusätzlich durch einen periodischen Export in das private Git-Repository (Kapitel 13.11) abgesichert – die Git-Historie selbst wird damit zur zweiten, unabhängigen Unveränderlichkeitsschicht. Das Audit-Log ist der Nachweis der menschlichen Freigabe vor jedem Versand und damit direkt an die Compliance-Anforderungen aus Kapitel 16 angebunden.
+SQLite kennt keine tabellenweisen Schreibrechte wie Postgres; Unveränderlichkeit wird deshalb per Trigger erzwungen (`event_log_no_update`, `event_log_no_delete`, Kapitel 7.3) und zusätzlich durch einen periodischen Export in das private Git-Repository (Kapitel 13.11) abgesichert – die Git-Historie selbst wird damit zur zweiten, unabhängigen Unveränderlichkeitsschicht. Das Audit-Log ist der Nachweis der menschlichen Freigabe vor jedem Versand und damit direkt an die Compliance-Anforderungen aus Kapitel 16 angebunden.
 
 ### 14.10 Statistik-Ansicht
 
@@ -153,7 +154,7 @@ Telegram-Nachricht pro Stelle:
 │ Anschreiben (Anfang):                        │
 │ „Mit über vier Jahren Erfahrung im…"         │
 │                                               │
-│ Anhang: Mueller_Anna_Bewerbung.pdf, 3 Seiten │
+│ PDF/Mappe: nur per Link, kein Anhang         │
 │                                               │
 │ [ Freigeben ] [ Kommentar ]                  │
 │ [ Ablehnen  ] [ Später   ]                   │
@@ -168,7 +169,7 @@ Detailseite (FastAPI + htmx), Desktop-Layout:
 │ Beispiel GmbH – Senior Controller (m/w/d)   Status: bereit     │
 │                                              zur Freigabe       │
 ├────────────────────────────────┬──────────────────────────────┤
-│ CHECKLISTE (17/20 automatisch)  │ SEITENVORSCHAU                │
+│ CHECKLISTE (14/20 automatisch)  │ SEITENVORSCHAU                │
 │ Fakten      [x][x][x]           │  ┌─────────┐  ┌─────────┐     │
 │ Adressat    [x][x][x]           │  │ Seite 1 │  │ Seite 2 │     │
 │ Dokumente   [x][ ][x] ← Du      │  │  PNG    │  │  PNG    │     │
@@ -194,18 +195,18 @@ Review-Cockpit und Bote/Tracker (Kapitel 15) teilen sich dieselbe SQLite-Datenba
 
 | Feld | Schreibt | Liest |
 |---|---|---|
-| `status` (bis „freigegeben“) | Review-Cockpit | Orchestrator, Bote |
-| `freigegeben_am`, `freigegeben_von` | Review-Cockpit | Bote, Tracker, Statistik |
-| `zurückgestellt_bis` | Review-Cockpit | Orchestrator (Digest-Filter) |
-| `status` (ab „gesendet“), Versandkanal, Nachweis | Bote (Kapitel 15) | Review-Cockpit (nur Anzeige) |
-| `rückmeldung_status`, Interviewtermin | Tracker (Kapitel 15) | Review-Cockpit (Anzeige, Statistik) |
-| `audit_log` | Review-Cockpit (Freigeben/Ändern/Ablehnen/Später/Rückfrage) und Bote/Tracker (Sende- und Rückmeldeereignisse) | alle Module, Statistik |
+| `application.status` (bis „freigegeben“) | Review-Cockpit | Orchestrator, Bote |
+| `application.approved_at`, `application.approved_by` | Review-Cockpit | Bote, Tracker, Statistik |
+| `review_item.status` (inkl. „spaeter“, „abgelehnt“) | Review-Cockpit | Orchestrator (Digest-Filter), Statistik |
+| `application.status` (ab „gesendet“), Versandkanal, Nachweis | Bote (Kapitel 15) | Review-Cockpit (nur Anzeige) |
+| `application.status` (Rückmeldung/Interview/Absage/Zusage), `application.outcome`, Interviewtermin | Tracker (Kapitel 15) | Review-Cockpit (Anzeige, Statistik) |
+| `event_log` | Review-Cockpit (Freigeben/Ändern/Ablehnen/Später/Rückfrage) und Bote/Tracker (Sende- und Rückmeldeereignisse) | alle Module, Statistik |
 
 Das Cockpit kennt damit den weiteren Werdegang einer Bewerbung nur lesend – die Statistikseite zeigt Rückmeldequoten, greift aber nie selbst in den Versand- oder Nachfassprozess ein. Das hält die Verantwortung klar getrennt: Freigabe ist ein menschlicher Akt im Cockpit, alles danach ist Sache des Boten.
 
 ### 14.13 Default-Annahmen dieses Moduls
 
-Bis du anders entscheidest (Fragenkatalog Kapitel 22): MVP-Kanal ist ein Telegram-Bot plus lokale FastAPI+htmx-Detailseite, keine Notion- oder GitHub-Spiegelung im MVP; Undo-Fenster nach Freigeben 60 Sekunden; unbeantwortete Rückfragen werden nach fünf Werktagen automatisch archiviert statt gesendet; Sofort-Push pro Stelle plus tägliches Digest, kein reiner Fest-Termin; keine Mehrnutzer-Freigabe, ausschließlich Einzelnutzer-Zugang; Statistik als einfache SQL-Aggregation ohne separates BI-Tool.
+Bis du anders entscheidest (Fragenkatalog Kapitel 22): MVP-Kanal ist ein Telegram-Bot plus lokale FastAPI+htmx-Detailseite, keine Notion- oder GitHub-Spiegelung im MVP; über Telegram gehen nur Metadaten und ein Link, PDF und Seitenvorschau bleiben serverseitig (14.2); Undo-Fenster nach Freigeben 60 Sekunden; Rückfragen mit hinterlegtem Default werden beim nächsten Tageslauf automatisch mit diesem Default aufgelöst (Kapitel 10.4), Rückfragen ohne Default werden nach fünf Werktagen automatisch archiviert statt gesendet; Sofort-Push pro Stelle plus tägliches Digest, kein reiner Fest-Termin; keine Mehrnutzer-Freigabe, ausschließlich Einzelnutzer-Zugang; Statistik als einfache SQL-Aggregation ohne separates BI-Tool.
 
 **Quellen dieses Kapitels:**
 

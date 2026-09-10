@@ -76,7 +76,7 @@ Die Regeln sind so formuliert, dass sie im Kritiker prüfbar sind. Der Autor bek
 5. **Muss-Kriterien explizit beantworten:** Jedes Muss-Kriterium der Anzeige, das der Kandidat erfüllt, bekommt einen Satz oder Halbsatz mit Beleg (R03). Nicht erfüllte Muss-Kriterien werden nicht kaschiert; der Matcher hat sie vorher bewertet (Kapitel 9), und der Autor umgeht sie ehrlich („Statt X bringe ich Y mit“) oder gar nicht.
 6. **Das Anschreiben erklärt Warum und Wie, der Lebenslauf das Was.** Keine Nacherzählung der Stationen. Ein Erfolg aus dem Lebenslauf darf im Anschreiben vertieft werden (Kontext, Vorgehen, Ergebnis), nicht wiederholt.
 7. **Keine Selbstattribute, nur Belege:** Kein „teamfähig, belastbar, kommunikationsstark“. Wer teamfähig ist, beschreibt ein Team-Ergebnis mit Zahl.
-8. **Anrede:** Standard ist „Sie“, auch wenn die Anzeige duzt ([bewerbung.com](https://bewerbung.com/du-in-stellenanzeigen/), [peopleatventure](https://www.peopleatventure.de/bewerbung-anrede)). „Du“ nur, wenn die Anzeige durchgehend duzt, die Firmenkultur laut Rechercheur eindeutig Du-geprägt ist (Startup, explizite Aufforderung) und deine Profil-Präferenz es erlaubt; dann professionell, ohne Kumpelton ([Karriereakademie](https://www.karriereakademie.de/duzen-stellenanzeige)). Die namentliche Anrede folgt dem vierstufigen Fallback aus Kapitel 10; ein geratener Name oder Titel ist ein K.-o.-Fehler.
+8. **Anrede:** Standard ist „Sie“, auch wenn die Anzeige duzt ([bewerbung.com](https://bewerbung.com/du-in-stellenanzeigen/), [peopleatventure](https://www.peopleatventure.de/bewerbung-anrede)). „Du“ nur, wenn die Anzeige durchgehend duzt, die Firmenkultur laut Rechercheur eindeutig Du-geprägt ist (Startup, explizite Aufforderung) und deine Profil-Präferenz es erlaubt; dann professionell, ohne Kumpelton ([Karriereakademie](https://www.karriereakademie.de/duzen-stellenanzeige)). Die namentliche Anrede folgt der Rückfrage-Kaskade aus Kapitel 10.4 (Name mit Konfidenz ≥ 0,7 → namentlich; Name sicher, Anrede unsicher → „Guten Tag [Vorname] [Nachname]“; kein brauchbarer Name → „Sehr geehrtes Recruiting-Team [Firma]“; gar kein Kandidat → „Sehr geehrte Damen und Herren“, Kapitel 13); ein geratener Name oder Titel ist ein K.-o.-Fehler.
 9. **Schluss ohne Konjunktiv:** „Ich freue mich auf das Gespräch“ statt „würde mich freuen“; Gehaltsvorstellung als Bruttojahresgehalt oder Spanne und Eintrittstermin nur, wenn die Anzeige explizit danach fragt, immer aus dem Profilfeld, nie geschätzt ([bewerbung.net](https://bewerbung.net/gehaltsvorstellung-bewerbung), [JobTeaser](https://www.jobteaser.com/de/advices/gehaltsvorstellung-in-der-bewerbung-formulieren-so-geht-s), [Karrierebibel](https://karrierebibel.de/bewerbung-eintrittstermin-nennen-sofort/)). Fehlt das Profilfeld, entsteht eine Rückfrage, kein Platzhalter.
 10. **Rhythmus wie ein Mensch:** Satzlängen variieren (kurze Sätze neben langen), keine Dreierlisten aus parallelen Adjektiven, keine „nicht nur …, sondern auch“-Konstruktion, kein „Es geht nicht um X, sondern um Y“ ([Decrypt](https://decrypt.co/348923/5-biggest-tells-something-written-ai), [QuillBot](https://quillbot.com/blog/ai-writing-tools/burstiness-and-perplexity/)). Absätze dürfen unterschiedlich lang sein.
 11. **Fachbegriffe ja, Anzeigensätze nein:** Werkzeuge, Zertifikate und Rollentitel in der Schreibweise der Anzeige, sofern belegt (R01); keine übernommenen Satzteile (Urheberrecht an Anzeigentexten, Kapitel 4). Der Kritiker prüft n-Gramm-Überlappung (11.5).
@@ -89,94 +89,25 @@ Die Regeln sind so formuliert, dass sie im Kritiker prüfbar sind. Der Autor bek
 
 Der Katalog arbeitet zweistufig: eine deterministische Liste (Regex, läuft vor jedem Kritiker-Aufruf, kostet keine Tokens) und ein Rubrik-Kriterium im Kritiker für die Generik, die keine Wortliste fängt. Jeder Eintrag hat eine Schwere: `hart` blockiert den Entwurf (zurück an den Autor), `weich` senkt die Rubrik-Note und erzeugt einen Hinweis. Der Katalog ist ein Startbestand aus den zitierten Ratgeber- und Studienquellen ([ulmato](https://www.ulmato.de/anschreiben/), [20 Minuten](https://www.20min.ch/story/kuenstliche-intelligenz-merken-recruiter-wenn-bewerbungen-ki-generiert-sind-103298940), [Decrypt](https://decrypt.co/348923/5-biggest-tells-something-written-ai)) plus redaktioneller Ergänzung; du erweiterst ihn im Onboarding um deine eigenen Tabus (Kapitel 8) und im Betrieb über das Review-Cockpit („diese Wendung nie wieder“, Kapitel 14).
 
-**Deutsch (38 Einträge)**
+**Deutsch (Auszug: die 10 wirkungsvollsten harten Einträge)**
 
 | Nr. | Floskel oder Muster | Schwere | Ersatzstrategie |
 |---|---|---|---|
 | D01 | „Hiermit bewerbe ich mich …“ | hart | Einstieg mit Erfolg oder Firmenbezug (Regel 2) |
 | D02 | „Mit großem Interesse habe ich Ihre Stellenanzeige gelesen“ | hart | streichen; Interesse zeigt sich am Detail |
-| D03 | „Ihre Anzeige hat mich sofort angesprochen“ | hart | konkretes Detail nennen, das angesprochen hat |
 | D04 | „auf der Suche nach einer neuen Herausforderung“ | hart | Wechselmotiv aus dem Profil |
-| D05 | „bin ich auf Ihre Stellenanzeige aufmerksam geworden“ (als Einstieg) | weich | Quelle nur im Betreff oder gar nicht |
 | D06 | „Teamplayer“, „teamfähig“ (ohne Beleg) | hart | Team-Ergebnis mit Zahl |
 | D07 | „belastbar“ | hart | Situation mit Last und Ergebnis |
-| D08 | „hochmotiviert“, „sehr motiviert“ | hart | streichen; Motivation zeigt der Firmenbezug |
-| D09 | „flexibel und zuverlässig“ | hart | streichen oder belegen |
 | D10 | „kommunikationsstark“ | hart | Beispiel: Präsentation, Verhandlung, Zahl |
-| D11 | „lösungsorientiert“, „ergebnisorientiert“ | hart | das Ergebnis nennen |
-| D12 | „Hands-on-Mentalität“ | weich | konkrete Tätigkeit |
-| D13 | „Leidenschaft für …“, „ich brenne für …“ | weich | was du dafür getan hast |
-| D14 | „schnelle Auffassungsgabe“ | hart | Einarbeitungsbeispiel mit Zeitangabe |
-| D15 | „strukturierte Arbeitsweise“ (ohne Beleg) | weich | Methode, Werkzeug, Ergebnis |
-| D16 | „Ich bin überzeugt, dass ich …“ | weich | Aussage direkt, ohne Überzeugungsrahmen |
 | D17 | „Ich bringe alles mit, was Sie suchen“ | hart | Muss-Kriterien einzeln belegen |
-| D18 | „gepaart mit“ | hart | zwei Sätze statt Koppelphrase |
 | D19 | „nicht nur …, sondern auch …“ | hart | eine Aussage pro Satz |
-| D20 | „Es geht nicht um X, sondern um Y“ | hart | Y direkt sagen |
-| D21 | „in der heutigen schnelllebigen Zeit/Arbeitswelt“ | hart | streichen |
-| D22 | „Synergien“ | hart | benennen, was zusammenwirkt |
-| D23 | „nahtlos“ | hart | streichen |
-| D24 | „ganzheitlich“ | weich | Bestandteile nennen |
-| D25 | „innovativ“, „zukunftsorientiert“ (als Selbst- oder Firmenattribut) | weich | das konkrete Neue nennen |
-| D26 | „spannende Aufgaben“, „spannendes Umfeld“ | weich | welche Aufgabe genau |
-| D27 | „maßgeblich beigetragen“ (ohne Zahl) | weich | Anteil und Ergebnis beziffern |
-| D28 | „einen wertvollen Beitrag leisten“ | hart | den Beitrag nennen |
-| D29 | „Mehrwert schaffen“ (ohne Zahl) | weich | Zahl oder streichen |
 | D30 | „Ihr renommiertes Unternehmen“, „Marktführer“ (pauschal) | hart | recherchiertes Detail |
-| D31 | „vielfältige Aufgaben“, „umfangreiche Erfahrungen sammeln“ | weich | zwei konkrete Aufgaben |
-| D32 | „im Rahmen meiner Tätigkeit“ | weich | streichen (Füllwort) |
 | D33 | „Über eine Einladung … würde ich mich sehr freuen“ | hart | Indikativ (Regel 9) |
-| D34 | „Ich würde mich freuen, von Ihnen zu hören“ | hart | Indikativ |
-| D35 | „Für Rückfragen stehe ich jederzeit gerne zur Verfügung“ | weich | streichen; Kontaktdaten stehen im Kopf |
-| D36 | „Ich hoffe, Ihr Interesse geweckt zu haben“ | hart | streichen |
-| D37 | drei parallele Adjektive oder Substantive in Reihe („engagiert, zuverlässig und teamfähig“) | weich | auf eins reduzieren und belegen |
-| D38 | mehr als 40 Prozent der Sätze beginnen mit „Ich“ | weich | Satzanfänge variieren |
 
-**Englisch (36 Einträge)**
-
-| Nr. | Phrase oder Muster | Schwere | Ersatzstrategie |
-|---|---|---|---|
-| E01 | “I am writing to apply for …” | hart | open with a result or a company detail |
-| E02 | “I am writing to express my interest in …” | hart | same |
-| E03 | “To whom it may concern” | hart | named contact or “Dear Hiring Team at …” |
-| E04 | “Please find attached my CV” | weich | drop; attachment is visible |
-| E05 | “I believe I would be a great fit” | hart | show the fit with evidence |
-| E06 | “passionate about” | hart | what you did because of it |
-| E07 | “excited about the opportunity” | weich | which part, and why |
-| E08 | “team player” | hart | team result with a number |
-| E09 | “hard-working”, “hard worker” | hart | drop |
-| E10 | “detail-oriented” | hart | example with consequence |
-| E11 | “results-driven”, “results-oriented” | hart | the result |
-| E12 | “self-starter”, “go-getter” | hart | something you started |
-| E13 | “think outside the box” | hart | drop |
-| E14 | “hit the ground running” | hart | onboarding example with time |
-| E15 | “proven track record” | hart | the record itself, two numbers |
-| E16 | “leverage” (verb) | weich | “use” |
-| E17 | “synergy”, “synergies” | hart | name what combines |
-| E18 | “dynamic” (self or company) | hart | drop |
-| E19 | “fast-paced environment” | hart | drop |
-| E20 | “wear many hats” | weich | list two hats |
-| E21 | “add value”, “value-add” (no number) | hart | number |
-| E22 | “utilize” | weich | “use” |
-| E23 | “in today's rapidly changing world” | hart | drop |
-| E24 | “not only …, but also …” | hart | one claim per sentence |
-| E25 | “it's not about X, it's about Y” | hart | say Y |
-| E26 | “delve”, “delve into” | weich | “look at”, “examine” |
-| E27 | “tapestry”, “landscape”, “journey” (metaphor) | weich | literal noun |
-| E28 | “seamless”, “seamlessly” | hart | drop |
-| E29 | “cutting-edge”, “state-of-the-art” | hart | the concrete technology |
-| E30 | “unique blend of skills” | hart | list two skills with evidence |
-| E31 | “a perfect match” | hart | drop |
-| E32 | “robust” (of skills or experience) | weich | specific adjective or drop |
-| E33 | “spearheaded” | weich | “led” plus scope |
-| E34 | “I would welcome the opportunity to discuss” | weich | “I look forward to discussing …” with a concrete topic |
-| E35 | “Thank you for your time and consideration” | weich | one concrete closing sentence |
-| E36 | exactly three parallel adjectives (“motivated, reliable and creative”) | weich | cut to one, add evidence |
-
-Maschinenlesbar, damit Kritiker und Review-Cockpit dieselbe Datei nutzen:
+Vollständige Liste: 38 deutsche Einträge (D01–D38, harte und weiche) und, für englische Bewerbungen (11.11), 36 englische Einträge (E01–E36) nach demselben Muster – inklusive der weichen Treffer D27 und D35, auf die die Beispiele in 11.8 und 11.9 verweisen. Sie lebt ausschließlich maschinenlesbar in `config/anti_generik.yaml`, Version 2026-09, damit Kritiker und Review-Cockpit dieselbe Datei nutzen und der Schreib-Prompt des Autors sie nie ausgeschrieben sieht (11.10).
 
 ```yaml
-# anti_generik.yaml – Version 2026-09; Regex case-insensitive, Wortgrenzen beachten
+# config/anti_generik.yaml – Version 2026-09; Regex case-insensitive, Wortgrenzen beachten
 - id: D01
   sprache: de
   muster: '\bhiermit bewerbe ich mich\b'
@@ -461,7 +392,7 @@ Eine unbelegte Aussage ist ein hartes Gate. Ob sie automatisch gestrichen oder d
 | Termine, Gehalt | fragt / fragt nicht | – | nur wenn gefragt; Werte identisch mit Profilfeldern |
 | Datum, Version | – | Dossier-Version | dieselbe Version; Datum setzt der Setzer |
 
-**Kosten pro Bewerbung, Größenordnung.** Mit den Listenpreisen (Fable 5.1 10/50, Opus 5 5/25, Sonnet 5 2/10, Haiku 4.5 1/5 US-Dollar je Million Token Input/Output; [Pricing](https://platform.claude.com/docs/en/about-claude/pricing)) und Projektannahmen von rund 15.000 Input- und 20.000 Output-Tokens für die Fable-Aufrufe (inklusive Thinking), 15.000/8.000 für Opus 5 und je unter 10.000 für Sonnet und Haiku liegt eine vollständige Schleife mit `voll`-Anschreiben, Tailoring, zwei Kritikrunden, Fakten-, Stimm- und Konsistenz-Check bei etwa 1,5 bis 2,5 US-Dollar; mit dem ab Claude 4.7 rund 30 Prozent token-intensiveren Tokenizer ([Pricing](https://platform.claude.com/docs/en/about-claude/pricing), Prüfer-Hinweis) und ohne Cache-Treffer eher 2 bis 3,5 US-Dollar. Prompt Caching senkt den Input-Anteil deutlich: Cache-Lesen kostet bei Fable 5.1 0,025-fach, Mindestlänge des Prefix 512 Tokens ([Prompt Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)). Die belastbare Rechnung steht in Kapitel 18.
+**Kosten pro Bewerbung, Größenordnung.** Autor und Kritiker sind zwei von fünf Schritten der Pipeline (Rechercheur, Autor, Kritiker, ATS-Prüfer, Setzer, Kapitel 10–13); ihr Anteil lässt sich deshalb nicht als eigener Gesamtpreis je Bewerbung lesen. Im „empfohlen“-Szenario aus Kapitel 18 entfallen auf Autor und Kritiker zusammen rund 2,00 US-Dollar der insgesamt rund 3,71 US-Dollar (≈ 3,45 €) pro Bewerbung: rund 1,74 US-Dollar auf den Autor (Briefing, zwei Entwürfe, Überarbeitung) und rund 0,26 US-Dollar auf den Kritiker (Rubrik, Fakten-Check, Stimm- und Leser-Test, Konsistenz-Check). Prompt Caching senkt den Input-Anteil dieser Schleife zusätzlich: Cache-Lesen kostet bei Fable 5.1 0,025-fach, Mindestlänge des Prefix 512 Tokens ([Prompt Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)). Verbindlich ist die Rechnung in Kapitel 18; die hier genannte Größenordnung ist nur eine Plausibilitätsprobe.
 
 ### 11.9 Die Rubrik
 
@@ -477,9 +408,9 @@ Sieben Kriterien, Skala 1 bis 5 mit definierten Ankern, gewichtete Summe. Zwei K
 | K6 Faktentreue | 10 % | ≥ 1 unbelegte Zahl oder Kenntnis | alles belegt, 1 Rundung unsauber | jede Aussage mit Beleg-ID, Rundungen wie in der Story-Bank | unbelegt = Gate |
 | K7 Formales | 10 % | Anrede/Name falsch, Gehalt ungefragt, Konjunktiv-Schluss | 1 Formfehler | Anrede korrekt, Betreff vollständig, Du/Sie durchgehend, Schluss im Indikativ, Gehalt/Eintritt regelkonform | Anrede-Fehler = Gate |
 
-Schwellen: gewichteter Gesamtwert mindestens 4,0 und jedes Kriterium mindestens 3 → „geprüft“; 3,3 bis 3,9 → eine Überarbeitung mit gezielten Anweisungen; unter 3,3 → neue Entwürfe mit anderem Einstiegstyp. Die Schwellen sind Startwerte; nach den ersten 20 Bewerbungen kalibrierst du sie im Review-Cockpit anhand deiner Freigaben und Ablehnungen (Feedback-Schleife, Kapitel 14). Der Kritiker liefert außerdem eine Selbsteinschätzung seiner Sicherheit je Kriterium, damit unsichere Bewertungen im Cockpit markiert werden.
+Schwellen: gewichteter Gesamtwert mindestens 4,0 und jedes Kriterium mindestens 3 → „geprüft“; 3,3 bis 3,9 → eine Überarbeitung mit gezielten Anweisungen; unter 3,3 → neue Entwürfe mit anderem Einstiegstyp. Die Schwellen sind Startwerte; nach den ersten 20 Bewerbungen kalibrierst du sie im Review-Cockpit anhand deiner Freigaben und Ablehnungen (Feedback-Schleife, Kapitel 14). Der Kritiker liefert außerdem eine Selbsteinschätzung seiner Sicherheit je Kriterium, damit unsichere Bewertungen im Cockpit markiert werden. Ein weicher Floskeltreffer (Schwere „weich“, 11.5) senkt nur die Note des betroffenen Kriteriums; ist die Freigabeschwelle trotzdem erreicht, erscheint er im Kritikbericht als nicht blockierender Hinweis, den der Autor bei der nächsten Überarbeitung aufgreifen kann, aber nicht muss. Ein harter Treffer bleibt in jedem Fall ein Gate (11.5).
 
-**Beispiel-Kritikausgabe** (Structured Output, Schema in `kritik.schema.json`):
+**Beispiel-Kritikausgabe** (Structured Output, Schema in `kritik.schema.json`): Der Entwurf erreicht die Freigabeschwelle (Gesamt 4,25, kein Kriterium unter 3, keine Gates verletzt); `entscheidung` lautet deshalb „geprueft“. Der weiche Treffer D27 unter K4 und die Einträge unter `anweisungen` sind hier nicht blockierende Hinweise für die nächste Bewerbung, keine Bedingung für diese Freigabe.
 
 ```json
 {
@@ -502,7 +433,7 @@ Schwellen: gewichteter Gesamtwert mindestens 4,0 und jedes Kriterium mindestens 
   },
   "gates": {"tabu": "ok", "floskel_hart": "ok", "unbelegt": "ok", "anrede": "ok", "anzeige_kopie": "ok"},
   "gesamt": 4.25,
-  "entscheidung": "ueberarbeiten",
+  "entscheidung": "geprueft",
   "anweisungen": [
     {"absatz": 2, "satz": 7, "problem": "„maßgeblich beigetragen“ ohne Zahl (D27)", "vorschlag": "Ergebnis aus S-007 beziffern oder Satz streichen"},
     {"absatz": 2, "satz": 7, "problem": "Stimme: Nominalstil, Textproben nutzen Verben", "vorschlag": "Verb voran: „Ich habe 40 Lieferanten … umgestellt“"},
@@ -600,7 +531,7 @@ description: Schreibt Anschreiben-Varianten und passt den Lebenslauf aus dem Mas
 model: claude-fable-5-1
 effort: high
 tools: Read, Write
-skills: anschreiben-schreiben, lebenslauf-tailoring
+skills: anschreiben, lebenslauf-tailoring
 ---
 Du arbeitest nur mit den Dateien im Ordner der Stelle: briefing.json, stories.json,
 master.json, stimmprofil.json. Du liest keine anderen Bewerbungen und keine Webseiten.
@@ -694,7 +625,6 @@ Regeln für Autor und Kritiker im englischen Modus:
 - Define success (Claude Platform Docs) – https://platform.claude.com/docs/en/test-and-evaluate/define-success
 - LLM-as-a-Judge Position Bias (arXiv 2602.02219) – https://arxiv.org/html/2602.02219v2
 - LLM-as-a-Judge Reliability and Bias (Adaline) – https://www.adaline.ai/blog/llm-as-a-judge-reliability-bias
-- Pricing (Claude Platform Docs) – https://platform.claude.com/docs/en/about-claude/pricing
 - Prompt caching (Claude Platform Docs) – https://platform.claude.com/docs/en/build-with-claude/prompt-caching
 - API and data retention (Claude Platform Docs) – https://platform.claude.com/docs/en/manage-claude/api-and-data-retention
 - Structured outputs (Claude Platform Docs) – https://platform.claude.com/docs/en/build-with-claude/structured-outputs

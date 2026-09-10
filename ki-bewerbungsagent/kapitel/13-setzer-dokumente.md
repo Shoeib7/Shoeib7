@@ -15,7 +15,7 @@ Ausgaben: fertige Dateien mit Endnamen, Seitenvorschauen (PNG) für das Review-C
 
 Fünf Grundsätze:
 
-1. **Kein Modell im Renderpfad.** Der Setzer ist ein Werkzeug, im Agent SDK als In-Process-MCP-Tool `render_documents` registriert ([Custom Tools](https://code.claude.com/docs/en/agent-sdk/custom-tools)), das der Orchestrator aufruft. Kosten: Rechenzeit, keine Token. Einzige Ausnahme ist die optionale Sichtprüfung (13.10).
+1. **Kein Modell im Renderpfad.** Der Setzer ist eine gewöhnliche Python-Funktion, die der Orchestrator aufruft (Kapitel 7.2). Für interaktive Sitzungen steht sie zusätzlich als In-Process-MCP-Tool `render_documents` bereit ([Custom Tools](https://code.claude.com/docs/en/agent-sdk/custom-tools)); für alle Subagents mit Drittinhalten ist `mcp__setzer__*` über die Deny-Liste (Kapitel 7.8) gesperrt, damit kein Modell das Renderwerkzeug selbst aufrufen kann. Kosten: Rechenzeit, keine Token. Einzige Ausnahme ist die optionale Sichtprüfung (13.10).
 2. **Eine Datenquelle, mehrere Ausgaben.** Dieselbe JSON-Struktur speist PDF, DOCX und Textvariante. Kein Format wird aus einem anderen konvertiert.
 3. **Echte Textebene, eingebettete Schriften, lineare Lesereihenfolge** – bei jedem Dokument.
 4. **Reproduzierbar:** gleiche Daten, gleiche Vorlagenversion, gleiche Schriftdateien ergeben dieselbe Datei; Zeitstempel in den PDF-Metadaten werden fixiert.
@@ -54,7 +54,7 @@ Das Datenmodell lehnt sich an JSON Resume an ([jsonresume.org](https://jsonresum
 ```json
 {
   "schema": "bewerbungsdossier/1.0",
-  "bewerbung_id": "a1b2c3",
+  "application_id": "a1b2c3",
   "sprache": "de",
   "layout": "sachlich",
   "bewerbungsweg": "email",
@@ -261,7 +261,7 @@ Auswahl pro Bewerbung durch Regel, nicht durch Modell: die letzten zwei bis drei
 
 Eine Unterschrift ist rechtlich nicht vorgeschrieben; bei Online-Bewerbungen ist sie unüblich, bei postalischen und konservativen Bewerbungen wird sie weiterhin erwartet ([Karrierebibel](https://karrierebibel.de/bewerbung-lebenslauf-unterschreiben/), [enhancv](https://enhancv.com/de/blog/datum-und-unterschrift-auf-lebenslauf/)); eine Ratgeberquelle nennt rund 80 % der Personaler, die sie weiterhin schätzen ([Karrierebibel](https://karrierebibel.de/unterschrift-bei-online-bewerbung/), ohne Studienangabe, unbestätigt).
 
-**Entscheidung:** Default keine Unterschrift. Ist im Profil ein Unterschriftsbild hinterlegt, fügt der Setzer es ein, wenn Layout `klassisch` gewählt ist oder das Dossier `unterschrift_einfuegen: true` trägt (Kapitel 11 setzt das nach Branchenregel). Position im Anschreiben: zwischen Grußformel und Namenszeile, 14 mm hoch; im Lebenslauf: letzte Seite unten, „Ort, Datum“ links, Unterschrift darunter – dasselbe Datum wie im Anschreiben. Format: PNG mit transparentem Hintergrund, ca. 600 px breit, freigestellt ohne Linie.
+**Entscheidung:** Default keine Unterschrift. Ist im Profil ein Unterschriftsbild hinterlegt, fügt der Setzer es ein, wenn Layout `klassisch` gewählt ist oder das Dossier `unterschrift_einfuegen: true` trägt. Die Branchenregel dafür (konservativ: Banken, Versicherungen, Behörden) legt Kapitel 5.3 fest; Kapitel 11 setzt das Feld im Bewerbungsdossier entsprechend dieser Regel oder nach ausdrücklicher Vorgabe im konkreten Dossier. Position im Anschreiben: zwischen Grußformel und Namenszeile, 14 mm hoch; im Lebenslauf: letzte Seite unten, „Ort, Datum“ links, Unterschrift darunter – dasselbe Datum wie im Anschreiben. Format: PNG mit transparentem Hintergrund, ca. 600 px breit, freigestellt ohne Linie.
 
 Das Unterschriftsbild ist ein missbrauchsanfälliges Asset: Es liegt ausschließlich lokal im Profilverzeichnis, geht nie in einen Prompt oder Modellkontext, wird nie in Vorschaubildern des Review-Cockpits verschickt und ist nur dem Setzer-Tool zugänglich (Kapitel 16).
 
@@ -283,7 +283,7 @@ Jede Render-Version durchläuft diese Prüfungen, bevor der ATS-Prüfer (Kapitel
 | DOCX | LibreOffice headless → PDF, pandoc → Text | gleiche Seitenzahl wie PDF ± 0; Text-Diff leer | zurück an Vorlagenpflege |
 | Sichtprüfung (optional) | pdftoppm → PNG → Claude Haiku 4.5 mit Bild | Frage: „Sichtbarer Layoutfehler? ja/nein, Grund“ | Hinweis im Review-Cockpit, kein Stopp |
 
-Der Setzer verkleinert nie eigenmächtig Schrift oder Ränder, um Text passend zu machen; eine Seite mit 9-pt-Schrift fällt auf. Überlänge geht als Zahl zurück („Anschreiben: 6 Zeilen zu lang, ca. 60 Wörter kürzen“), der Autor kürzt, der Kritiker prüft erneut, der Setzer rendert Version n+1. Nach drei Schleifen stoppt der Orchestrator und legt den Fall ins Review-Cockpit.
+Der Setzer verkleinert nie eigenmächtig Schrift oder Ränder, um Text passend zu machen; eine Seite mit 9-pt-Schrift fällt auf. Überlänge geht als Zahl zurück („Anschreiben: 6 Zeilen zu lang, ca. 60 Wörter kürzen“), der Autor kürzt, der Kritiker prüft erneut, der Setzer rendert Version n+1. Diese Renderschleife ist auf zwei Durchläufe begrenzt – dieselbe Grenze wie beim Kritiker (Kapitel 11.8) und beim ATS-Prüfer (Kapitel 12.8). Nach zwei Schleifen stoppt der Orchestrator und legt den Fall mit vollständigem Bericht ins Review-Cockpit.
 
 Die Seitenvorschauen (PNG, 110 dpi) sind Teil jeder Version und werden im Review-Cockpit neben dem Text-Diff angezeigt, damit du das Dokument so siehst, wie es der Empfänger sieht.
 
@@ -308,7 +308,7 @@ bewerbungen/
 
 ```json
 {
-  "bewerbung_id": "a1b2c3",
+  "application_id": "a1b2c3",
   "status": "gesendet",
   "layout": "sachlich",
   "sprache": "de",

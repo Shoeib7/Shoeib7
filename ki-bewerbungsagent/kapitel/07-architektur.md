@@ -8,7 +8,7 @@ Dieses Kapitel legt den Bauplan fest, nach dem Claude Code den Bewerbungsagenten
 2. **Jede Stelle ist ein Datensatz mit Status.** Es gibt genau eine Status-Pipeline (Abschnitt 7.4), und jeder Übergang wird von einer benannten Komponente ausgelöst und im Ereignisprotokoll festgehalten. Kein Modell setzt einen Status direkt; es liefert strukturierte Ergebnisse, aus denen der Orchestrator den Status ableitet.
 3. **Drittinhalte sind nie vertrauenswürdig.** Stellenanzeigen, Firmenwebseiten und eingehende E-Mails werden dem Modell ausschließlich als gekennzeichnete Werkzeugergebnisse oder Dokumentblöcke übergeben, nie als System- oder Nutzertext; der System-Prompt enthält eine ausdrückliche Regel, eingebettete Anweisungen als zu meldende Information zu behandeln ([Anthropic: Mitigate jailbreaks](https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks)). Details in Abschnitt 7.8.
 4. **Kein Weg nach außen ohne Menschen.** Versand, Portal-Absenden und jede Kontaktaufnahme laufen nur nach Freigabe im Review-Cockpit, und die Freigabe ist ein technischer Zustand in der Datenbank, keine Anweisung im Prompt.
-5. **Zwei Modellschichten.** Günstige Modelle (Haiku 4.5, Sonnet 5) für Masse und Klassifikation, Fable 5.1 für Recherche-Synthese, Schreiben und Kritik. Jeder Modellaufruf hat ein Schema für die Antwort, einen gecachten Präfix und ein Budget.
+5. **Zwei Modellschichten, plus ein getrenntes Grader-Modell.** Günstige Modelle (Haiku 4.5, Sonnet 5) für Masse und Klassifikation, Fable 5.1 für Recherche-Synthese und Schreiben; der Kritiker läuft bewusst auf Opus 5, einem vom Autor getrennten Modell, statt auf Fable 5.1 (Abschnitt 7.6). Jeder Modellaufruf hat ein Schema für die Antwort, einen gecachten Präfix und ein Budget.
 6. **Alles versioniert, Daten getrennt vom Code.** Code, Prompts, Vorlagen und Konfiguration liegen in einem Git-Repository; Kandidatenprofil, Bewerbungsordner und Datenbank in einem zweiten, privaten. So kann der Code später veröffentlicht oder weitergegeben werden, ohne dass Bewerbungsdaten mitwandern.
 7. **Ein Server, eine Datei als Zustand.** Für eine Person mit rund zehn Bewerbungen am Tag reicht ein kleiner Linux-Server mit SQLite. Verteilte Systeme, Workflow-Engines und Vektordatenbanken kommen erst, wenn Messwerte sie rechtfertigen.
 
@@ -26,13 +26,13 @@ Dieses Kapitel legt den Bauplan fest, nach dem Claude Code den Bewerbungsagenten
   BA-API, ATS-Feeds,     │    │      Normalisierung · Dedup (datasketch)  ── Haiku 4.5 │
   Adzuna, Job-Alerts     │    ▼                                                       │
                          │  MATCHER ── Muss-Filter (Code) → BM25 (Code) → Judge        │
-                         │    │        (Sonnet 5, Batch API) → Tagesauswahl (Fable 5.1)│
+                         │    │        (Sonnet 5, Batch API) → Tagesauswahl (Sonnet 5) │
                          │    ▼                                                       │
   Web Search / Fetch ◄─► │  RECHERCHEUR (Subagent, Fable 5.1, nur Lesewerkzeuge)      │
   Impressum, Register    │    │        Konfidenzen · Rückfragen → question             │
                          │    ▼                                                       │
-                         │  AUTOR (Fable 5.1) ◄──► KRITIKER (Fable 5.1, frischer Kontext)│
-                         │    │        max. 2 Runden · Claims-Abgleich (Sonnet 5)     │
+                         │  AUTOR (Fable 5.1) ◄──► KRITIKER (Opus 5, frischer Kontext)  │
+                         │    │        max. 2 Runden · Fakten-Check (Sonnet 5)         │
                          │    ▼                                                       │
                          │  ATS-PRÜFER (Code + Haiku 4.5) → SETZER (WeasyPrint,       │
                          │    │        python-docx) → bewerbungen/<id>/render/vN       │
@@ -44,7 +44,7 @@ Dieses Kapitel legt den Bauplan fest, nach dem Claude Code den Bewerbungsagenten
   E-Mail-Konto ◄───────► │  BOTE (IMAP-APPEND Entwurf / SMTP nach Freigabe; Playwright │
   (SMTP/IMAP)            │    │        MCP für Portale, v2) ── liest nur final/        │
                          │    ▼                                                       │
-  Antworten (IMAP IDLE)► │  TRACKER (imap_tools, Klassifikation Sonnet 5, Nachfassen) │
+  Antworten (IMAP IDLE)► │  TRACKER (imap_tools, Klassifikation Haiku 4.5, Nachfassen)│
                          │                                                            │
                          │  Daten: SQLite (WAL) · bewerbungen-data (Git) · profil/    │
                          │  Secrets: sops+age → Umgebungsvariablen (nie im Kontext)   │
@@ -294,7 +294,7 @@ stateDiagram-v2
     recherchiert --> geschrieben: Autor
     geschrieben --> geprüft: Kritiker + ATS-Prüfer
     geprüft --> geschrieben: Kritiker fordert Überarbeitung
-    geprüft --> bereit_zur_Freigabe: Setzer (render ok)
+    geprüft --> bereit_zur_Freigabe: Orchestrator (Setzer-QA + ATS-Prüfer Stufe 2 grün)
     bereit_zur_Freigabe --> freigegeben: Nutzer im Cockpit
     bereit_zur_Freigabe --> geschrieben: Nutzer: zurück an Autor
     bereit_zur_Freigabe --> archiviert: Nutzer verwirft
@@ -319,7 +319,7 @@ stateDiagram-v2
 | ausgewählt → recherchiert | Rechercheur | Dossier mit Konfidenzen liegt vor; Anschrift oder Ansprechperson unter Schwelle → `rueckfrage_offen` | Tageslauf |
 | recherchiert → geschrieben | Autor | Anschreiben, Lebenslauf-Variante, `claims` vollständig | Tageslauf |
 | geschrieben → geprüft | Kritiker, ATS-Prüfer | Rubrik bestanden (Kapitel 11), Keyword-/Format-Check bestanden (Kapitel 12); sonst zurück nach geschrieben, höchstens zwei Runden | Tageslauf |
-| geprüft → bereit zur Freigabe | Setzer | PDF/DOCX gerendert, QA bestanden, `review_item` angelegt | Tageslauf |
+| geprüft → bereit zur Freigabe | Orchestrator | PDF/DOCX gerendert; Setzer-QA grün (Kapitel 13.10) UND ATS-Prüfer-Stufe 2 grün (Kapitel 12.6); `review_item` angelegt | Tageslauf |
 | bereit zur Freigabe → freigegeben | Nutzer | Checkliste vollständig, Klick „Freigeben“; Kopie nach `final/`, Hashes gespeichert | Cockpit |
 | freigegeben → gesendet | Bote | Versandfenster erreicht, Hash von `final/` stimmt, `review_item.status = freigegeben` | Versandlauf |
 | gesendet → Rückmeldung / Interview / Absage | Tracker, Nutzer | eingehende Mail einem `message_id`-Thread zugeordnet und klassifiziert; Nutzer bestätigt | Nachlauf |
@@ -337,7 +337,7 @@ Es gibt drei geplante Läufe und einen Dauerprozess. Alle Zeiten in Europe/Berli
 | 05:30 Mo–Fr | Tageslauf, Teil 2 | Batch-Ergebnis abholen (Fallback: synchron für die Top-40 nach Vorauswahl-Score), Tagesauswahl, Rechercheur (parallel, max. 3 gleichzeitig), Autor, Kritiker, ATS-Prüfer, Setzer, Review-Items anlegen, Benachrichtigung | 45–75 min |
 | 07:00 Di–Do | Versandlauf | freigegebene Bewerbungen im Fenster 07:00–09:30 mit Zufallsversatz senden bzw. als Entwurf ablegen; optional zweites Fenster 14:00–16:00 | Minuten |
 | alle 2 h, 08–20 Uhr | Nachlauf | neue Antworten klassifizieren, Nachfass-Fälligkeiten prüfen, Rückfragen-Erinnerungen | Minuten |
-| 22:00 So | Wartung | Backup, Archivierung nach Fristen, Löschkonzept (Kapitel 16), Wochenstatistik, Kostenabgleich mit Usage-API | Minuten |
+| 22:00 So | Wartung | Backup, Archivierung nach Fristen, Löschkonzept (Kapitel 16), Wochenstatistik, Kostenabgleich mit Usage-API, Hänger-Check (> 48 h im selben Nicht-Endstatus ohne `rueckfrage_offen`) | Minuten |
 | dauerhaft | Tracker-Daemon | IMAP IDLE auf dem Bewerbungspostfach ([imap_tools](https://github.com/ikvk/imap_tools)); neue Mail → Nachlauf sofort | – |
 
 Das Versandfenster folgt der HR-Ratgeberheuristik „Dienstag bis Donnerstag, früh am Morgen“ mit Jitter von 15 bis 40 Minuten, damit kein exaktes Cron-Muster erkennbar ist ([arwa.de](https://arwa.de/de/blog/wann-sollte-man-eine-bewerbung-abschicken); Konfidenz niedrig, es ist eine Heuristik, keine Studie). Das Tageslimit für Versand liegt bei 10 (konfigurierbar, hart im Bote geprüft).
@@ -364,7 +364,7 @@ Type=oneshot
 User=agent
 WorkingDirectory=/srv/bewerbungsagent
 ExecStart=/usr/bin/sops exec-env config/secrets.enc.yaml \
-  '/srv/bewerbungsagent/.venv/bin/bewerbungsagent tageslauf --teil 2 --budget-usd 10'
+  '/srv/bewerbungsagent/.venv/bin/bewerbungsagent tageslauf --teil 2 --budget-usd 45'
 TimeoutStartSec=2h
 ```
 
@@ -373,7 +373,7 @@ TimeoutStartSec=2h
 ```cron
 CRON_TZ=Europe/Berlin
 30 3  * * *    sops exec-env config/secrets.enc.yaml 'bewerbungsagent tageslauf --teil 1'
-30 5  * * 1-5  sops exec-env config/secrets.enc.yaml 'bewerbungsagent tageslauf --teil 2 --budget-usd 10'
+30 5  * * 1-5  sops exec-env config/secrets.enc.yaml 'bewerbungsagent tageslauf --teil 2 --budget-usd 45'
 0  7  * * 2-4  sops exec-env config/secrets.enc.yaml 'bewerbungsagent versand --fenster 07:00-09:30 --jitter 15-40'
 0  8-20/2 * * * sops exec-env config/secrets.enc.yaml 'bewerbungsagent nachlauf'
 0  22 * * 0    sops exec-env config/secrets.enc.yaml 'bewerbungsagent wartung'
@@ -382,6 +382,8 @@ CRON_TZ=Europe/Berlin
 Zum Vergleich die Alternative als Managed-Agents-Scheduled-Deployment: echte Cron-Ausdrücke mit Minutengranularität und IANA-Zeitzone, Jitter bis 15 Prozent (mindestens 5 Sekunden, höchstens 9 Minuten), Budget je gestarteter Session ([Scheduled Deployments](https://platform.claude.com/docs/en/managed-agents/scheduled-deployments)). Das ist der Migrationspfad für v1 (Abschnitt 7.10), nicht der MVP.
 
 **Idempotenz und Wiederanlauf.** Jeder Lauf bekommt eine `run.id`; jeder Schritt prüft am Status, was schon erledigt ist, und macht nur den Rest. Ein abgebrochener Tageslauf kann mit `bewerbungsagent tageslauf --teil 2 --resume <run_id>` fortgesetzt werden. Der Orchestrator bricht ab, wenn `spent_usd` das Lauf-Budget erreicht, und markiert den Lauf als `budget_erreicht`; die noch nicht bearbeiteten Bewerbungen bleiben in ihrem Status und werden am nächsten Tag zuerst behandelt.
+
+**Fehlerbenachrichtigung.** Budgetabbruch ist nicht das einzige Fehlerbild: Ein Lauf kann auch gar nicht erst starten (z. B. Secrets nicht entschlüsselbar) oder mittendrin abstürzen, bevor die reguläre Telegram-Zusammenfassung am Laufende verschickt wird (Abschnitt 7.7.7). Deshalb bekommt jede der fünf Service-Units eine `OnFailure=bewerbungsagent-alarm@%n.service`-Unit, die unabhängig vom Hauptlauf über denselben Kanal (Telegram-Bot und E-Mail-Digest) eine kurze Meldung „Lauf <kind> fehlgeschlagen, siehe Journal“ verschickt. Der Wartungslauf prüft zusätzlich, ob ein Datensatz länger als 48 Stunden im selben Nicht-Endstatus verharrt, ohne dass `rueckfrage_offen` gesetzt ist, und meldet das als Warnung im Cockpit statt es stillschweigend liegen zu lassen.
 
 ### 7.6 Agenten-Rollen: Subagents, Skills, Modelle, effort
 
@@ -392,23 +394,29 @@ Zum Vergleich die Alternative als Managed-Agents-Scheduled-Deployment: echte Cro
 | Scout: Abruf, Normalisierung | Code (Adapter) | – | – | HTTP, Feeds | Rohtreffer |
 | Scout: Extraktion unstrukturierter Anzeigen | Messages API, Batch | Haiku 4.5 | – (kein effort-Parameter) | keine | `description_norm` |
 | Scout: Dedup-Zweifelsfälle | Messages API | Haiku 4.5 | – | keine | `{gleiche_stelle: bool, grund}` |
+| Scout: Injection-Screen (Abschnitt 7.8, Regel 5) | Messages API | Haiku 4.5 | – | keine | `signals.injection`, `signals.scam` |
 | Matcher: Muss-Filter, BM25 | Code | – | – | – | Kandidatenliste |
 | Matcher: Judge (Rubrik) | Messages API, **Batch** | Sonnet 5 | medium | keine | Score je Kriterium, Begründung, fehlende Angaben |
-| Matcher: Tagesauswahl-Begründung | Messages API | Fable 5.1 | medium | keine | Rangfolge Top-10 mit Erklärung, Diversitätskappung |
+| Matcher: Tagesauswahl-Begründung | Messages API | Sonnet 5 | medium | keine | Rangfolge Top-10 mit Erklärung, Diversitätskappung |
 | Rechercheur | Subagent (Agent SDK) | Fable 5.1 | high | web_search (max_uses 8, allowed_domains), web_fetch, BA-/Register-Tools nur lesend | Dossier mit Konfidenzen, `question`-Einträge |
-| Autor | Subagent (Agent SDK) | Fable 5.1 | xhigh (Erstentwurf), high (Überarbeitung) | Read (Profil, Story-Bank, Dossier), Skills | Anschreiben, Lebenslauf-Variante, `claims`, `story_ids` |
-| Kritiker | Subagent, frischer Kontext | Fable 5.1 | high | Read | Rubrik-Bewertung, Änderungsforderungen |
-| Kritiker: Claims-Abgleich | Messages API | Sonnet 5 | low | keine | je Claim: belegt / nicht belegt / übertrieben |
-| Kritiker: Zweitgutachter (vor Freigabe) | Messages API | Opus 5 | medium | keine | Kurzurteil, optional |
+| Autor: Briefing (Kapitel 11.8, Schritt 1) | Messages API | Sonnet 5 | medium | keine | `briefing.json` |
+| Autor: Entwürfe, Überarbeitung, Lebenslauf-Tailoring | Subagent (Agent SDK) | Fable 5.1 | high (Entwürfe), medium (Überarbeitung, Tailoring) | Read (Profil, Story-Bank, Dossier), Skills | Anschreiben, Lebenslauf-Variante, `claims`, `story_ids` |
+| Kritiker: Rubrik | Subagent, frischer Kontext | Opus 5 | high | Read | Rubrik-Bewertung, Änderungsforderungen |
+| Kritiker: Fakten-Check gegen Story-Bank | Messages API | Sonnet 5 | medium | keine | je Claim: belegt / nicht belegt / übertrieben |
+| Kritiker: Stimm-Check und Leser-Test (Kapitel 11.8, Schritt 6) | Subagent, frischer Kontext | Opus 5 | medium | Read | Stimm-Score, Recruiter-Eindruck |
+| Kritiker: Konsistenz-Check (Kapitel 11.8, Schritt 7) | Code + Messages API | Haiku 4.5 | low | keine | Abgleich Anzeige/Lebenslauf/Anschreiben |
 | ATS-Prüfer: Keyword-Extraktion | Messages API | Haiku 4.5 | – | keine | Keyword-Liste mit Synonymen |
-| ATS-Prüfer: Format, Test-Parsing | Code | – | – | pdftotext, Tika | Bericht |
+| ATS-Prüfer: Format, Test-Parsing | Code | – | – | pdftotext, Tika, OpenResume | Bericht |
+| ATS-Prüfer: Lesetest „Lies wie ein ATS“ (Kapitel 12.7, 12.9) | Messages API | Sonnet 5 | – | keine | Feldliste, `unknown`-Marker |
 | Setzer | Code | – | – | WeasyPrint, python-docx | PDF, DOCX |
 | Review-Cockpit | Code (Web-App, Telegram-Bot) | – | – | – | Freigaben, Feedback |
 | Bote | Code | – | – | IMAP/SMTP, Playwright MCP (v2) | Sendeprotokoll |
-| Tracker: Antwort-Klassifikation | Messages API | Sonnet 5 | low | keine | `{kategorie, konfidenz, aktion, termin}` |
+| Tracker: Antwort-Klassifikation (Kapitel 15.6) | Messages API | Haiku 4.5, Eskalation Sonnet 5 unter Konfidenz 0,7 | – | keine | `{kategorie, konfidenz, aktion, termin}` |
 | Orchestrator | Code | – | – | – | Läufe, Budget, Protokoll |
 
-**Warum so.** Die Zuordnung folgt dem Styleguide: Fable 5.1 dort, wo Nuance zählt, günstige Modelle für Masse. Der Kritiker läuft in einem frischen Kontext mit eigenem System-Prompt, damit er nicht die Annahmen des Autors erbt; für den letzten Blick vor der Freigabe empfiehlt Anthropics Eval-Doku ausdrücklich ein anderes Modell als Grader als das, das den Text erzeugt hat ([Anthropic: Develop tests](https://platform.claude.com/docs/en/test-and-evaluate/develop-tests)) – daher der optionale Zweitgutachter auf Opus 5 ($5/$25 pro 1M Token). Effort-Werte sind Startwerte: Der Parameter steuert Denktiefe und Tokenverbrauch, nicht die Länge der Antwort; Wortgrenzen für das Anschreiben gehören in den Prompt ([Effort-Doku](https://platform.claude.com/docs/en/build-with-claude/effort)). Für Fable 5.1 ist Thinking immer aktiv; die Tiefe wird ausschließlich über `effort` (low bis max) gesteuert.
+**Warum so.** Die Zuordnung folgt dem Styleguide: Fable 5.1 für Recherche und Schreiben, wo Nuance zählt, günstige Modelle für Masse und Klassifikation. Der Kritiker läuft in einem frischen Kontext mit eigenem System-Prompt, damit er nicht die Annahmen des Autors erbt; für den letzten Blick vor der Freigabe empfiehlt Anthropics Eval-Doku ausdrücklich ein anderes Modell als Grader als das, das den Text erzeugt hat ([Anthropic: Develop tests](https://platform.claude.com/docs/en/test-and-evaluate/develop-tests)) – deshalb läuft der Kritiker selbst auf Opus 5 ($5/$25 pro 1M Token), getrennt vom Autor-Modell Fable 5.1, und nicht als zusätzlicher Zweitgutachter obendrauf. Opus 5 ist zudem nicht an die 30-Tage-Speicherpflicht von Fable 5.1 gebunden (siehe unten, „Datenhaltung bei Anthropic“). Effort-Werte sind Startwerte: Der Parameter steuert Denktiefe und Tokenverbrauch, nicht die Länge der Antwort; Wortgrenzen für das Anschreiben gehören in den Prompt ([Effort-Doku](https://platform.claude.com/docs/en/build-with-claude/effort)). Für Fable 5.1 ist Thinking immer aktiv; die Tiefe wird ausschließlich über `effort` (low bis max) gesteuert.
+
+**Fehlerbilder der Subagents.** Drei Fälle sind vorgesehen, nicht nur der Budgetabbruch aus Abschnitt 7.5: Erreicht ein Subagent `maxTurns`, ohne fertig zu sein, übernimmt der Orchestrator das bisherige Ergebnis mit `unvollstaendig=true` und schreibt eine Warnung ins `event_log`, statt den Datensatz weiterzuschieben. Verletzt eine Antwort das JSON-Schema auch nach den automatischen Wiederholungen des Agent SDK, bricht der Aufruf mit einem `event_log`-Fehler ab, und der Datensatz bleibt im vorigen Status. Liefert Fable 5.1 `stop_reason: refusal`, wiederholt der Orchestrator denselben Aufruf mit Opus 5 und protokolliert den Fall (Kapitel 11.10). In keinem der drei Fälle setzt ein Modell selbst einen Status weiter; das bleibt dem Orchestrator vorbehalten (Prinzip 2, Abschnitt 7.1).
 
 **Beispiel einer Subagent-Definition** (Dateiform, versioniert im Repo; Felder laut [Subagent-Doku](https://code.claude.com/docs/en/sub-agents)):
 
@@ -467,7 +475,7 @@ batch = client.messages.batches.create(
 )
 ```
 
-**Datenhaltung bei Anthropic.** Fable 5.1 ist ein „Covered Model“: 30 Tage Datenspeicherung sind Pflicht, Zero Data Retention gibt es nur mit ausdrücklicher Freigabe; Opus 5, Sonnet 5 und Haiku 4.5 sind davon nicht betroffen ([API and data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)). Das ist eine Entscheidung des Nutzers (Kapitel 16, Kapitel 22): Default ist Fable 5.1 für Rechercheur, Autor und Kritiker; per Konfigurationsschalter `MODEL_TOP=claude-opus-5` lässt sich das System ohne Codeänderung auf ein ZDR-fähiges Spitzenmodell umstellen.
+**Datenhaltung bei Anthropic.** Fable 5.1 ist ein „Covered Model“: 30 Tage Datenspeicherung sind Pflicht, Zero Data Retention gibt es nur mit ausdrücklicher Freigabe; Opus 5, Sonnet 5 und Haiku 4.5 sind davon nicht betroffen ([API and data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)). Das ist eine Entscheidung des Nutzers (Kapitel 16, Kapitel 22): Default ist Fable 5.1 für Rechercheur und Autor; der Kritiker läuft bereits standardmäßig auf dem ZDR-fähigen Opus 5, getrennt vom Autor-Modell. Per Konfigurationsschalter `MODEL_TOP=claude-opus-5` lässt sich das System ohne Codeänderung auch für Rechercheur und Autor auf das ZDR-fähige Spitzenmodell umstellen (Fall ohne 30-Tage-Speicherung).
 
 ### 7.7 Tech-Stack-Entscheidungen
 
@@ -490,11 +498,11 @@ batch = client.messages.batches.create(
 | Desktop-Scheduled-Tasks / `/loop` | lokal, minütlich | Permission-Modus konfigurierbar | lokale Dateien | Abo | Rechner muss laufen; für Tests, nicht für Betrieb |
 | Claude Cowork | Tages-/Wochenaufgaben | Nutzer sieht Ergebnisse | Ordnerzugriff | ab Pro-Abo | pragmatisch für Nicht-Entwickler, aber nicht scriptbar/prüfbar |
 | n8n Community Edition | Cron/Webhooks | Bausteine | eigene DB | kostenlos self-hosted (Sustainable-Use-Lizenz) | allenfalls Glue-Schicht, kein Ersatz für Subagents/Hooks |
-| Temporal, Trigger.dev, Inngest, LangGraph, CrewAI | reich | eigen | eigen | frei bis $75/Monat | vermeiden: Betriebs- und Lernaufwand ohne Nutzen bei einem Lauf am Tag |
+| Temporal, Trigger.dev, Inngest, LangGraph, CrewAI | reich | eigen | eigen | frei bis ca. $75/Monat (unbestätigt, Preise in dieser Recherche nicht geprüft) | vermeiden: Betriebs- und Lernaufwand ohne Nutzen bei einem Lauf am Tag |
 
 Belege: Managed-Agents-Preise und Budgetlogik ([Budgets](https://platform.claude.com/docs/en/managed-agents/budgets), [Preise](https://platform.claude.com/docs/en/about-claude/pricing)), Memory Stores ([Memory](https://platform.claude.com/docs/en/managed-agents/memory)), Vaults ([Vaults](https://platform.claude.com/docs/en/managed-agents/vaults)), Routines ([Routines](https://code.claude.com/docs/en/routines)), Desktop-Tasks ([Desktop scheduled tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks)), Cowork ([Cowork](https://claude.com/product/cowork)), n8n ([n8n](https://github.com/n8n-io/n8n)), Workflow-Engines ([Temporal](https://github.com/temporalio/temporal), [Trigger.dev](https://github.com/triggerdotdev/trigger.dev), [Inngest](https://github.com/inngest/inngest)), Agent-Frameworks ([CrewAI](https://github.com/crewAIInc/crewAI), [LangGraph](https://github.com/langchain-ai/langgraph)).
 
-**Entscheidung:** Zwei Schichten auf einem eigenen Server. (1) Das `anthropic`-Python-SDK für alle zustandslosen, schemagebundenen Aufrufe (Extraktion, Dedup-Zweifelsfälle, Judge im Batch, Claims-Abgleich, Antwort-Klassifikation). (2) Das Claude Agent SDK für die drei Werkzeug-Rollen Rechercheur, Autor, Kritiker mit Subagents, Skills, Hooks und `canUseTool`. Abrechnung über einen Commercial-API-Key, nicht über das persönliche Claude-Abo.
+**Entscheidung:** Zwei Schichten auf einem eigenen Server. (1) Das `anthropic`-Python-SDK für alle zustandslosen, schemagebundenen Aufrufe (Extraktion, Dedup-Zweifelsfälle, Judge im Batch, Fakten-Check, Antwort-Klassifikation). (2) Das Claude Agent SDK für die drei Werkzeug-Rollen Rechercheur, Autor, Kritiker mit Subagents, Skills, Hooks und `canUseTool`. Abrechnung über einen Commercial-API-Key, nicht über das persönliche Claude-Abo.
 
 **Begründung:** Die Batch API mit 50 Prozent Rabatt und die feinkörnige Cache-Steuerung gibt es nur über die Messages API; die Werkzeugschleife mit isolierten Subagents, Permission-Regeln in sechs Stufen (Hooks → Deny → Ask → Modus → Allow → `canUseTool`) und Dateisystem-Skills gibt es fertig nur im Agent SDK ([Permissions](https://code.claude.com/docs/en/agent-sdk/permissions), [Hooks](https://code.claude.com/docs/en/hooks)). Managed Agents ist funktional reicher (Vaults, Budgets, Memory, Webhooks), aber Beta mit veränderlichem Verhalten, ohne Batch-Rabatt, und die Session-API ist eine zweite Programmierweise, die der Auftraggeber lernen müsste ([Managed Agents Overview](https://platform.claude.com/docs/en/managed-agents/overview)). Routines starten ohne Permission-Prompts aus einem frischen Klon; für einen Schritt mit Außenwirkung ist das ein Sicherheitsrisiko, und verbundene Connectors dürfen während eines Laufs ohne Nachfrage schreiben ([Routines](https://code.claude.com/docs/en/routines)). Zum API-Key: Laut Recherche untersagen die Consumer-Bedingungen die Nutzung von Abo-OAuth-Tokens in Drittprodukten wie dem Agent SDK (Durchsetzungsdetails unbestätigt); unabhängig davon ist ein separater Key mit eigenem Budget planbarer, weil Abo-Nutzung sonst mit der eigenen interaktiven Claude-Code-Arbeit um dieselben Limits konkurriert.
 
@@ -504,7 +512,7 @@ Belege: Managed-Agents-Preise und Budgetlogik ([Budgets](https://platform.claude
 
 **Entscheidung:** Hetzner Cloud CPX22 (2 vCPU, 4 GB RAM, 80 GB NVMe) in Falkenstein oder Nürnberg, Ubuntu 24.04 LTS, ein Systemnutzer `agent`, Zugriff nur per SSH-Schlüssel, Review-Cockpit nur über SSH-Tunnel oder VPN erreichbar, kein öffentlicher Port außer SSH.
 
-**Begründung:** Der Server läuft dauerhaft (Tracker-Daemon, Cockpit), speichert Bewerbungsdaten in der EU und kostet nach der Hetzner-Preiserhöhung vom 15. Juni 2026 rund 19,50 bis 20 € im Monat (Quellen nennen 19,49 € bzw. 19,99 €; vor Bestellung im Konfigurator prüfen; [Hetzner-Preisanpassung](https://docs.hetzner.com/de/general/infrastructure-and-availability/price-adjustment/), [Northflank-Übersicht](https://northflank.com/blog/hetzner-cloud-server-price-increases)). Die früher oft zitierten CX22/CAX11-Kampfpreise sind nach der Erhöhung überholt (CX23 3,99 → 5,49 €, CAX11 4,49 → 5,99 €); ob diese Linien noch bestellbar sind, war nicht belegbar. 4 GB reichen für Python, SQLite, WeasyPrint und einen gelegentlichen Playwright-Browser; ein lokales Embedding-Modell wie BGE-M3 (Kapitel 9) braucht spürbar mehr Arbeitsspeicher und ist im MVP nicht vorgesehen (Abschnitt 7.7.4).
+**Begründung:** Der Server läuft dauerhaft (Tracker-Daemon, Cockpit), speichert Bewerbungsdaten in der EU und kostet nach der Hetzner-Preiserhöhung vom 15. Juni 2026 rund 19,50 bis 20 € im Monat (Quellen nennen 19,49 € bzw. 19,99 €; vor Bestellung im Konfigurator prüfen; [Hetzner-Preisanpassung](https://docs.hetzner.com/de/general/infrastructure-and-availability/price-adjustment/), [Northflank-Übersicht](https://northflank.com/blog/hetzner-cloud-server-price-increases)). Die früher oft zitierten CX22/CAX11-Kampfpreise sind nach der Erhöhung überholt (CX23 3,99 → 5,49 €, CAX11 4,49 → 5,99 €); ob diese Linien noch bestellbar sind, war nicht belegbar. Der MVP betreibt auf diesen 4 GB mehrere Dienste gleichzeitig: Python/SQLite/WeasyPrint und einen gelegentlichen Playwright-Browser, dazu für das Test-Parsing (Kapitel 12) `tika-server` (JVM) und den OpenResume-Parser (Node, `localhost:3000`) sowie für die DOCX-Prüfung (Kapitel 13.10) LibreOffice headless. Damit das nicht knapp wird, laufen `tika-server`, OpenResume und LibreOffice nicht dauerhaft, sondern werden je Renderlauf gestartet und danach wieder beendet (systemd `Type=oneshot` bzw. bedarfsweise aus dem Setzer/ATS-Prüfer-Code heraus); dauerhaft aktiv sind nur der Orchestrator-/Cockpit-Prozess und der Tracker-Daemon. Ein lokales Embedding-Modell wie BGE-M3 und spaCy `de_core_news_lg` (541 MB, [spaCy-Modelle](https://github.com/explosion/spacy-models/releases/tag/de_core_news_lg-3.8.0)) brauchen spürbar mehr Arbeitsspeicher und sind im MVP nicht vorgesehen, sondern erst für v1 (Abschnitt 7.7.4, Kapitel 9). Zeigt der Betrieb anhaltenden Speicherdruck, ist der nächstgrößere Hetzner-Plan (z. B. CPX32 mit 8 GB RAM; Preis vor Bestellung im Konfigurator prüfen) die Ausweichoption.
 
 **Alternativen:** (a) Fly.io shared-cpu-1x/1 GB für rund 5,70–5,92 $/Monat (unbestätigt) mit Git-Push-Deploy, dafür US-Firma und weniger Kontrolle. (b) Der eigene Mac mit Desktop-Scheduled-Tasks und Keychain: kostenlos, lokale Dateien, aber der Rechner muss zu den Laufzeiten wach sein ([Desktop scheduled tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks)); gut für die Entwicklungsphase, nicht für den Betrieb. (c) Managed-Agents-Sandbox (Ubuntu 24.04, bis 8 GB RAM, 10 GB Disk, Python, Node, Playwright mit Chromium, LibreOffice, Poppler, TeX Live vorinstalliert; [Cloud Sandboxes](https://platform.claude.com/docs/en/managed-agents/cloud-sandboxes-reference)) – kein eigener Server, aber Beta und ohne persistente Datenbank zwischen Sessions außer Memory Stores.
 
@@ -538,7 +546,7 @@ Belege: Managed-Agents-Preise und Budgetlogik ([Budgets](https://platform.claude
 
 **Entscheidung:** Im MVP ist `event_log` die Observability: jeder Modell- und Werkzeugaufruf mit Tokens, Cache-Treffern, Kosten und Dauer; dazu JSONL-Transkripte der Agent-SDK-Sessions, die das SDK ohnehin unter `~/.claude/projects/` ablegt ([Session storage](https://code.claude.com/docs/en/agent-sdk/session-storage)). In v1 kommt Arize Phoenix hinzu: `pip install arize-phoenix`, SQLite-Backend, OpenTelemetry/OpenInference mit nativer Anthropic-Instrumentierung ([Phoenix](https://github.com/Arize-ai/phoenix)). Langfuse wird verworfen: Self-Hosting verlangt laut eigener Doku 4+ CPU-Kerne, 16 GiB RAM und rund 100 GiB Speicher (Postgres, ClickHouse, Redis, S3) – ein zweiter, größerer Server nur für Tracing ([Langfuse Self-Hosting](https://langfuse.com/self-hosting)).
 
-**Kostenkontrolle in drei Stufen:** (1) Budget je Lauf (`--budget-usd`, Default 10 USD für Teil 2 des Tageslaufs; Vorschlag, in Kapitel 22 zu bestätigen), das der Orchestrator aus `response.usage` mitrechnet und hart durchsetzt; im Agent SDK zusätzlich `max_budget_usd` je Session ([Cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking)). (2) Wochenabgleich mit der Usage-and-Cost-API in der Wartung. (3) Ausgabenlimit im Anthropic-Konto als letzte Sicherung. Beim Schätzen ist zu beachten, dass die Modelle ab Claude 4.7 (also Opus 5, Sonnet 5, Fable 5.x) einen Tokenizer nutzen, der für denselben Text rund 30 Prozent mehr Tokens erzeugt ([Preise](https://platform.claude.com/docs/en/about-claude/pricing)); Kapitel 18 rechnet damit.
+**Kostenkontrolle in drei Stufen:** (1) Budget je Lauf (`--budget-usd`, Default 45 USD für Teil 2 des Tageslaufs; Vorschlag, in Kapitel 22 zu bestätigen), das der Orchestrator aus `response.usage` mitrechnet und hart durchsetzt; im Agent SDK zusätzlich `max_budget_usd` je Session ([Cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking)). Der Wert ist an Kapitel 18.2 angelehnt: Dort kostet die Bewerbungs-Pipeline für zehn Bewerbungen im „empfohlen“-Szenario rund 37 USD, im „maximal“-Szenario rund 52 USD; 45 USD decken das Standardszenario mit Puffer, wer durchgängig „maximal“ fährt, muss den Wert in `config/zeitplan.yaml` höher setzen. (2) Wochenabgleich mit der Usage-and-Cost-API in der Wartung. (3) Ausgabenlimit im Anthropic-Konto als letzte Sicherung. Beim Schätzen ist zu beachten, dass die Modelle ab Claude 4.7 (also Opus 5, Sonnet 5, Fable 5.x) einen Tokenizer nutzen, der für denselben Text rund 30 Prozent mehr Tokens erzeugt ([Preise](https://platform.claude.com/docs/en/about-claude/pricing)); Kapitel 18 rechnet damit.
 
 **Benachrichtigung:** Am Ende von Teil 2 schickt der Orchestrator eine Zusammenfassung („7 Bewerbungen bereit zur Freigabe, 2 Rückfragen, Kosten 6,40 USD“) über den Telegram-Bot des Cockpits (Abschnitt 7.7.8) und als E-Mail-Digest über dasselbe Postfach als Rückfallkanal. Slack- oder Telegram-MCP-Server für das Modell sind nicht nötig; der Bot ist gewöhnlicher Code ohne Modellzugriff.
 
@@ -623,7 +631,11 @@ bewerbungsagent/                      # Code-Repository (Git, privat; später ve
 │   ├── watchlist.yaml
 │   ├── zeitplan.yaml                 # Fenster, Jitter, Tageslimit, Budgets
 │   ├── modelle.yaml                  # Modell + effort je Rolle, MODEL_TOP-Schalter
-│   ├── rubrik.yaml                   # Bewertungskriterien Matcher/Kritiker
+│   ├── rubrik.yaml                   # Kritiker-Rubrik K1–K7 (Kapitel 11.9)
+│   ├── scoring.yaml                  # Matcher-Gewichte/Schwellen (Kapitel 9.5), Dedup-Schwellen (Kapitel 6, 9), Diversitätskappung (9.8)
+│   ├── ats_rules.yaml                # Schreibregeln und harte Prüfpunkte des Kritikers/ATS-Prüfers (Kapitel 4, 11.1)
+│   ├── ats_detection_rules.yaml      # ATS-Fingerprints zur Typerkennung (Kapitel 4.6)
+│   ├── anti_generik.yaml             # Anti-Generik-Regeln des Kritikers (Kapitel 11.5)
 │   └── secrets.enc.yaml              # sops-verschlüsselt
 ├── prompts/                          # System-Prompts je Rolle inkl. untrusted_content_policy
 ├── schemas/                          # JSON-Schemas: extraktion, judge, dossier, anschreiben, kritik, antwort, checkliste
@@ -635,7 +647,7 @@ bewerbungsagent/                      # Code-Repository (Git, privat; später ve
 │   ├── matcher/                      # filters.py, retrieval.py (bm25s), judge.py (Batch), auswahl.py
 │   ├── rechercheur/                  # Agent-SDK-Aufruf, Dossier-Zusammenführung, Konfidenzregeln
 │   ├── autor/                        # Agent-SDK-Aufruf, Claims-Erzeugung
-│   ├── kritiker/                     # Agent-SDK-Aufruf, Claims-Abgleich, Zweitgutachter
+│   ├── kritiker/                     # Agent-SDK-Aufruf, Fakten-Check, Stimm-Check, Konsistenz-Check
 │   ├── ats/                          # Keywords, Formatregeln, Test-Parsing (Kapitel 12)
 │   ├── setzer/                       # render_pdf.py (WeasyPrint), render_docx.py, qa.py, mappe.py
 │   ├── cockpit/                      # web/ (FastAPI+HTMX: Freigabe, Diff, Rückfragen, Feedback), telegram_bot.py (Kapitel 14)
@@ -672,7 +684,7 @@ bewerbungen-data/                     # Daten-Repository (Git, privat, nie verö
 | Baustein | MVP (Wochen 1–4) | v1 (Monat 2–3) | v2 (Monat 4–6) |
 |---|---|---|---|
 | Laufzeit | Agent SDK + Messages API auf VPS, systemd | unverändert; Rechercheur optional als Managed-Agents-Scheduled-Deployment mit Budget je Session | Entscheidung nach Beta-Status: Vollmigration zu Managed Agents oder Verbleib |
-| Modelle | Fable 5.1 (Rechercheur, Autor, Kritiker), Sonnet 5 (Judge, Klassifikation), Haiku 4.5 (Extraktion) | effort- und Modellwahl je Rolle anhand Eval (Kapitel 11) nachjustiert; Zweitgutachter Opus 5 | Preference-Learning aus Feedback (Kapitel 9) |
+| Modelle | Fable 5.1 (Rechercheur, Autor), Opus 5 (Kritiker), Sonnet 5 (Judge, Tagesauswahl, Fakten-Check, Klassifikations-Eskalation), Haiku 4.5 (Extraktion, Injection-Screen, Konsistenz-Check, Tracker-Klassifikation) | effort- und Modellwahl je Rolle anhand Eval (Kapitel 11) nachjustiert | Preference-Learning aus Feedback (Kapitel 9) |
 | Quellen | BA-API, ATS-Watchlist, Adzuna, Job-Alert-Mails (Kapitel 6) | SerpAPI/Google for Jobs mit Volumendeckel | weitere ATS-Adapter, Portal-Vorbefüllung |
 | Matching | Muss-Filter + BM25 + Judge (Batch) | + Embeddings (LanceDB, BGE-M3 oder API) + Reranker | gelernte Gewichte |
 | Versand | Entwurfsmodus (IMAP-APPEND / Drafts-API) | SMTP-Versand im Fenster nach Freigabe, Sendeprotokoll | Portal-Formulare per Playwright MCP, Freigabe vor Absenden |
@@ -689,14 +701,14 @@ Die Migration ist bausteinweise möglich, weil alle Modellaufrufe hinter `src/be
 Bis du anders entscheidest (Fragenkatalog Kapitel 22):
 
 - Betrieb auf einem Hetzner-VPS in Deutschland mit Commercial-API-Key, nicht über das Claude-Abo und nicht über Managed Agents.
-- Fable 5.1 für Rechercheur, Autor und Kritiker, mit der 30-Tage-Datenspeicherung als bewusst hingenommene Bedingung; Umschalter auf Opus 5 vorhanden.
-- Budget 10 USD je Tageslauf (Teil 2), Tageslimit 10 Bewerbungen, Versandfenster Di–Do 07:00–09:30 mit Jitter.
+- Fable 5.1 für Rechercheur und Autor, mit der 30-Tage-Datenspeicherung als bewusst hingenommene Bedingung; der Kritiker läuft als vom Autor getrenntes Grader-Modell bereits auf dem ZDR-fähigen Opus 5. Umschalter `MODEL_TOP` auf Opus 5 auch für Rechercheur und Autor vorhanden.
+- Budget 45 USD je Tageslauf (Teil 2, Kapitel 18.2), Tageslimit 10 Bewerbungen, Versandfenster Di–Do 07:00–09:30 mit Jitter.
 - Entwurfsmodus im MVP (du sendest selbst), SMTP-Versand erst in v1.
 - Ein Daten-Repository, SQLite, sops+age; keine Vektoren im MVP.
 - Tagesauswahl Montag bis Freitag; Quellenabruf täglich.
 - Cockpit als FastAPI+HTMX-Web-App plus Telegram-Bot; Undo-Fenster 60 Sekunden nach Freigabe.
 
-Offene Fragen an dich werden in Kapitel 22 gesammelt: Abo oder API-Key; eigener Server oder vollverwaltet; Fable 5.1 mit 30-Tage-Speicherung oder Opus 5 mit ZDR; Budgetgrenzen; primäres E-Mail-Konto; Mac lokal oder VPS; Wochenend-Läufe; Zweitgutachter ja/nein; Telegram-Push oder nur E-Mail-Digest; Länge des Undo-Fensters.
+Offene Fragen an dich werden in Kapitel 22 gesammelt: Abo oder API-Key; eigener Server oder vollverwaltet; Fable 5.1 mit 30-Tage-Speicherung oder durchgängig Opus 5 mit ZDR (`MODEL_TOP`); Budgetgrenzen; primäres E-Mail-Konto; Mac lokal oder VPS; Wochenend-Läufe; Telegram-Push oder nur E-Mail-Digest; Länge des Undo-Fensters.
 
 **Quellen dieses Kapitels:**
 

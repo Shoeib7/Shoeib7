@@ -1,6 +1,6 @@
 ## 23. Glossar
 
-Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen wie in Kapitel 3 festgelegt; englische Fach- und Produktbegriffe bleiben unübersetzt. Rechtsbegriffe tragen eine Fundstelle, unbestätigte Recherchebefunde sind entsprechend gekennzeichnet.
+Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen wie in Kapitel 7 festgelegt; englische Fach- und Produktbegriffe bleiben unübersetzt. Rechtsbegriffe tragen eine Fundstelle, unbestätigte Recherchebefunde sind entsprechend gekennzeichnet.
 
 **Agent SDK (Claude Agent SDK).** Python-/TypeScript-Bibliothek (`claude-agent-sdk`, MIT-Lizenz, Version 0.2.152 vom 2.9.2026), die die Claude-Code-CLI bündelt und Subagents, Hooks, Permission-Modes und Structured Outputs bereitstellt ([PyPI](https://pypi.org/project/claude-agent-sdk/)). Bildet zusammen mit dem Messages-API-SDK die technische Basis der Architektur aus Kapitel 7; Rechercheur, Autor und Kritiker laufen darüber als Subagents.
 
@@ -48,7 +48,7 @@ Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen
 
 **ESCO.** Kostenlose, mehrsprachige EU-Taxonomie für Skills, Kompetenzen, Qualifikationen und Berufe; primäre Normalisierungsgrundlage des Matchers für den Skill-/Berufsabgleich, ergänzt um ein Mapping zur deutschen KldB 2010 (Kapitel 9).
 
-**Fable 5.1 (Claude Fable 5.1).** Modell `claude-fable-5-1`, 10/50 $ pro 1 Mio. Token Input/Output, dauerhaft aktives Thinking, Covered Model mit 30-Tage-Speicherung. Wunschmodell für Autor und Kritiker, wo Formulierungsqualität zählt (Kapitel 7, 11).
+**Fable 5.1 (Claude Fable 5.1).** Modell `claude-fable-5-1`, 10/50 $ pro 1 Mio. Token Input/Output, dauerhaft aktives Thinking, Covered Model mit 30-Tage-Speicherung. Wunschmodell für Rechercheur und Autor, wo Formulierungsqualität zählt (Kapitel 7, 10, 11).
 
 **Format-Router.** Entscheidungslogik (Kapitel 11.3), die vor jedem Autor-Lauf pro Stelle festlegt, ob überhaupt ein Anschreiben entsteht und in welcher Länge und Sprache – abhängig von Anzeige, Portal-Feldern und Rechercheur-Signalen.
 
@@ -68,7 +68,7 @@ Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen
 
 **Jobscamming.** Betrügerische Stellenanzeige mit dem Ziel Identitätsdiebstahl; typische Signale sind Kontaktaufnahme nur über WhatsApp/Telegram oder die Forderung nach Video-Ident bzw. Kontoeröffnung vor Vertragsschluss ([Verbraucherzentrale](https://www.verbraucherzentrale.de/jobscamming-was-tun-wenn-das-traumangebot-zur-falle-wird-110906)). Der Matcher schließt solche Anzeigen hart aus, unabhängig vom sonstigen Score (Kapitel 9).
 
-**Judge.** LLM-als-Bewertungsschritt im Matcher: bewertet jede Stelle gegen das Kandidatenprofil mit Zahlenankern statt Adjektiven, meist im Batch mit Sonnet 5 oder Haiku 4.5. Grundprinzip auch der Kritiker-Rubrik: Das bewertende Modell ist nie dasselbe wie das schreibende (Kapitel 9, 11).
+**Judge.** LLM-als-Bewertungsschritt im Matcher: bewertet jede Stelle gegen das Kandidatenprofil mit Zahlenankern statt Adjektiven, mit Claude Sonnet 5 im Batch. Grundprinzip auch der Kritiker-Rubrik: Das bewertende Modell ist nie dasselbe wie das schreibende (Kapitel 9, 11).
 
 **Kandidatenprofil.** Komponente (Kapitel 8): Master-Lebenslauf, Story-Bank, Stimmprofil, Präferenzen und Standardantworten – die strukturierte Datenbasis, auf die sich jede andere Komponente stützt, ohne sie zu verändern.
 
@@ -92,7 +92,7 @@ Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen
 
 **Nachlauf.** Geplanter Lauf zur Antwortverarbeitung und zum Nachfassen, getrennt vom Tageslauf. Der Tracker wertet hier eingegangene Rückmeldungen aus und stößt Erinnerungen an (Kapitel 2, 15).
 
-**Opus 5 (Claude Opus 5).** Modell `claude-opus-5`, 5/25 $ pro 1 Mio. Token, kein Covered Model, damit ZDR-fähig. Eingesetzt als Zweitgutachter vor der Freigabe und als Alternative zu Fable 5.1 für Verarbeitungsschritte, bei denen 30-Tage-Speicherung vermieden werden soll (Kapitel 7, 16).
+**Opus 5 (Claude Opus 5).** Modell `claude-opus-5`, 5/25 $ pro 1 Mio. Token, kein Covered Model, damit ZDR-fähig. Eingesetzt als Kritiker (Rubrik, Stimm-Check, Leser-Test) – als vom Autor getrenntes Grader-Modell, kein separater Zweitgutachter – und über den Konfigurationsschalter MODEL_TOP als ZDR-fähige Alternative zu Fable 5.1 für Verarbeitungsschritte, bei denen 30-Tage-Speicherung vermieden werden soll (Kapitel 7, 11, 16).
 
 **Orchestrator.** Komponente, die Zeitplan, Reihenfolge, Budget und Fehlerbehandlung des Tageslaufs steuert und jeden Schritt im `event_log` protokolliert (Kapitel 7).
 
@@ -126,7 +126,7 @@ Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen
 
 **Sonnet 5 (Claude Sonnet 5).** Modell `claude-sonnet-5`, 2/10 $ pro 1 Mio. Token, kein Covered Model. Arbeitspferd des Systems für Scan, Bewertung, Extraktion und den Claims-Abgleich (Kapitel 7, 9, 11).
 
-**Status-Pipeline.** Feste Statusfolge jeder Stelle: entdeckt → dedupliziert → bewertet → ausgewählt → recherchiert → geschrieben → geprüft → bereit zur Freigabe → freigegeben → gesendet → Rückmeldung → Interview → Absage/Zusage/archiviert, ergänzt um „Rückfrage offen“ (Kapitel 3). Durchzieht alle Modulkapitel als gemeinsame Sprache.
+**Status-Pipeline.** Feste Statusfolge jeder Stelle: entdeckt → dedupliziert → bewertet → ausgewählt → recherchiert → geschrieben → geprüft → bereit zur Freigabe → freigegeben → gesendet → Rückmeldung → Interview → Absage/Zusage/archiviert, ergänzt um „Rückfrage offen“ (Kapitel 1.2 und 7.4). Der Status „bereit zur Freigabe“ wird erst gesetzt, wenn Setzer-QA und ATS-Prüfer-Stufe 2 bestanden sind (Kapitel 12, 13). Durchzieht alle Modulkapitel als gemeinsame Sprache.
 
 **Stimmprofil.** Teil des Kandidatenprofils (Kapitel 8): dein Schreibstil, deine Wortwahl, deine Tabus. Autor und Kritiker prüfen jeden Entwurf gegen das Stimmprofil, damit ein Anschreiben nicht generisch, sondern nach dir klingt.
 

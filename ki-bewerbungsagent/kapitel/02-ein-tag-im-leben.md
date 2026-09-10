@@ -141,12 +141,13 @@ Die Frage zur Ansprechperson (Bewerbung Nr. 7) sieht in der Datenbank und in Tel
     {"wert": "Sehr geehrtes Team Recruiting der Beispiel-Zwei GmbH", "konfidenz": 0.95, "quelle": "Fallback"}
   ],
   "blocks_status": "geschrieben",
-  "expires_at": "2026-09-10T06:00:00+02:00",
+  "default_bei_ablauf": "Sehr geehrtes Team Recruiting der Beispiel-Zwei GmbH",
+  "expires_at": "2026-09-09T03:30:00+02:00",
   "status": "offen"
 }
 ```
 
-Antwortest du um 08:20 Uhr per Button, setzt der Orchestrator die Bewerbung sofort fort: Autor, Kritiker, ATS-Prüfer und Setzer laufen für diese eine Stelle nach, und um etwa 08:35 Uhr ist sie „bereit zur Freigabe“. Antwortest du nicht bis zum Ablauf (Default 48 Stunden), verfällt die Frage, die Bewerbung wird mit Hinweis archiviert, und der Fall taucht in der Wochenstatistik auf. Der Agent nimmt nie den erstbesten Vorschlag, weil die Frist abläuft.
+Antwortest du um 08:20 Uhr per Button, setzt der Orchestrator die Bewerbung sofort fort: Autor, Kritiker, ATS-Prüfer und Setzer laufen für diese eine Stelle nach, und um etwa 08:35 Uhr ist sie „bereit zur Freigabe“. Antwortest du nicht, erinnert der Bot einmalig nach vier Stunden und danach täglich im Tagesdigest. Diese Frage hat einen Default (die Team-Anrede, Konfidenz 0,95): Bleibt sie unbeantwortet, löst der nächste Tageslauf sie automatisch mit diesem Default auf und markiert die Stelle zur Kontrolle in der Review-Checkliste. Rückfragen ohne Default – etwa ein Adresskonflikt zwischen Anzeige und Impressum – bleiben dagegen offen, bis du antwortest oder die Bewerbung verwirfst, und werden erst nach fünf Werktagen archiviert. Ein Timeout ist nie eine Freigabe.
 
 **Entscheidung:** Rückfragen blockieren nur die betroffene Bewerbung, nie den Tageslauf. **Begründung:** Eine unklare Anrede darf nicht neun fertige Bewerbungen aufhalten; die Wartezeit auf deine Antwort ist der teuerste Engpass des Systems. **Alternative:** Alle Rückfragen vor dem Schreiben sammeln und den Lauf pausieren; das wäre einfacher zu bauen, würde aber jeden Morgen von deiner Reaktionszeit abhängen.
 
@@ -190,14 +191,13 @@ Außerdem prüft der Nachlauf, welche Bewerbungen seit N Werktagen ohne Rückmel
 | Benachrichtigung | Telegram-Bot plus E-Mail-Digest | Telegram-Bot oder nur E-Mail-Digest (offene Frage) |
 | Nachfassen | Entwurf automatisch angelegt, Freigabe nötig | nur Erinnerung „Nachfassen fällig“ |
 | Lernschleife | Ablehnungsgründe justieren wöchentlich die Scoring-Gewichte (mit Freigabe) | Gründe werden nur gesammelt |
-| Zweitgutachter | optionaler Kurzcheck mit Claude Opus 5 vor Freigabe | entfällt |
 
 Der Tagesablauf, die Checkliste und die Rückfragen sind in beiden Stufen gleich; nur der letzte Meter zur Außenwelt ist im MVP kürzer und liegt vollständig bei dir.
 
 ### 2.13 Default-Annahmen und offene Fragen (für Kapitel 22)
 
 - Versandtage: Dienstag bis Donnerstag in zwei Fenstern (07:00–09:30, 14:00–16:00 Uhr). Auch Montag und Freitag, damit Donnerstags-Freigaben nicht bis Dienstag warten? Default: nein.
-- Ablauf offener Rückfragen: 48 Stunden, danach Archivierung mit Hinweis. Default: 48 Stunden.
+- Ablauf offener Rückfragen: Erinnerung nach 4 Stunden, danach täglich im Digest. Rückfragen mit Default (z. B. Anrede-Fallback „Sehr geehrtes Recruiting-Team [Firma]“) löst der nächste Tageslauf automatisch mit dem Default auf und markiert das in der Review-Checkliste; Rückfragen ohne Default (z. B. Adresskonflikt) bleiben offen und werden nach 5 Werktagen archiviert. Ein Timeout ist nie eine Freigabe.
 - Undo-Fenster nach Freigeben: Default 60 Sekunden.
 - Benachrichtigung: Telegram-Bot plus E-Mail-Digest, oder reicht der Digest? Default: beides.
 - Nachfassen: Default 10 Werktage ohne Rückmeldung, branchenunabhängig.

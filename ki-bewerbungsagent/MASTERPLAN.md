@@ -6,6 +6,7 @@ Stand: 2026-09-10. Arbeitstitel „der Bewerbungsagent“ (Namensfindung offen, 
 
 ## Inhaltsverzeichnis
 
+- [0. Zusammenfassung für Eilige](#0-zusammenfassung-für-eilige)
 - [1. Vision, Ziele, Nicht-Ziele, Erfolgskriterien (KPIs)](#1-vision-ziele-nicht-ziele-erfolgskriterien-kpis)
 - [2. So arbeitet der Bewerbungsagent: ein Tag im Leben](#2-so-arbeitet-der-bewerbungsagent-ein-tag-im-leben)
 - [3. Markt und Wettbewerb: was es gibt, warum es nicht reicht](#3-markt-und-wettbewerb-was-es-gibt-warum-es-nicht-reicht)
@@ -31,19 +32,90 @@ Stand: 2026-09-10. Arbeitstitel „der Bewerbungsagent“ (Namensfindung offen, 
 - [23. Glossar](#23-glossar)
 - [24. Quellenverzeichnis](#24-quellenverzeichnis)
 
+## 0. Zusammenfassung für Eilige
+
+### 0.1 Was gebaut wird
+
+Der Bewerbungsagent ist ein persönliches System für genau eine Person in Deutschland: Er findet Stellenanzeigen, recherchiert das Unternehmen, entwirft Anschreiben und eine angepasste Lebenslauf-Fassung in der eigenen Stimme, prüft beides gegen Bewerbermanagementsysteme (ATS), setzt PDF und DOCX und legt alles täglich zur Freigabe vor. Er ist kein Auto-Apply-Werkzeug: Der Schritt „bereit zur Freigabe → freigegeben“ bleibt eine explizite menschliche Handlung, ein Zeitablauf zählt nie als Freigabe (Kapitel 1, 14). Gebaut wird es mit Claude Code, betrieben auf einem eigenen Server in Deutschland (Kapitel 7, 19).
+
+### 0.2 Warum das besser ist als Massenbewerbung
+
+- Recruiter bearbeiten laut dem Greenhouse „2025 AI in Hiring Report“ (über 4.100 Befragte, Deutschland eingeschlossen) fast dreimal so viele Bewerbungen pro Stelle wie 2021; 91 Prozent haben Täuschungsversuche bemerkt (Kapitel 1.1, 3.5).
+- Volumen-Werkzeuge liefern schwache Ergebnisse: LazyApply 2,1/5 auf Trustpilot, Massive 1,8/5 mit dokumentierten Lebenslauf-Halluzinationen, JobCopilot Callback-Raten unter 2 Prozent und Bewerbungen an betrügerische Anzeigen (Kapitel 3.4).
+- Laut Resume Genius Hiring Trends Report 2026 nennen 53 Prozent der Hiring Manager „KI-generierten Inhalt“ als größtes Red Flag im Lebenslauf (Kapitel 3.5).
+
+Nicht KI ist das Risiko, sondern erkennbare Generik – dagegen stehen ein bis zwei nachprüfbare Recherchedetails je Anschreiben und null unbelegte Aussagen als hartes Gate (Kapitel 1.3).
+
+### 0.3 Wie es funktioniert
+
+Elf Komponenten und der Orchestrator führen jede Stelle durch die Status-Pipeline von „entdeckt“ bis „archiviert“; das Kandidatenprofil mit Master-Lebenslauf, Story-Bank und Stimmprofil ist die einzige Quelle der Wahrheit, in die kein Modell schreibt (Kapitel 7.4, 8). Um 03:30 Uhr sammelt und dedupliziert der Scout alle Quellen, der Matcher reicht 30 bis 50 gefilterte Kandidaten als Batch beim Judge ein. Um 05:30 Uhr entsteht die Tagesauswahl – höchstens zehn, maximal zwei je Arbeitgeber –, und der Rechercheur liefert je Stelle ein Dossier mit Quelle und Konfidenz je Feld; unter 0,7 fragt er nach, statt zu raten (Kapitel 9, 10). Ab 06:05 Uhr schreibt der Autor zwei bis drei Varianten, der Kritiker prüft sie in frischem Kontext gegen Rubrik, Story-Bank und Stimmprofil (höchstens zwei Schleifen), danach folgen ATS-Prüfer und Setzer; „bereit zur Freigabe“ wird erst nach Setzer-QA und ATS-Prüfer-Stufe 2 gesetzt (Kapitel 11–13). Um 06:45 Uhr meldet der Orchestrator per Telegram und E-Mail-Digest; du prüfst im Cockpit anhand Checkliste, Wort-Diff und Vorschau und wählst Freigeben, Ändern, Ablehnen oder Später (Kapitel 14). Rückfragen blockieren nur die betroffene Bewerbung: Erinnerung nach vier Stunden, dann täglich im Digest; mit Default löst der nächste Tageslauf sie auf, ohne Default werden sie nach fünf Werktagen archiviert. Nach Freigabe und 60 Sekunden Undo-Fenster sendet der Bote; der Tracker verarbeitet Antworten, Termine und Nachfass-Fälligkeiten (Kapitel 15).
+
+### 0.4 Zentrale Entscheidungen
+
+- **Tech-Stack:** Python 3.12, Claude Agent SDK für Rechercheur, Autor und Kritiker, Messages API für Batch; Hetzner-VPS CPX22 in Deutschland, SQLite, sops+age, WeasyPrint als Primär-Renderer mit python-docx (Typst nur Evaluation in v1), Cockpit als FastAPI+HTMX-Seite plus Telegram-Bot (Kapitel 7, 13, 14).
+- **Quellen-Strategie:** Ampel Grün/Gelb/Rot; der MVP nutzt nur Grün: BA-Jobsuche-API, ATS-Feeds der Watchlist (Personio, Greenhouse, Lever), Adzuna, Arbeitnow, selbst abonnierte Job-Alert-Mails. SerpAPI (Gelb) erst in v1 nach dokumentierter Abdeckungslücke; automatisiertes Auslesen von LinkedIn, StepStone, Indeed, XING und Monster (Rot) nie (Kapitel 6, 16).
+- **Versandstrategie:** Im MVP Entwurfsmodus: Der Bote legt die Mail per IMAP-APPEND bzw. Gmail-Drafts-API im eigenen Postfach ab, du sendest selbst. Ab v1 SMTP nach Freigabe, Di–Do 07:00–09:30 Uhr (optional 14:00–16:00), Versatz 15 bis 40 Minuten, Tageslimit 10. Portale nur im Co-Pilot-Modus; „Absenden“ und DSGVO-Einwilligung bleiben beim Menschen (Kapitel 15, 16.8).
+- **Modellmix:** Rechercheur und Autor auf Claude Fable 5.1 (Recherche und Entwürfe effort high, Überarbeitung medium), der Kritiker als vom Autor getrenntes Grader-Modell auf Claude Opus 5 (Rubrik high, Stimm-/Leser-Test medium), kein Zweitgutachter. Claude Sonnet 5 für Briefing, Fakten-Check, ATS-Lesetest und Tagesauswahl (Batch), Claude Haiku 4.5 für Extraktion, Dedup, Keyword-Extraktion, Injection- und Konsistenz-Check sowie Tracker-Klassifikation mit Eskalation auf Sonnet 5 unter Konfidenz 0,7. `MODEL_TOP=claude-opus-5` ersetzt Fable 5.1 überall (Kapitel 7.6, 18).
+
+### 0.5 Was es kostet
+
+Verbindlich ist Kapitel 18; Grundlage: 10 Bewerbungen/Tag, 22 Arbeitstage, 220/Monat.
+
+| Szenario | je Bewerbung | Gesamt/Monat |
+|---|---|---|
+| sparsam | ≈ 1,06 € | ≈ 262 € |
+| empfohlen (Standard) | ≈ 3,45 € | ≈ 789 € |
+| maximal | ≈ 4,85 € | ≈ 1.151 € |
+
+**Entscheidung:** „empfohlen“ ist der Standard-Betriebsmodus (Kapitel 18.6). Enthalten sind der Hetzner CPX22 für rund 20 €/Monat (19,49–19,99 € je nach Quelle; vor Bestellung prüfen), rund 9 € Massen-Scan und 0 € Datenquellen; je Bewerbung sind das rund 3,59 € (Kapitel 18.8).
+
+### 0.6 Was als Erstes zu tun ist
+
+Alle Schritte gehören zu Phase 0, sind in sechs bis acht Werktagen erledigt und enden mit Meilenstein MS0 „Startklar“ (Kapitel 19.9).
+
+1. Blocker aus 0.7 entscheiden, in `config/entscheidungen.md` festhalten.
+2. Anthropic-Zugang: Organisation, Commercial-API-Key, Ausgabenlimit, Auftragsverarbeitungsvertrag; bei Fable 5.1 die 30-Tage-Speicherung aktivieren und testen.
+3. Hetzner CPX22 bestellen: Ubuntu 24.04, SSH-Schlüssel, Nutzer `agent`, Firewall nur SSH.
+4. Kanäle anlegen: Telegram-Bot, E-Mail-Zugang mit Test-Entwurf per IMAP, Adzuna-Konto, Job-Alerts aufs Bewerbungspostfach.
+5. Repos, Projektgerüst und Serverbereitstellung mit Claude Code bauen lassen.
+6. Material sammeln (Lebenslauf, alte Anschreiben, 5 bis 10 Textproben, Zeugnisse, Watchlist mit 20 bis 50 Firmen), Onboarding-Interview in zwei Sitzungen, Profil per Commit freigeben.
+7. Quellen-Smoke-Tests, ATS-Fingerprints, Zeugnisse per OCR aufbereiten.
+
+### 0.7 Die acht Blocker vor Phase 0
+
+Default-Annahmen vollständig in Kapitel 22.1:
+
+1. Zielrolle(n), Branche, Senioritätsstufe – kein Default möglich.
+2. Zielregion(en), Pendeldistanz, Remote – kein Default möglich.
+3. Sprache der Bewerbungen – Deutsch, Englisch nur bei eindeutigem Signal.
+4. Primäres E-Mail-Konto – technologieoffen umgesetzt, iCloud als einfachster Start.
+5. Commercial-API-Key oder persönliches Pro/Max-Abo – Commercial-API-Key.
+6. Hosting: Hetzner-VPS, Mac lokal oder Managed Agents – Hetzner-VPS in Deutschland.
+7. Fable 5.1 mit 30-Tage-Speicherung oder Opus 5 mit Zero Data Retention – Fable 5.1 mit Offenlegung, `MODEL_TOP`-Umschalter bleibt.
+8. Tägliches und monatliches Kostenlimit – Monatsobergrenze spätestens beim Ausgabenlimit in der Anthropic Console setzen.
+
+### 0.8 Grenzen und Risiken
+
+Der ATS-Prüfer testet mit kostenlosen Stellvertretern (Apache Tika, OpenResume-Parser), nicht gegen die realen Parser der Zielsysteme; ein „bestanden“ senkt das Risiko groben Parsing-Versagens, sagt aber nichts über ein Ranking (Kapitel 12.10). Die Stimm-Übertragung aus wenigen Textproben bleibt laut Forschung hinter menschlichem Schreiben zurück, und mehrere zitierte Kennzahlen sind als unbestätigt gekennzeichnet (Kapitel 8.1, 20.1). Größte Betriebsrisiken sind die inoffizielle BA-Jobsuche-API ohne SLA, ungültig werdende Zugangsdaten und der Ermüdungseffekt beim Freigeben – dagegen stehen Checkliste, Wort-Diff und die Regel, dass kein Timeout eine Freigabe ist (Kapitel 20).
+
+**Quellen dieses Kapitels:** keine neuen Fakten; Belege in den zitierten Kapiteln, insbesondere 3.4/3.5, 18.6/18.8, 19.9 und 22.1.
+
+
+---
+
 ## 1. Vision, Ziele, Nicht-Ziele, Erfolgskriterien (KPIs)
 
 ### 1.1 Vision
 
-Der Bewerbungsagent hilft dir, in Deutschland weniger, aber deutlich bessere Bewerbungen zu schreiben – jede davon mit echter Recherche zum Unternehmen unterlegt, in deiner Stimme formuliert und von dir persönlich freigegeben, bevor sie über dein eigenes Postfach versendet wird. Der Markt bewegt sich in die Gegenrichtung: Recruiter bearbeiten laut dem Greenhouse „2025 AI in Hiring Report" (über 4.100 Befragte in den USA, UK, Irland und Deutschland) heute fast dreimal so viele Bewerbungen pro offene Stelle wie 2021, und 91 Prozent haben bereits Täuschungsversuche von Bewerbenden bemerkt [Greenhouse 2025 AI in Hiring Report](https://www.greenhouse.com/newsroom/an-ai-trust-crisis-70-of-hiring-managers-trust-ai-to-make-faster-and-better-hiring-decisions-only-8-of-job-seekers-call-it-fair). Gleichzeitig vertrauen laut einer Gartner-Umfrage (Juli 2025, 3.000 Kandidat:innen) nur 26 Prozent der Bewerbenden darauf, von KI fair bewertet zu werden, und Gartner erwartet, dass bis 2028 weltweit jedes vierte Kandidatenprofil gefälscht ist [Gartner, Juli 2025](https://www.gartner.com/en/newsroom/press-releases/2025-07-31-gartner-survey-shows-just-26-percent-of-job-applicants-trust-ai-will-fairly-evaluate-them). Der Bewerbungsagent positioniert sich bewusst gegen diesen Trend: Er automatisiert Recherche, Bewertung, Schreiben und Formularvorbereitung, aber niemals die Entscheidung, was mit deinem Namen und aus deinem Postfach verschickt wird. Ausführliche Markt- und Wettbewerbsvergleiche stehen in Kapitel 3; die deutschen Erwartungen an Bewerbungsunterlagen in Kapitel 5. Leitsatz bleibt: Qualität statt Masse, mit dem Menschen als letzter und einziger Instanz vor dem Versand.
+Der Bewerbungsagent hilft dir, in Deutschland weniger, aber deutlich bessere Bewerbungen zu schreiben – jede davon mit echter Recherche zum Unternehmen unterlegt, in deiner Stimme formuliert und von dir persönlich freigegeben, bevor sie über dein eigenes Postfach versendet wird. Der Markt bewegt sich in die Gegenrichtung: Recruiter bearbeiten laut dem Greenhouse „2025 AI in Hiring Report" (über 4.100 Befragte in den USA, UK, Irland und Deutschland) heute fast dreimal so viele Bewerbungen pro offene Stelle wie 2021, und 91 Prozent haben bereits Täuschungsversuche von Bewerbenden bemerkt [Greenhouse 2025 AI in Hiring Report](https://www.greenhouse.com/newsroom/an-ai-trust-crisis-70-of-hiring-managers-trust-ai-to-make-faster-and-better-hiring-decisions-only-8-of-job-seekers-call-it-fair). Gleichzeitig vertrauen laut einer Gartner-Umfrage (Erhebung 2. Quartal 2025, 3.000 Kandidat:innen; Pressemitteilung vom 31.07.2025) nur 26 Prozent der Bewerbenden darauf, von KI fair bewertet zu werden, und Gartner erwartet, dass bis 2028 weltweit jedes vierte Kandidatenprofil gefälscht ist [Gartner, Juli 2025](https://www.gartner.com/en/newsroom/press-releases/2025-07-31-gartner-survey-shows-just-26-percent-of-job-applicants-trust-ai-will-fairly-evaluate-them). Der Bewerbungsagent positioniert sich bewusst gegen diesen Trend: Er automatisiert Recherche, Bewertung, Schreiben und Formularvorbereitung, aber niemals die Entscheidung, was mit deinem Namen und aus deinem Postfach verschickt wird. Ausführliche Markt- und Wettbewerbsvergleiche stehen in Kapitel 3; die deutschen Erwartungen an Bewerbungsunterlagen in Kapitel 5. Leitsatz bleibt: Qualität statt Masse, mit dem Menschen als letzter und einziger Instanz vor dem Versand.
 
 ### 1.2 Warum das kein Auto-Apply-Tool ist
 
-Bestehende Auto-Apply-Werkzeuge belegen, wohin reine Volumenstrategie führt: LazyApply steht bei einer Trustpilot-Bewertung von 2,1/5, JobCopilot hat dokumentierte Fälle von Bewerbungen an betrügerische Anzeigen bei einer Callback-Rate unter 2 Prozent, Massive weist 1,8/5 mit belegten Lebenslauf-Halluzinationen auf (Details und weitere Beispiele in Kapitel 3). Das ist kein Zufall, sondern folgt aus dem fehlenden Freigabeschritt und aus generischem Text ohne echte Recherche. Der Bewerbungsagent geht den Gegenweg: Jede Stelle durchläuft die Status-Pipeline (entdeckt → dedupliziert → bewertet → ausgewählt → recherchiert → geschrieben → geprüft → bereit zur Freigabe → freigegeben → gesendet → Rückmeldung → Interview → Absage / Zusage / archiviert, ggf. mit Zwischenstopp „Rückfrage offen"), und der Schritt „bereit zur Freigabe → freigegeben" bleibt ausschließlich Sache des Nutzers – kein Modell, keine Automatisierung, keine Ausnahme.
+Bestehende Auto-Apply-Werkzeuge belegen, wohin reine Volumenstrategie führt: LazyApply steht bei einer Trustpilot-Bewertung von 2,1/5 [Review](https://scoutify.com/blog/lazyapply-review/), JobCopilot hat laut Review-Berichten (mittlere Konfidenz) dokumentierte Fälle von Bewerbungen an betrügerische Anzeigen bei einer Callback-Rate unter 2 Prozent [Review](https://blog.loopcv.pro/jobcopilot-review/), Massive weist 1,8/5 mit belegten Lebenslauf-Halluzinationen auf [Review](https://jobara.ai/blog/use-massive-review) (Details und weitere Beispiele in Kapitel 3). Das ist kein Zufall, sondern folgt aus dem fehlenden Freigabeschritt und aus generischem Text ohne echte Recherche. Der Bewerbungsagent geht den Gegenweg: Jede Stelle durchläuft die Status-Pipeline (entdeckt → dedupliziert → bewertet → ausgewählt → recherchiert → geschrieben → geprüft → bereit zur Freigabe → freigegeben → gesendet → Rückmeldung → Interview → Absage / Zusage / archiviert, ggf. mit Zwischenstopp „Rückfrage offen"), und der Schritt „bereit zur Freigabe → freigegeben" bleibt ausschließlich Sache des Nutzers – kein Modell, keine Automatisierung, keine Ausnahme.
 
 ### 1.3 Messbare Ziele (KPIs)
 
-Die folgenden Kennzahlen werden pro Bewerbung im Tracker erfasst und lassen sich damit fortlaufend auswerten, nicht nur einmalig behaupten. Für zwei Kennzahlen (Rücklaufquote, Interviewquote) konnte die Recherche keine belastbare, auf Individualbewerbungen gegen konkrete Stellenanzeigen in Deutschland übertragbare externe Vergleichszahl liefern – das ist selbst ein Rechercheergebnis (siehe Kapitel 18, Abschnitt zu offenen Datenlücken bei Arbeitsmarktzahlen) und kein Grund, eine Zahl zu erfinden. Diese beiden KPIs werden deshalb gegen die eigene Baseline aus den ersten Wochen gemessen statt gegen einen externen Fixwert.
+Die folgenden Kennzahlen werden pro Bewerbung im Tracker erfasst und lassen sich damit fortlaufend auswerten, nicht nur einmalig behaupten. Für zwei Kennzahlen (Rücklaufquote, Interviewquote) konnte die Recherche keine belastbare, auf Individualbewerbungen gegen konkrete Stellenanzeigen in Deutschland übertragbare externe Vergleichszahl liefern – das ist selbst ein Rechercheergebnis (vgl. Kapitel 5.9 und 5.10, wo die schwache Beleglage zu deutschen Arbeitsmarkt- und Reaktionszeitdaten offengelegt ist) und kein Grund, eine Zahl zu erfinden. Diese beiden KPIs werden deshalb gegen die eigene Baseline aus den ersten Wochen gemessen statt gegen einen externen Fixwert.
 
 | KPI | Definition / Messgröße | Ziel MVP (Wochen 1–4) | Ziel v1 (Monat 2–3) | Tracker-Feld |
 |---|---|---|---|---|
@@ -84,6 +156,9 @@ Ein MVP (Kapitel 19) gilt als erreicht, wenn über mindestens zwei aufeinanderfo
 - Greenhouse, "2025 AI in Hiring Report" – https://www.greenhouse.com/newsroom/an-ai-trust-crisis-70-of-hiring-managers-trust-ai-to-make-faster-and-better-hiring-decisions-only-8-of-job-seekers-call-it-fair
 - Gartner, Pressemitteilung 31.07.2025 zu KI-Vertrauen im Bewerbungsprozess – https://www.gartner.com/en/newsroom/press-releases/2025-07-31-gartner-survey-shows-just-26-percent-of-job-applicants-trust-ai-will-fairly-evaluate-them
 - HR Dive zu gefälschten Kandidatenprofilen (Gartner-Prognose) – https://www.hrdive.com/news/fake-job-candidates-ai/757126/
+- LazyApply Review (Trustpilot 2,1/5) – https://scoutify.com/blog/lazyapply-review/
+- JobCopilot Review (Callback-Rate, Preise) – https://blog.loopcv.pro/jobcopilot-review/
+- Massive Review (Trustpilot 1,8/5, Halluzinationen) – https://jobara.ai/blog/use-massive-review
 - eWeek, Bewerbungen pro Stelle über LinkedIn (116 → 244) – https://www.eweek.com/news/ai-job-applications-linkedin/
 - Robert Half, Initiativbewerbung Erfolgsquote – https://www.roberthalf.com/de/de/insights/bewerbungs-tipps/initiativbewerbung-erster-schritt-zum-traumjob-oder-eher-vergebene-liebesmueh
 - karrierebibel.de, Initiativbewerbung – https://karrierebibel.de/initiativbewerbung/
@@ -236,12 +311,13 @@ Die Frage zur Ansprechperson (Bewerbung Nr. 7) sieht in der Datenbank und in Tel
     {"wert": "Sehr geehrtes Team Recruiting der Beispiel-Zwei GmbH", "konfidenz": 0.95, "quelle": "Fallback"}
   ],
   "blocks_status": "geschrieben",
-  "expires_at": "2026-09-10T06:00:00+02:00",
+  "default_bei_ablauf": "Sehr geehrtes Team Recruiting der Beispiel-Zwei GmbH",
+  "expires_at": "2026-09-09T03:30:00+02:00",
   "status": "offen"
 }
 ```
 
-Antwortest du um 08:20 Uhr per Button, setzt der Orchestrator die Bewerbung sofort fort: Autor, Kritiker, ATS-Prüfer und Setzer laufen für diese eine Stelle nach, und um etwa 08:35 Uhr ist sie „bereit zur Freigabe“. Antwortest du nicht bis zum Ablauf (Default 48 Stunden), verfällt die Frage, die Bewerbung wird mit Hinweis archiviert, und der Fall taucht in der Wochenstatistik auf. Der Agent nimmt nie den erstbesten Vorschlag, weil die Frist abläuft.
+Antwortest du um 08:20 Uhr per Button, setzt der Orchestrator die Bewerbung sofort fort: Autor, Kritiker, ATS-Prüfer und Setzer laufen für diese eine Stelle nach, und um etwa 08:35 Uhr ist sie „bereit zur Freigabe“. Antwortest du nicht, erinnert der Bot einmalig nach vier Stunden und danach täglich im Tagesdigest. Diese Frage hat einen Default (die Team-Anrede, Konfidenz 0,95): Bleibt sie unbeantwortet, löst der nächste Tageslauf sie automatisch mit diesem Default auf und markiert die Stelle zur Kontrolle in der Review-Checkliste. Rückfragen ohne Default – etwa ein Adresskonflikt zwischen Anzeige und Impressum – bleiben dagegen offen, bis du antwortest oder die Bewerbung verwirfst, und werden erst nach fünf Werktagen archiviert. Ein Timeout ist nie eine Freigabe.
 
 **Entscheidung:** Rückfragen blockieren nur die betroffene Bewerbung, nie den Tageslauf. **Begründung:** Eine unklare Anrede darf nicht neun fertige Bewerbungen aufhalten; die Wartezeit auf deine Antwort ist der teuerste Engpass des Systems. **Alternative:** Alle Rückfragen vor dem Schreiben sammeln und den Lauf pausieren; das wäre einfacher zu bauen, würde aber jeden Morgen von deiner Reaktionszeit abhängen.
 
@@ -285,14 +361,13 @@ Außerdem prüft der Nachlauf, welche Bewerbungen seit N Werktagen ohne Rückmel
 | Benachrichtigung | Telegram-Bot plus E-Mail-Digest | Telegram-Bot oder nur E-Mail-Digest (offene Frage) |
 | Nachfassen | Entwurf automatisch angelegt, Freigabe nötig | nur Erinnerung „Nachfassen fällig“ |
 | Lernschleife | Ablehnungsgründe justieren wöchentlich die Scoring-Gewichte (mit Freigabe) | Gründe werden nur gesammelt |
-| Zweitgutachter | optionaler Kurzcheck mit Claude Opus 5 vor Freigabe | entfällt |
 
 Der Tagesablauf, die Checkliste und die Rückfragen sind in beiden Stufen gleich; nur der letzte Meter zur Außenwelt ist im MVP kürzer und liegt vollständig bei dir.
 
 ### 2.13 Default-Annahmen und offene Fragen (für Kapitel 22)
 
 - Versandtage: Dienstag bis Donnerstag in zwei Fenstern (07:00–09:30, 14:00–16:00 Uhr). Auch Montag und Freitag, damit Donnerstags-Freigaben nicht bis Dienstag warten? Default: nein.
-- Ablauf offener Rückfragen: 48 Stunden, danach Archivierung mit Hinweis. Default: 48 Stunden.
+- Ablauf offener Rückfragen: Erinnerung nach 4 Stunden, danach täglich im Digest. Rückfragen mit Default (z. B. Anrede-Fallback „Sehr geehrtes Recruiting-Team [Firma]“) löst der nächste Tageslauf automatisch mit dem Default auf und markiert das in der Review-Checkliste; Rückfragen ohne Default (z. B. Adresskonflikt) bleiben offen und werden nach 5 Werktagen archiviert. Ein Timeout ist nie eine Freigabe.
 - Undo-Fenster nach Freigeben: Default 60 Sekunden.
 - Benachrichtigung: Telegram-Bot plus E-Mail-Digest, oder reicht der Digest? Default: beides.
 - Nachfassen: Default 10 Werktage ohne Rückmeldung, branchenunabhängig.
@@ -368,7 +443,7 @@ Kein Tool in dieser Tabelle kombiniert Auto-Apply, echte Recherche, Pflicht-Frei
 | AIHawk ([GitHub](https://github.com/feder-cr/Jobs_Applier_AI_Agent_AIHawk)) | MIT seit 2.9.2026, ältere Releases bleiben AGPL-3.0 | War LinkedIn-Auto-Apply, jetzt generischer Browser-Agent | Warnsignal, nicht Baustein | Gering (nicht mehr job-spezifisch) |
 | JobSpy ([GitHub](https://github.com/speedyapply/JobSpy)) | MIT | Scraping Indeed/Glassdoor/Google, `country_indeed="Germany"` | Datenquelle für Scout (Kapitel 6, 9) | Gering |
 | Resume-Matcher ([GitHub](https://github.com/srbhr/Resume-Matcher)) | Apache-2.0 | Vektor-Matching Lebenslauf ↔ Stellenanzeige, unterstützt Claude Haiku 4.5 | Referenz für Matcher (Kapitel 9) | Gering |
-| RenderCV ([rendercv.com](https://rendercv.com/)) | MIT | YAML → PDF via Typst, 9 Themes | Direkt einsetzbar im Setzer (Kapitel 13) | Gering |
+| RenderCV ([rendercv.com](https://rendercv.com/)) | MIT | YAML → PDF via Typst, 9 Themes | Referenz für Datenmodell und Typografie des Setzers (Kapitel 13.2); Primär-Renderer ist WeasyPrint | Gering |
 | Reactive Resume ([GitHub](https://github.com/amruthpillai/reactive-resume)) | MIT | Datenmodell, PDF/JSON/DOCX-Export, native Claude-Integration | Referenz für Kandidatenprofil/Setzer | Gering |
 | ApplyPilot ([GitHub](https://github.com/Pickle-Pixel/ApplyPilot)) | AGPL-3.0 | 6-Stufen-Pipeline mit Claude Code CLI + Playwright-MCP | Architektur-Blaupause, nicht Code-Basis | Hoch bei Codeübernahme |
 | OpenResume ([open-resume.com](https://www.open-resume.com/)) | AGPL-3.0 | Clientseitiger ATS-Checker/Builder | Privacy-First-Referenz | Hoch bei Codeübernahme |
@@ -400,14 +475,14 @@ Selbst das technisch potenteste Autofill-Tool im Sample, Simplify Copilot, errei
 
 Die zentrale These des Projekts – Qualität schlägt Volumen – ist nicht nur eine Annahme, sondern in mehreren unabhängigen Studien 2025/2026 belegt:
 
-- Eine vielzitierte StepStone-Studie (2025, angeblich AT/DE, 700 Beschäftigte + 160 HR-Verantwortliche) berichtet, dass 72 % der Recruiter KI-Bewerbungen professioneller finden, aber 63 % sie als weniger individuell und 68 % als weniger authentisch wahrnehmen, und dass 80 % der eingehenden Bewerbungen bestenfalls als mittelmäßig bewertet werden ([StepStone](https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitaet/), [Leadersnet](https://www.leadersnet.de/news/89828,ki-macht-bewerbungen-professioneller-aber-weniger-authentisch.html)). **Unbestätigt:** Der unabhängige Faktencheck konnte die Primärquelle wegen einer blockierten Domain nicht gegenprüfen; die Zahlen sind als Anhaltspunkt, nicht als geprüfter Fakt zu verwenden.
+- Die StepStone-Studie 2025 findet: 69 % der Recruiter empfinden Bewerbungen seit der KI-Welle als weniger individuell, 73 % als weniger authentisch ([StepStone](https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/stepstone-studie-2025-ki-und-jobsuche); siehe auch Kapitel 5.7). Eine österreichische AT/DE-Erhebung derselben Studienreihe (700 Beschäftigte + 160 HR-Verantwortliche) nennt davon abweichende Werte (63 % weniger individuell, 68 % weniger authentisch) sowie 72 % „professioneller" und 80 % „bestenfalls mittelmäßig" – **unbestätigt**, da der unabhängige Faktencheck die AT-Primärquelle wegen einer blockierten Domain nicht gegenprüfen konnte; diese abweichenden Werte dienen nur als Anhaltspunkt, nicht als geprüfter Fakt ([StepStone AT](https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitat/), [Leadersnet](https://www.leadersnet.de/news/89828,ki-macht-bewerbungen-professioneller-aber-weniger-authentisch.html)).
 - Der StepStone Hiring Trends Index (Q1/2025) meldet, dass 81 % der Recruiter einen Rückgang der Bewerbungsqualität beobachten ([StepStone](https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/bewerberqualitaet-steigern)).
 - Der Greenhouse 2025 AI in Hiring Report (über 4.100 Befragte in USA/UK/Irland/Deutschland, Deutschland explizit Teil der Stichprobe) zeigt: Recruiter bearbeiten heute fast dreimal so viele Bewerbungen pro Stelle wie 2021, 91 % haben Bewerber-Täuschung bemerkt, 34 % verbringen bis zu einer halben Woche mit dem Filtern von Spam-/Junk-Bewerbungen ([Greenhouse](https://www.greenhouse.com/newsroom/an-ai-trust-crisis-70-of-hiring-managers-trust-ai-to-make-faster-and-better-hiring-decisions-only-8-of-job-seekers-call-it-fair)).
 - Eine Robert-Half-Umfrage (November 2025, veröffentlicht März 2026, US-Fokus) findet: 67 % der HR-Leiter sagen, die Prüfung KI-generierter Bewerbungen habe den Einstellungsprozess verlangsamt, 84 % berichten höhere Arbeitsbelastung ([Robert Half](https://press.roberthalf.com/2026-03-10-Robert-Half-survey-67-of-HR-leaders-report-AI-generated-applications-are-slowing-hiring)). US-Fokus, aber strukturell übertragbar: Masse erzeugt bei HR-Abteilungen Gegenreaktion statt schnellerer Prozesse.
 - Resume Genius (2026 Hiring Trends Report) findet: 53 % der Hiring Manager nennen „KI-generierten Inhalt" als größtes Red Flag bei Lebensläufen, obwohl 87 % der Unternehmen KI selbst mindestens in einem Teil des Recruitingprozesses einsetzen ([Resume Genius](https://resumegenius.com/blog/ai-impact-on-hiring-2026)). Das Paradox ist die eigentliche Produktanforderung: ATS-optimiert und menschlich-authentisch zugleich, nicht nur eines von beidem.
 - Gartner (2Q25, 3.000 Kandidaten) findet: Nur 26 % der Bewerbenden vertrauen darauf, dass KI sie fair bewertet; Gartner prognostiziert, dass bis 2028 jedes vierte Kandidatenprofil weltweit gefälscht sein könnte ([Gartner](https://www.gartner.com/en/newsroom/press-releases/2025-07-31-gartner-survey-shows-just-26-percent-of-job-applicants-trust-ai-will-fairly-evaluate-them), [HR Dive](https://www.hrdive.com/news/fake-job-candidates-ai/757126/)).
 - LinkedIn verarbeitet nach eigenen Angaben rund 11.000 Bewerbungen pro Minute (plus 45 % gegenüber dem Vorjahr), getrieben vor allem durch KI-gestützte Auto-Apply-Tools; die Bewerbungen pro Stelle stiegen von 116 (2022) auf 244 (2025) ([eWeek](https://www.eweek.com/news/ai-job-applications-linkedin/), [The Interview Guys](https://blog.theinterviewguys.com/the-average-job-opening-now-gets-242-applications/)).
-- Ghost Jobs machen laut mehreren 2025er-Quellen 18–38 % aller Online-Stellenanzeigen aus, im öffentlichen Sektor bis knapp 60 % ([unternehmer.de](https://unternehmer.de/wirtschaft/625515-ghost-jobs-jede-dritte-stellenanzeige-betroffen), [LiveCareer](https://www.livecareer.de/bewerbung/ghost-jobs)). Jede automatisierte Bewerbung ohne Plausibilitätsprüfung verschwendet Recherche- und Schreibaufwand auf ein bis zwei von fünf Stellen.
+- Ghost Jobs machen laut mehreren 2025er-Quellen 18–38 % aller Online-Stellenanzeigen aus, im öffentlichen Sektor bis knapp 60 % ([unternehmer.de](https://unternehmer.de/wirtschaft/625515-ghost-jobs-jede-dritte-stellenanzeige-betroffen), [LiveCareer](https://www.livecareer.de/bewerbung/ghost-jobs)). Alle Zahlen stammen aus US-Erhebungen (Greenhouse-Analyse, LiveCareer-Befragung); eine belastbare deutsche Quote existiert nicht (Kapitel 9.7) – sie dienen nur als Größenordnung, nicht als Prognose für den deutschen Markt. Ohne Plausibilitätsprüfung würde dennoch jede automatisierte Bewerbung Recherche- und Schreibaufwand auf potenziell nie ernsthaft besetzte Stellen verschwenden – der Grund für den Ghost-Job-Filter in Kapitel 9.
 - Auch die Arbeitgeberseite rüstet auf: LinkedIn Hiring Assistant ist seit dem 8. Juni 2026 auf Deutsch verfügbar und wird u. a. bei Siemens und SAP eingesetzt, screent Profile und führt InMail-Vorauswahl durch ([LinkedIn Deutschland](https://www.mynewsdesk.com/de/linkedin-deutschland/pressreleases/schneller-passende-talente-finden-linkedin-startet-hiring-assistant-auf-deutsch-3452429)). Der Qualitätsdruck auf die Bewerberseite steigt weiter, statt Auto-Apply-Volumen zu belohnen.
 
 Deutsche HR-spezifische Zahlen zu Anschreiben-Pflicht, AGG-Konformität und Reaktionszeiten werden in Kapitel 5 behandelt, nicht hier wiederholt.
@@ -427,7 +502,7 @@ Aus 3.1–3.5 folgt eine Marktlücke, die kein untersuchtes Produkt schließt. F
 Aus dem Wettbewerbsvergleich lassen sich konkrete Bars ableiten, unter die das eigene System nicht fallen darf:
 
 - **Formularausfüllung/Test-Parsing besser als 85–90 % Trefferquote** bei modernen ATS (Referenzwert Simplify Copilot bei Greenhouse/Lever) – sonst lohnt sich der Aufwand des ATS-Prüfers (Kapitel 12) nicht gegenüber einer einfachen Browser-Extension.
-- **Jede Bewerbung enthält mindestens zwei bis drei recherchierte, quellenbelegte Fakten** zu Unternehmen/Team/Produkt/aktueller Meldung – das ist die operationalisierte Antwort auf „63 % weniger individuell / 68 % weniger authentisch" und muss im Kritiker-Rubrik (Kapitel 11) hart geprüft werden, nicht optional sein.
+- **Jede Bewerbung enthält mindestens ein bis zwei recherchierte, quellenbelegte Fakten** (KPI-Korridor aus Kapitel 1.3) zu Unternehmen/Team/Produkt/aktueller Meldung – das ist die operationalisierte Antwort auf „69 % weniger individuell / 73 % weniger authentisch" (StepStone 2025, siehe 3.5) und muss im Kritiker-Rubrik (Kapitel 11) hart geprüft werden, nicht optional sein.
 - **Kein Versand ohne bestandene Plausibilitätsprüfung der Zielstelle** (Ghost-Job-Filter) – Referenzschaden: JobCopilot-Bewerbungen an Scam-Anzeigen.
 - **Preis-/Qualitätspositionierung zwischen 9,95 € (erfolgo.de, dokumentiert unzuverlässig) und 99–199 € pro Anschreiben (Bewerbung-Schreiber.com, Mensch-Qualität)** – das System muss näher an der Qualität des teuren Hybrid-Dienstes liegen als an der des Billig-Generators, siehe Kapitel 18 für die tatsächliche Kostenrechnung.
 - **Keine automatisierte LinkedIn-Nutzung, auch nicht lesend** – härter als der Marktstandard (AIHawk und GodsScion weichen dem Problem aus, statt es zu lösen).
@@ -463,7 +538,8 @@ Aus dem Wettbewerbsvergleich lassen sich konkrete Bars ableiten, unter die das e
 - ApplyPilot (GitHub) – https://github.com/Pickle-Pixel/ApplyPilot
 - OpenResume – https://www.open-resume.com/
 - LinkedIn Nutzervereinbarung (verbotene Software) – https://www.linkedin.com/help/linkedin/answer/a1341387/verbotene-software-und-erweiterungen?lang=de-DE
-- StepStone-Studie 2025 – https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitaet/
+- StepStone-Studie 2025 (DE, KI und Jobsuche) – https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/stepstone-studie-2025-ki-und-jobsuche
+- StepStone-Studie 2025 (AT/DE-Erhebung, unbestätigt) – https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitat/
 - Leadersnet zur StepStone-Studie – https://www.leadersnet.de/news/89828,ki-macht-bewerbungen-professioneller-aber-weniger-authentisch.html
 - StepStone Hiring Trends Index – https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/bewerberqualitaet-steigern
 - Greenhouse 2025 AI in Hiring Report – https://www.greenhouse.com/newsroom/an-ai-trust-crisis-70-of-hiring-managers-trust-ai-to-make-faster-and-better-hiring-decisions-only-8-of-job-seekers-call-it-fair
@@ -1175,11 +1251,13 @@ Das Ergebnis der Erkennung (ATS-Typ, Feed-URL, Adapter, letzter erfolgreicher Ab
 
 ### 6.6 Stufenstrategie
 
-| Stufe | Quellen | Abrufschicht | Budget Datenquellen | Ausstiegskriterium |
+| Stufe | Quellen | Abrufschicht | Kosten Datenquellen | Ausstiegskriterium |
 |---|---|---|---|---|
-| MVP (Wochen 1–4) | BA-API; Watchlist-Adapter Personio/Greenhouse/Lever; Adzuna; Arbeitnow; Job-Alert-Mails (Metadaten) | deterministische Python-Adapter, kein Browser | 0 EUR | 20 Werktage stabile Tagesläufe; Abdeckungsmessung mit SerpAPI-Free-Tier dokumentiert |
-| v1 (Monat 2–3) | + SerpAPI 1.000 Suchen/Monat; + Recruitee, SmartRecruiters, Workday, Teamtailor (nach Test); + generischer JSON-LD-Adapter; + Jina/Firecrawl-Fallback ohne Stealth; Einzelabruf nach Nutzerklick | + Web-Fetch/Jina/Firecrawl, Haiku-4.5-Extraktion | ca. 25–41 USD/Monat | Watchlist-Abdeckung ≥ 90 % der Firmen mit funktionierendem Adapter |
-| v2 (Monat 4–6) | + Playwright MCP für einzelne JS-Seiten; + JOIN; optional Apify-Actors oder JSearch nur nach ausdrücklicher Freigabe mit Volumendeckel; Crawl4AI statt Firecrawl, falls Kosten | + Browser für Einzelseiten | ca. 25–60 USD/Monat je Freigabe | siehe Kapitel 19 |
+| MVP (Wochen 1–4) | BA-API; Watchlist-Adapter Personio/Greenhouse/Lever; Adzuna; Arbeitnow; Job-Alert-Mails (Metadaten) | deterministische Python-Adapter, kein Browser | 0 € (Kapitel 18.4) | 20 Werktage stabile Tagesläufe; Abdeckungsmessung mit SerpAPI-Free-Tier dokumentiert |
+| v1 (Monat 2–3) | + SerpAPI 1.000 Suchen/Monat; + Recruitee, SmartRecruiters, Workday, Teamtailor (nach Test); + generischer JSON-LD-Adapter; + Jina/Firecrawl-Fallback ohne Stealth; Einzelabruf nach Nutzerklick | + Web-Fetch/Jina/Firecrawl, Haiku-4.5-Extraktion | siehe Kapitel 18.4/18.6 | Watchlist-Abdeckung ≥ 90 % der Firmen mit funktionierendem Adapter |
+| v2 (Monat 4–6) | + Playwright MCP für einzelne JS-Seiten; + JOIN; optional Apify-Actors oder JSearch nur nach ausdrücklicher Freigabe mit Volumendeckel; Crawl4AI statt Firecrawl, falls Kosten | + Browser für Einzelseiten | siehe Kapitel 18.6 | siehe Kapitel 19 |
+
+Die verbindlichen Euro-Gesamtkosten (inklusive Datenquellen) rechnet Kapitel 18 durch; dieses Kapitel nennt hier keine eigenen, davon abweichenden Monatsbeträge.
 
 **Entscheidung:** Der MVP nutzt ausschließlich Grün-Quellen; Gelb-Quellen kommen erst in v1 nach dokumentierter Abdeckungslücke, Rot-Quellen nie. **Begründung:** Bei rund zehn Bewerbungen am Tag ist Breite weniger wert als Verlässlichkeit; jede Gelb-Quelle bringt Kosten, Parsing-Fragilität und ein Restrisiko, das nur der Nutzer selbst eingehen kann. **Alternative:** Frühstart mit SerpAPI und Apify für maximale Abdeckung ab Tag 1; verworfen, weil Dedup, Scoring und Kritiker zuerst an einer stabilen Quelle reifen sollen.
 
@@ -1245,7 +1323,7 @@ Dieselbe Stelle taucht regelmäßig in BA-API, Google for Jobs, einer Job-Alert-
 1. Dürfen Gelb-Quellen (SerpAPI, später Apify/JSearch) überhaupt genutzt werden? Default: SerpAPI ab v1 ja, Apify/JSearch nein.
 2. Soll der Volltext einer Anzeige aus einer Job-Alert-Mail automatisch nachgeladen werden? Default: nein, nur nach Klick im Review-Cockpit.
 3. Gibt es eine Watchlist von Wunscharbeitgebern und wie groß ist sie? Default: der Nutzer liefert 20 bis 50 Firmen, der Scout schlägt aus BA-Treffern weitere vor.
-4. Welches Monatsbudget für Datenquellen ist akzeptabel? Default: 0 EUR im MVP, bis 41 USD in v1.
+4. Welches Monatsbudget für Datenquellen ist akzeptabel? Default: 0 € im MVP; ab v1 siehe Kostenrahmen in Kapitel 18.4/18.6.
 5. Sind englischsprachige Tech-Rollen relevant (Arbeitnow, Greenhouse/Lever-Schwerpunkt)? Default: ja, bis Zielrollen bekannt sind.
 6. Sollen Ansprechpartner-Namen aus Anzeigen über die einzelne Bewerbung hinaus gespeichert werden? Default: nein, Löschung nach Abschluss.
 
@@ -1334,7 +1412,7 @@ Dieses Kapitel legt den Bauplan fest, nach dem Claude Code den Bewerbungsagenten
 2. **Jede Stelle ist ein Datensatz mit Status.** Es gibt genau eine Status-Pipeline (Abschnitt 7.4), und jeder Übergang wird von einer benannten Komponente ausgelöst und im Ereignisprotokoll festgehalten. Kein Modell setzt einen Status direkt; es liefert strukturierte Ergebnisse, aus denen der Orchestrator den Status ableitet.
 3. **Drittinhalte sind nie vertrauenswürdig.** Stellenanzeigen, Firmenwebseiten und eingehende E-Mails werden dem Modell ausschließlich als gekennzeichnete Werkzeugergebnisse oder Dokumentblöcke übergeben, nie als System- oder Nutzertext; der System-Prompt enthält eine ausdrückliche Regel, eingebettete Anweisungen als zu meldende Information zu behandeln ([Anthropic: Mitigate jailbreaks](https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks)). Details in Abschnitt 7.8.
 4. **Kein Weg nach außen ohne Menschen.** Versand, Portal-Absenden und jede Kontaktaufnahme laufen nur nach Freigabe im Review-Cockpit, und die Freigabe ist ein technischer Zustand in der Datenbank, keine Anweisung im Prompt.
-5. **Zwei Modellschichten.** Günstige Modelle (Haiku 4.5, Sonnet 5) für Masse und Klassifikation, Fable 5.1 für Recherche-Synthese, Schreiben und Kritik. Jeder Modellaufruf hat ein Schema für die Antwort, einen gecachten Präfix und ein Budget.
+5. **Zwei Modellschichten, plus ein getrenntes Grader-Modell.** Günstige Modelle (Haiku 4.5, Sonnet 5) für Masse und Klassifikation, Fable 5.1 für Recherche-Synthese und Schreiben; der Kritiker läuft bewusst auf Opus 5, einem vom Autor getrennten Modell, statt auf Fable 5.1 (Abschnitt 7.6). Jeder Modellaufruf hat ein Schema für die Antwort, einen gecachten Präfix und ein Budget.
 6. **Alles versioniert, Daten getrennt vom Code.** Code, Prompts, Vorlagen und Konfiguration liegen in einem Git-Repository; Kandidatenprofil, Bewerbungsordner und Datenbank in einem zweiten, privaten. So kann der Code später veröffentlicht oder weitergegeben werden, ohne dass Bewerbungsdaten mitwandern.
 7. **Ein Server, eine Datei als Zustand.** Für eine Person mit rund zehn Bewerbungen am Tag reicht ein kleiner Linux-Server mit SQLite. Verteilte Systeme, Workflow-Engines und Vektordatenbanken kommen erst, wenn Messwerte sie rechtfertigen.
 
@@ -1352,13 +1430,13 @@ Dieses Kapitel legt den Bauplan fest, nach dem Claude Code den Bewerbungsagenten
   BA-API, ATS-Feeds,     │    │      Normalisierung · Dedup (datasketch)  ── Haiku 4.5 │
   Adzuna, Job-Alerts     │    ▼                                                       │
                          │  MATCHER ── Muss-Filter (Code) → BM25 (Code) → Judge        │
-                         │    │        (Sonnet 5, Batch API) → Tagesauswahl (Fable 5.1)│
+                         │    │        (Sonnet 5, Batch API) → Tagesauswahl (Sonnet 5) │
                          │    ▼                                                       │
   Web Search / Fetch ◄─► │  RECHERCHEUR (Subagent, Fable 5.1, nur Lesewerkzeuge)      │
   Impressum, Register    │    │        Konfidenzen · Rückfragen → question             │
                          │    ▼                                                       │
-                         │  AUTOR (Fable 5.1) ◄──► KRITIKER (Fable 5.1, frischer Kontext)│
-                         │    │        max. 2 Runden · Claims-Abgleich (Sonnet 5)     │
+                         │  AUTOR (Fable 5.1) ◄──► KRITIKER (Opus 5, frischer Kontext)  │
+                         │    │        max. 2 Runden · Fakten-Check (Sonnet 5)         │
                          │    ▼                                                       │
                          │  ATS-PRÜFER (Code + Haiku 4.5) → SETZER (WeasyPrint,       │
                          │    │        python-docx) → bewerbungen/<id>/render/vN       │
@@ -1370,7 +1448,7 @@ Dieses Kapitel legt den Bauplan fest, nach dem Claude Code den Bewerbungsagenten
   E-Mail-Konto ◄───────► │  BOTE (IMAP-APPEND Entwurf / SMTP nach Freigabe; Playwright │
   (SMTP/IMAP)            │    │        MCP für Portale, v2) ── liest nur final/        │
                          │    ▼                                                       │
-  Antworten (IMAP IDLE)► │  TRACKER (imap_tools, Klassifikation Sonnet 5, Nachfassen) │
+  Antworten (IMAP IDLE)► │  TRACKER (imap_tools, Klassifikation Haiku 4.5, Nachfassen)│
                          │                                                            │
                          │  Daten: SQLite (WAL) · bewerbungen-data (Git) · profil/    │
                          │  Secrets: sops+age → Umgebungsvariablen (nie im Kontext)   │
@@ -1620,7 +1698,7 @@ stateDiagram-v2
     recherchiert --> geschrieben: Autor
     geschrieben --> geprüft: Kritiker + ATS-Prüfer
     geprüft --> geschrieben: Kritiker fordert Überarbeitung
-    geprüft --> bereit_zur_Freigabe: Setzer (render ok)
+    geprüft --> bereit_zur_Freigabe: Orchestrator (Setzer-QA + ATS-Prüfer Stufe 2 grün)
     bereit_zur_Freigabe --> freigegeben: Nutzer im Cockpit
     bereit_zur_Freigabe --> geschrieben: Nutzer: zurück an Autor
     bereit_zur_Freigabe --> archiviert: Nutzer verwirft
@@ -1645,7 +1723,7 @@ stateDiagram-v2
 | ausgewählt → recherchiert | Rechercheur | Dossier mit Konfidenzen liegt vor; Anschrift oder Ansprechperson unter Schwelle → `rueckfrage_offen` | Tageslauf |
 | recherchiert → geschrieben | Autor | Anschreiben, Lebenslauf-Variante, `claims` vollständig | Tageslauf |
 | geschrieben → geprüft | Kritiker, ATS-Prüfer | Rubrik bestanden (Kapitel 11), Keyword-/Format-Check bestanden (Kapitel 12); sonst zurück nach geschrieben, höchstens zwei Runden | Tageslauf |
-| geprüft → bereit zur Freigabe | Setzer | PDF/DOCX gerendert, QA bestanden, `review_item` angelegt | Tageslauf |
+| geprüft → bereit zur Freigabe | Orchestrator | PDF/DOCX gerendert; Setzer-QA grün (Kapitel 13.10) UND ATS-Prüfer-Stufe 2 grün (Kapitel 12.6); `review_item` angelegt | Tageslauf |
 | bereit zur Freigabe → freigegeben | Nutzer | Checkliste vollständig, Klick „Freigeben“; Kopie nach `final/`, Hashes gespeichert | Cockpit |
 | freigegeben → gesendet | Bote | Versandfenster erreicht, Hash von `final/` stimmt, `review_item.status = freigegeben` | Versandlauf |
 | gesendet → Rückmeldung / Interview / Absage | Tracker, Nutzer | eingehende Mail einem `message_id`-Thread zugeordnet und klassifiziert; Nutzer bestätigt | Nachlauf |
@@ -1663,7 +1741,7 @@ Es gibt drei geplante Läufe und einen Dauerprozess. Alle Zeiten in Europe/Berli
 | 05:30 Mo–Fr | Tageslauf, Teil 2 | Batch-Ergebnis abholen (Fallback: synchron für die Top-40 nach Vorauswahl-Score), Tagesauswahl, Rechercheur (parallel, max. 3 gleichzeitig), Autor, Kritiker, ATS-Prüfer, Setzer, Review-Items anlegen, Benachrichtigung | 45–75 min |
 | 07:00 Di–Do | Versandlauf | freigegebene Bewerbungen im Fenster 07:00–09:30 mit Zufallsversatz senden bzw. als Entwurf ablegen; optional zweites Fenster 14:00–16:00 | Minuten |
 | alle 2 h, 08–20 Uhr | Nachlauf | neue Antworten klassifizieren, Nachfass-Fälligkeiten prüfen, Rückfragen-Erinnerungen | Minuten |
-| 22:00 So | Wartung | Backup, Archivierung nach Fristen, Löschkonzept (Kapitel 16), Wochenstatistik, Kostenabgleich mit Usage-API | Minuten |
+| 22:00 So | Wartung | Backup, Archivierung nach Fristen, Löschkonzept (Kapitel 16), Wochenstatistik, Kostenabgleich mit Usage-API, Hänger-Check (> 48 h im selben Nicht-Endstatus ohne `rueckfrage_offen`) | Minuten |
 | dauerhaft | Tracker-Daemon | IMAP IDLE auf dem Bewerbungspostfach ([imap_tools](https://github.com/ikvk/imap_tools)); neue Mail → Nachlauf sofort | – |
 
 Das Versandfenster folgt der HR-Ratgeberheuristik „Dienstag bis Donnerstag, früh am Morgen“ mit Jitter von 15 bis 40 Minuten, damit kein exaktes Cron-Muster erkennbar ist ([arwa.de](https://arwa.de/de/blog/wann-sollte-man-eine-bewerbung-abschicken); Konfidenz niedrig, es ist eine Heuristik, keine Studie). Das Tageslimit für Versand liegt bei 10 (konfigurierbar, hart im Bote geprüft).
@@ -1690,7 +1768,7 @@ Type=oneshot
 User=agent
 WorkingDirectory=/srv/bewerbungsagent
 ExecStart=/usr/bin/sops exec-env config/secrets.enc.yaml \
-  '/srv/bewerbungsagent/.venv/bin/bewerbungsagent tageslauf --teil 2 --budget-usd 10'
+  '/srv/bewerbungsagent/.venv/bin/bewerbungsagent tageslauf --teil 2 --budget-usd 45'
 TimeoutStartSec=2h
 ```
 
@@ -1699,7 +1777,7 @@ TimeoutStartSec=2h
 ```cron
 CRON_TZ=Europe/Berlin
 30 3  * * *    sops exec-env config/secrets.enc.yaml 'bewerbungsagent tageslauf --teil 1'
-30 5  * * 1-5  sops exec-env config/secrets.enc.yaml 'bewerbungsagent tageslauf --teil 2 --budget-usd 10'
+30 5  * * 1-5  sops exec-env config/secrets.enc.yaml 'bewerbungsagent tageslauf --teil 2 --budget-usd 45'
 0  7  * * 2-4  sops exec-env config/secrets.enc.yaml 'bewerbungsagent versand --fenster 07:00-09:30 --jitter 15-40'
 0  8-20/2 * * * sops exec-env config/secrets.enc.yaml 'bewerbungsagent nachlauf'
 0  22 * * 0    sops exec-env config/secrets.enc.yaml 'bewerbungsagent wartung'
@@ -1708,6 +1786,8 @@ CRON_TZ=Europe/Berlin
 Zum Vergleich die Alternative als Managed-Agents-Scheduled-Deployment: echte Cron-Ausdrücke mit Minutengranularität und IANA-Zeitzone, Jitter bis 15 Prozent (mindestens 5 Sekunden, höchstens 9 Minuten), Budget je gestarteter Session ([Scheduled Deployments](https://platform.claude.com/docs/en/managed-agents/scheduled-deployments)). Das ist der Migrationspfad für v1 (Abschnitt 7.10), nicht der MVP.
 
 **Idempotenz und Wiederanlauf.** Jeder Lauf bekommt eine `run.id`; jeder Schritt prüft am Status, was schon erledigt ist, und macht nur den Rest. Ein abgebrochener Tageslauf kann mit `bewerbungsagent tageslauf --teil 2 --resume <run_id>` fortgesetzt werden. Der Orchestrator bricht ab, wenn `spent_usd` das Lauf-Budget erreicht, und markiert den Lauf als `budget_erreicht`; die noch nicht bearbeiteten Bewerbungen bleiben in ihrem Status und werden am nächsten Tag zuerst behandelt.
+
+**Fehlerbenachrichtigung.** Budgetabbruch ist nicht das einzige Fehlerbild: Ein Lauf kann auch gar nicht erst starten (z. B. Secrets nicht entschlüsselbar) oder mittendrin abstürzen, bevor die reguläre Telegram-Zusammenfassung am Laufende verschickt wird (Abschnitt 7.7.7). Deshalb bekommt jede der fünf Service-Units eine `OnFailure=bewerbungsagent-alarm@%n.service`-Unit, die unabhängig vom Hauptlauf über denselben Kanal (Telegram-Bot und E-Mail-Digest) eine kurze Meldung „Lauf <kind> fehlgeschlagen, siehe Journal“ verschickt. Der Wartungslauf prüft zusätzlich, ob ein Datensatz länger als 48 Stunden im selben Nicht-Endstatus verharrt, ohne dass `rueckfrage_offen` gesetzt ist, und meldet das als Warnung im Cockpit statt es stillschweigend liegen zu lassen.
 
 ### 7.6 Agenten-Rollen: Subagents, Skills, Modelle, effort
 
@@ -1718,23 +1798,29 @@ Zum Vergleich die Alternative als Managed-Agents-Scheduled-Deployment: echte Cro
 | Scout: Abruf, Normalisierung | Code (Adapter) | – | – | HTTP, Feeds | Rohtreffer |
 | Scout: Extraktion unstrukturierter Anzeigen | Messages API, Batch | Haiku 4.5 | – (kein effort-Parameter) | keine | `description_norm` |
 | Scout: Dedup-Zweifelsfälle | Messages API | Haiku 4.5 | – | keine | `{gleiche_stelle: bool, grund}` |
+| Scout: Injection-Screen (Abschnitt 7.8, Regel 5) | Messages API | Haiku 4.5 | – | keine | `signals.injection`, `signals.scam` |
 | Matcher: Muss-Filter, BM25 | Code | – | – | – | Kandidatenliste |
 | Matcher: Judge (Rubrik) | Messages API, **Batch** | Sonnet 5 | medium | keine | Score je Kriterium, Begründung, fehlende Angaben |
-| Matcher: Tagesauswahl-Begründung | Messages API | Fable 5.1 | medium | keine | Rangfolge Top-10 mit Erklärung, Diversitätskappung |
+| Matcher: Tagesauswahl-Begründung | Messages API | Sonnet 5 | medium | keine | Rangfolge Top-10 mit Erklärung, Diversitätskappung |
 | Rechercheur | Subagent (Agent SDK) | Fable 5.1 | high | web_search (max_uses 8, allowed_domains), web_fetch, BA-/Register-Tools nur lesend | Dossier mit Konfidenzen, `question`-Einträge |
-| Autor | Subagent (Agent SDK) | Fable 5.1 | xhigh (Erstentwurf), high (Überarbeitung) | Read (Profil, Story-Bank, Dossier), Skills | Anschreiben, Lebenslauf-Variante, `claims`, `story_ids` |
-| Kritiker | Subagent, frischer Kontext | Fable 5.1 | high | Read | Rubrik-Bewertung, Änderungsforderungen |
-| Kritiker: Claims-Abgleich | Messages API | Sonnet 5 | low | keine | je Claim: belegt / nicht belegt / übertrieben |
-| Kritiker: Zweitgutachter (vor Freigabe) | Messages API | Opus 5 | medium | keine | Kurzurteil, optional |
+| Autor: Briefing (Kapitel 11.8, Schritt 1) | Messages API | Sonnet 5 | medium | keine | `briefing.json` |
+| Autor: Entwürfe, Überarbeitung, Lebenslauf-Tailoring | Subagent (Agent SDK) | Fable 5.1 | high (Entwürfe), medium (Überarbeitung, Tailoring) | Read (Profil, Story-Bank, Dossier), Skills | Anschreiben, Lebenslauf-Variante, `claims`, `story_ids` |
+| Kritiker: Rubrik | Subagent, frischer Kontext | Opus 5 | high | Read | Rubrik-Bewertung, Änderungsforderungen |
+| Kritiker: Fakten-Check gegen Story-Bank | Messages API | Sonnet 5 | medium | keine | je Claim: belegt / nicht belegt / übertrieben |
+| Kritiker: Stimm-Check und Leser-Test (Kapitel 11.8, Schritt 6) | Subagent, frischer Kontext | Opus 5 | medium | Read | Stimm-Score, Recruiter-Eindruck |
+| Kritiker: Konsistenz-Check (Kapitel 11.8, Schritt 7) | Code + Messages API | Haiku 4.5 | low | keine | Abgleich Anzeige/Lebenslauf/Anschreiben |
 | ATS-Prüfer: Keyword-Extraktion | Messages API | Haiku 4.5 | – | keine | Keyword-Liste mit Synonymen |
-| ATS-Prüfer: Format, Test-Parsing | Code | – | – | pdftotext, Tika | Bericht |
+| ATS-Prüfer: Format, Test-Parsing | Code | – | – | pdftotext, Tika, OpenResume | Bericht |
+| ATS-Prüfer: Lesetest „Lies wie ein ATS“ (Kapitel 12.7, 12.9) | Messages API | Sonnet 5 | – | keine | Feldliste, `unknown`-Marker |
 | Setzer | Code | – | – | WeasyPrint, python-docx | PDF, DOCX |
 | Review-Cockpit | Code (Web-App, Telegram-Bot) | – | – | – | Freigaben, Feedback |
 | Bote | Code | – | – | IMAP/SMTP, Playwright MCP (v2) | Sendeprotokoll |
-| Tracker: Antwort-Klassifikation | Messages API | Sonnet 5 | low | keine | `{kategorie, konfidenz, aktion, termin}` |
+| Tracker: Antwort-Klassifikation (Kapitel 15.6) | Messages API | Haiku 4.5, Eskalation Sonnet 5 unter Konfidenz 0,7 | – | keine | `{kategorie, konfidenz, aktion, termin}` |
 | Orchestrator | Code | – | – | – | Läufe, Budget, Protokoll |
 
-**Warum so.** Die Zuordnung folgt dem Styleguide: Fable 5.1 dort, wo Nuance zählt, günstige Modelle für Masse. Der Kritiker läuft in einem frischen Kontext mit eigenem System-Prompt, damit er nicht die Annahmen des Autors erbt; für den letzten Blick vor der Freigabe empfiehlt Anthropics Eval-Doku ausdrücklich ein anderes Modell als Grader als das, das den Text erzeugt hat ([Anthropic: Develop tests](https://platform.claude.com/docs/en/test-and-evaluate/develop-tests)) – daher der optionale Zweitgutachter auf Opus 5 ($5/$25 pro 1M Token). Effort-Werte sind Startwerte: Der Parameter steuert Denktiefe und Tokenverbrauch, nicht die Länge der Antwort; Wortgrenzen für das Anschreiben gehören in den Prompt ([Effort-Doku](https://platform.claude.com/docs/en/build-with-claude/effort)). Für Fable 5.1 ist Thinking immer aktiv; die Tiefe wird ausschließlich über `effort` (low bis max) gesteuert.
+**Warum so.** Die Zuordnung folgt dem Styleguide: Fable 5.1 für Recherche und Schreiben, wo Nuance zählt, günstige Modelle für Masse und Klassifikation. Der Kritiker läuft in einem frischen Kontext mit eigenem System-Prompt, damit er nicht die Annahmen des Autors erbt; für den letzten Blick vor der Freigabe empfiehlt Anthropics Eval-Doku ausdrücklich ein anderes Modell als Grader als das, das den Text erzeugt hat ([Anthropic: Develop tests](https://platform.claude.com/docs/en/test-and-evaluate/develop-tests)) – deshalb läuft der Kritiker selbst auf Opus 5 ($5/$25 pro 1M Token), getrennt vom Autor-Modell Fable 5.1, und nicht als zusätzlicher Zweitgutachter obendrauf. Opus 5 ist zudem nicht an die 30-Tage-Speicherpflicht von Fable 5.1 gebunden (siehe unten, „Datenhaltung bei Anthropic“). Effort-Werte sind Startwerte: Der Parameter steuert Denktiefe und Tokenverbrauch, nicht die Länge der Antwort; Wortgrenzen für das Anschreiben gehören in den Prompt ([Effort-Doku](https://platform.claude.com/docs/en/build-with-claude/effort)). Für Fable 5.1 ist Thinking immer aktiv; die Tiefe wird ausschließlich über `effort` (low bis max) gesteuert.
+
+**Fehlerbilder der Subagents.** Drei Fälle sind vorgesehen, nicht nur der Budgetabbruch aus Abschnitt 7.5: Erreicht ein Subagent `maxTurns`, ohne fertig zu sein, übernimmt der Orchestrator das bisherige Ergebnis mit `unvollstaendig=true` und schreibt eine Warnung ins `event_log`, statt den Datensatz weiterzuschieben. Verletzt eine Antwort das JSON-Schema auch nach den automatischen Wiederholungen des Agent SDK, bricht der Aufruf mit einem `event_log`-Fehler ab, und der Datensatz bleibt im vorigen Status. Liefert Fable 5.1 `stop_reason: refusal`, wiederholt der Orchestrator denselben Aufruf mit Opus 5 und protokolliert den Fall (Kapitel 11.10). In keinem der drei Fälle setzt ein Modell selbst einen Status weiter; das bleibt dem Orchestrator vorbehalten (Prinzip 2, Abschnitt 7.1).
 
 **Beispiel einer Subagent-Definition** (Dateiform, versioniert im Repo; Felder laut [Subagent-Doku](https://code.claude.com/docs/en/sub-agents)):
 
@@ -1793,7 +1879,7 @@ batch = client.messages.batches.create(
 )
 ```
 
-**Datenhaltung bei Anthropic.** Fable 5.1 ist ein „Covered Model“: 30 Tage Datenspeicherung sind Pflicht, Zero Data Retention gibt es nur mit ausdrücklicher Freigabe; Opus 5, Sonnet 5 und Haiku 4.5 sind davon nicht betroffen ([API and data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)). Das ist eine Entscheidung des Nutzers (Kapitel 16, Kapitel 22): Default ist Fable 5.1 für Rechercheur, Autor und Kritiker; per Konfigurationsschalter `MODEL_TOP=claude-opus-5` lässt sich das System ohne Codeänderung auf ein ZDR-fähiges Spitzenmodell umstellen.
+**Datenhaltung bei Anthropic.** Fable 5.1 ist ein „Covered Model“: 30 Tage Datenspeicherung sind Pflicht, Zero Data Retention gibt es nur mit ausdrücklicher Freigabe; Opus 5, Sonnet 5 und Haiku 4.5 sind davon nicht betroffen ([API and data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)). Das ist eine Entscheidung des Nutzers (Kapitel 16, Kapitel 22): Default ist Fable 5.1 für Rechercheur und Autor; der Kritiker läuft bereits standardmäßig auf dem ZDR-fähigen Opus 5, getrennt vom Autor-Modell. Per Konfigurationsschalter `MODEL_TOP=claude-opus-5` lässt sich das System ohne Codeänderung auch für Rechercheur und Autor auf das ZDR-fähige Spitzenmodell umstellen (Fall ohne 30-Tage-Speicherung).
 
 ### 7.7 Tech-Stack-Entscheidungen
 
@@ -1816,11 +1902,11 @@ batch = client.messages.batches.create(
 | Desktop-Scheduled-Tasks / `/loop` | lokal, minütlich | Permission-Modus konfigurierbar | lokale Dateien | Abo | Rechner muss laufen; für Tests, nicht für Betrieb |
 | Claude Cowork | Tages-/Wochenaufgaben | Nutzer sieht Ergebnisse | Ordnerzugriff | ab Pro-Abo | pragmatisch für Nicht-Entwickler, aber nicht scriptbar/prüfbar |
 | n8n Community Edition | Cron/Webhooks | Bausteine | eigene DB | kostenlos self-hosted (Sustainable-Use-Lizenz) | allenfalls Glue-Schicht, kein Ersatz für Subagents/Hooks |
-| Temporal, Trigger.dev, Inngest, LangGraph, CrewAI | reich | eigen | eigen | frei bis $75/Monat | vermeiden: Betriebs- und Lernaufwand ohne Nutzen bei einem Lauf am Tag |
+| Temporal, Trigger.dev, Inngest, LangGraph, CrewAI | reich | eigen | eigen | frei bis ca. $75/Monat (unbestätigt, Preise in dieser Recherche nicht geprüft) | vermeiden: Betriebs- und Lernaufwand ohne Nutzen bei einem Lauf am Tag |
 
 Belege: Managed-Agents-Preise und Budgetlogik ([Budgets](https://platform.claude.com/docs/en/managed-agents/budgets), [Preise](https://platform.claude.com/docs/en/about-claude/pricing)), Memory Stores ([Memory](https://platform.claude.com/docs/en/managed-agents/memory)), Vaults ([Vaults](https://platform.claude.com/docs/en/managed-agents/vaults)), Routines ([Routines](https://code.claude.com/docs/en/routines)), Desktop-Tasks ([Desktop scheduled tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks)), Cowork ([Cowork](https://claude.com/product/cowork)), n8n ([n8n](https://github.com/n8n-io/n8n)), Workflow-Engines ([Temporal](https://github.com/temporalio/temporal), [Trigger.dev](https://github.com/triggerdotdev/trigger.dev), [Inngest](https://github.com/inngest/inngest)), Agent-Frameworks ([CrewAI](https://github.com/crewAIInc/crewAI), [LangGraph](https://github.com/langchain-ai/langgraph)).
 
-**Entscheidung:** Zwei Schichten auf einem eigenen Server. (1) Das `anthropic`-Python-SDK für alle zustandslosen, schemagebundenen Aufrufe (Extraktion, Dedup-Zweifelsfälle, Judge im Batch, Claims-Abgleich, Antwort-Klassifikation). (2) Das Claude Agent SDK für die drei Werkzeug-Rollen Rechercheur, Autor, Kritiker mit Subagents, Skills, Hooks und `canUseTool`. Abrechnung über einen Commercial-API-Key, nicht über das persönliche Claude-Abo.
+**Entscheidung:** Zwei Schichten auf einem eigenen Server. (1) Das `anthropic`-Python-SDK für alle zustandslosen, schemagebundenen Aufrufe (Extraktion, Dedup-Zweifelsfälle, Judge im Batch, Fakten-Check, Antwort-Klassifikation). (2) Das Claude Agent SDK für die drei Werkzeug-Rollen Rechercheur, Autor, Kritiker mit Subagents, Skills, Hooks und `canUseTool`. Abrechnung über einen Commercial-API-Key, nicht über das persönliche Claude-Abo.
 
 **Begründung:** Die Batch API mit 50 Prozent Rabatt und die feinkörnige Cache-Steuerung gibt es nur über die Messages API; die Werkzeugschleife mit isolierten Subagents, Permission-Regeln in sechs Stufen (Hooks → Deny → Ask → Modus → Allow → `canUseTool`) und Dateisystem-Skills gibt es fertig nur im Agent SDK ([Permissions](https://code.claude.com/docs/en/agent-sdk/permissions), [Hooks](https://code.claude.com/docs/en/hooks)). Managed Agents ist funktional reicher (Vaults, Budgets, Memory, Webhooks), aber Beta mit veränderlichem Verhalten, ohne Batch-Rabatt, und die Session-API ist eine zweite Programmierweise, die der Auftraggeber lernen müsste ([Managed Agents Overview](https://platform.claude.com/docs/en/managed-agents/overview)). Routines starten ohne Permission-Prompts aus einem frischen Klon; für einen Schritt mit Außenwirkung ist das ein Sicherheitsrisiko, und verbundene Connectors dürfen während eines Laufs ohne Nachfrage schreiben ([Routines](https://code.claude.com/docs/en/routines)). Zum API-Key: Laut Recherche untersagen die Consumer-Bedingungen die Nutzung von Abo-OAuth-Tokens in Drittprodukten wie dem Agent SDK (Durchsetzungsdetails unbestätigt); unabhängig davon ist ein separater Key mit eigenem Budget planbarer, weil Abo-Nutzung sonst mit der eigenen interaktiven Claude-Code-Arbeit um dieselben Limits konkurriert.
 
@@ -1830,7 +1916,7 @@ Belege: Managed-Agents-Preise und Budgetlogik ([Budgets](https://platform.claude
 
 **Entscheidung:** Hetzner Cloud CPX22 (2 vCPU, 4 GB RAM, 80 GB NVMe) in Falkenstein oder Nürnberg, Ubuntu 24.04 LTS, ein Systemnutzer `agent`, Zugriff nur per SSH-Schlüssel, Review-Cockpit nur über SSH-Tunnel oder VPN erreichbar, kein öffentlicher Port außer SSH.
 
-**Begründung:** Der Server läuft dauerhaft (Tracker-Daemon, Cockpit), speichert Bewerbungsdaten in der EU und kostet nach der Hetzner-Preiserhöhung vom 15. Juni 2026 rund 19,50 bis 20 € im Monat (Quellen nennen 19,49 € bzw. 19,99 €; vor Bestellung im Konfigurator prüfen; [Hetzner-Preisanpassung](https://docs.hetzner.com/de/general/infrastructure-and-availability/price-adjustment/), [Northflank-Übersicht](https://northflank.com/blog/hetzner-cloud-server-price-increases)). Die früher oft zitierten CX22/CAX11-Kampfpreise sind nach der Erhöhung überholt (CX23 3,99 → 5,49 €, CAX11 4,49 → 5,99 €); ob diese Linien noch bestellbar sind, war nicht belegbar. 4 GB reichen für Python, SQLite, WeasyPrint und einen gelegentlichen Playwright-Browser; ein lokales Embedding-Modell wie BGE-M3 (Kapitel 9) braucht spürbar mehr Arbeitsspeicher und ist im MVP nicht vorgesehen (Abschnitt 7.7.4).
+**Begründung:** Der Server läuft dauerhaft (Tracker-Daemon, Cockpit), speichert Bewerbungsdaten in der EU und kostet nach der Hetzner-Preiserhöhung vom 15. Juni 2026 rund 19,50 bis 20 € im Monat (Quellen nennen 19,49 € bzw. 19,99 €; vor Bestellung im Konfigurator prüfen; [Hetzner-Preisanpassung](https://docs.hetzner.com/de/general/infrastructure-and-availability/price-adjustment/), [Northflank-Übersicht](https://northflank.com/blog/hetzner-cloud-server-price-increases)). Die früher oft zitierten CX22/CAX11-Kampfpreise sind nach der Erhöhung überholt (CX23 3,99 → 5,49 €, CAX11 4,49 → 5,99 €); ob diese Linien noch bestellbar sind, war nicht belegbar. Der MVP betreibt auf diesen 4 GB mehrere Dienste gleichzeitig: Python/SQLite/WeasyPrint und einen gelegentlichen Playwright-Browser, dazu für das Test-Parsing (Kapitel 12) `tika-server` (JVM) und den OpenResume-Parser (Node, `localhost:3000`) sowie für die DOCX-Prüfung (Kapitel 13.10) LibreOffice headless. Damit das nicht knapp wird, laufen `tika-server`, OpenResume und LibreOffice nicht dauerhaft, sondern werden je Renderlauf gestartet und danach wieder beendet (systemd `Type=oneshot` bzw. bedarfsweise aus dem Setzer/ATS-Prüfer-Code heraus); dauerhaft aktiv sind nur der Orchestrator-/Cockpit-Prozess und der Tracker-Daemon. Ein lokales Embedding-Modell wie BGE-M3 und spaCy `de_core_news_lg` (541 MB, [spaCy-Modelle](https://github.com/explosion/spacy-models/releases/tag/de_core_news_lg-3.8.0)) brauchen spürbar mehr Arbeitsspeicher und sind im MVP nicht vorgesehen, sondern erst für v1 (Abschnitt 7.7.4, Kapitel 9). Zeigt der Betrieb anhaltenden Speicherdruck, ist der nächstgrößere Hetzner-Plan (z. B. CPX32 mit 8 GB RAM; Preis vor Bestellung im Konfigurator prüfen) die Ausweichoption.
 
 **Alternativen:** (a) Fly.io shared-cpu-1x/1 GB für rund 5,70–5,92 $/Monat (unbestätigt) mit Git-Push-Deploy, dafür US-Firma und weniger Kontrolle. (b) Der eigene Mac mit Desktop-Scheduled-Tasks und Keychain: kostenlos, lokale Dateien, aber der Rechner muss zu den Laufzeiten wach sein ([Desktop scheduled tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks)); gut für die Entwicklungsphase, nicht für den Betrieb. (c) Managed-Agents-Sandbox (Ubuntu 24.04, bis 8 GB RAM, 10 GB Disk, Python, Node, Playwright mit Chromium, LibreOffice, Poppler, TeX Live vorinstalliert; [Cloud Sandboxes](https://platform.claude.com/docs/en/managed-agents/cloud-sandboxes-reference)) – kein eigener Server, aber Beta und ohne persistente Datenbank zwischen Sessions außer Memory Stores.
 
@@ -1864,7 +1950,7 @@ Belege: Managed-Agents-Preise und Budgetlogik ([Budgets](https://platform.claude
 
 **Entscheidung:** Im MVP ist `event_log` die Observability: jeder Modell- und Werkzeugaufruf mit Tokens, Cache-Treffern, Kosten und Dauer; dazu JSONL-Transkripte der Agent-SDK-Sessions, die das SDK ohnehin unter `~/.claude/projects/` ablegt ([Session storage](https://code.claude.com/docs/en/agent-sdk/session-storage)). In v1 kommt Arize Phoenix hinzu: `pip install arize-phoenix`, SQLite-Backend, OpenTelemetry/OpenInference mit nativer Anthropic-Instrumentierung ([Phoenix](https://github.com/Arize-ai/phoenix)). Langfuse wird verworfen: Self-Hosting verlangt laut eigener Doku 4+ CPU-Kerne, 16 GiB RAM und rund 100 GiB Speicher (Postgres, ClickHouse, Redis, S3) – ein zweiter, größerer Server nur für Tracing ([Langfuse Self-Hosting](https://langfuse.com/self-hosting)).
 
-**Kostenkontrolle in drei Stufen:** (1) Budget je Lauf (`--budget-usd`, Default 10 USD für Teil 2 des Tageslaufs; Vorschlag, in Kapitel 22 zu bestätigen), das der Orchestrator aus `response.usage` mitrechnet und hart durchsetzt; im Agent SDK zusätzlich `max_budget_usd` je Session ([Cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking)). (2) Wochenabgleich mit der Usage-and-Cost-API in der Wartung. (3) Ausgabenlimit im Anthropic-Konto als letzte Sicherung. Beim Schätzen ist zu beachten, dass die Modelle ab Claude 4.7 (also Opus 5, Sonnet 5, Fable 5.x) einen Tokenizer nutzen, der für denselben Text rund 30 Prozent mehr Tokens erzeugt ([Preise](https://platform.claude.com/docs/en/about-claude/pricing)); Kapitel 18 rechnet damit.
+**Kostenkontrolle in drei Stufen:** (1) Budget je Lauf (`--budget-usd`, Default 45 USD für Teil 2 des Tageslaufs; Vorschlag, in Kapitel 22 zu bestätigen), das der Orchestrator aus `response.usage` mitrechnet und hart durchsetzt; im Agent SDK zusätzlich `max_budget_usd` je Session ([Cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking)). Der Wert ist an Kapitel 18.2 angelehnt: Dort kostet die Bewerbungs-Pipeline für zehn Bewerbungen im „empfohlen“-Szenario rund 37 USD, im „maximal“-Szenario rund 52 USD; 45 USD decken das Standardszenario mit Puffer, wer durchgängig „maximal“ fährt, muss den Wert in `config/zeitplan.yaml` höher setzen. (2) Wochenabgleich mit der Usage-and-Cost-API in der Wartung. (3) Ausgabenlimit im Anthropic-Konto als letzte Sicherung. Beim Schätzen ist zu beachten, dass die Modelle ab Claude 4.7 (also Opus 5, Sonnet 5, Fable 5.x) einen Tokenizer nutzen, der für denselben Text rund 30 Prozent mehr Tokens erzeugt ([Preise](https://platform.claude.com/docs/en/about-claude/pricing)); Kapitel 18 rechnet damit.
 
 **Benachrichtigung:** Am Ende von Teil 2 schickt der Orchestrator eine Zusammenfassung („7 Bewerbungen bereit zur Freigabe, 2 Rückfragen, Kosten 6,40 USD“) über den Telegram-Bot des Cockpits (Abschnitt 7.7.8) und als E-Mail-Digest über dasselbe Postfach als Rückfallkanal. Slack- oder Telegram-MCP-Server für das Modell sind nicht nötig; der Bot ist gewöhnlicher Code ohne Modellzugriff.
 
@@ -1949,7 +2035,11 @@ bewerbungsagent/                      # Code-Repository (Git, privat; später ve
 │   ├── watchlist.yaml
 │   ├── zeitplan.yaml                 # Fenster, Jitter, Tageslimit, Budgets
 │   ├── modelle.yaml                  # Modell + effort je Rolle, MODEL_TOP-Schalter
-│   ├── rubrik.yaml                   # Bewertungskriterien Matcher/Kritiker
+│   ├── rubrik.yaml                   # Kritiker-Rubrik K1–K7 (Kapitel 11.9)
+│   ├── scoring.yaml                  # Matcher-Gewichte/Schwellen (Kapitel 9.5), Dedup-Schwellen (Kapitel 6, 9), Diversitätskappung (9.8)
+│   ├── ats_rules.yaml                # Schreibregeln und harte Prüfpunkte des Kritikers/ATS-Prüfers (Kapitel 4, 11.1)
+│   ├── ats_detection_rules.yaml      # ATS-Fingerprints zur Typerkennung (Kapitel 4.6)
+│   ├── anti_generik.yaml             # Anti-Generik-Regeln des Kritikers (Kapitel 11.5)
 │   └── secrets.enc.yaml              # sops-verschlüsselt
 ├── prompts/                          # System-Prompts je Rolle inkl. untrusted_content_policy
 ├── schemas/                          # JSON-Schemas: extraktion, judge, dossier, anschreiben, kritik, antwort, checkliste
@@ -1961,7 +2051,7 @@ bewerbungsagent/                      # Code-Repository (Git, privat; später ve
 │   ├── matcher/                      # filters.py, retrieval.py (bm25s), judge.py (Batch), auswahl.py
 │   ├── rechercheur/                  # Agent-SDK-Aufruf, Dossier-Zusammenführung, Konfidenzregeln
 │   ├── autor/                        # Agent-SDK-Aufruf, Claims-Erzeugung
-│   ├── kritiker/                     # Agent-SDK-Aufruf, Claims-Abgleich, Zweitgutachter
+│   ├── kritiker/                     # Agent-SDK-Aufruf, Fakten-Check, Stimm-Check, Konsistenz-Check
 │   ├── ats/                          # Keywords, Formatregeln, Test-Parsing (Kapitel 12)
 │   ├── setzer/                       # render_pdf.py (WeasyPrint), render_docx.py, qa.py, mappe.py
 │   ├── cockpit/                      # web/ (FastAPI+HTMX: Freigabe, Diff, Rückfragen, Feedback), telegram_bot.py (Kapitel 14)
@@ -1998,7 +2088,7 @@ bewerbungen-data/                     # Daten-Repository (Git, privat, nie verö
 | Baustein | MVP (Wochen 1–4) | v1 (Monat 2–3) | v2 (Monat 4–6) |
 |---|---|---|---|
 | Laufzeit | Agent SDK + Messages API auf VPS, systemd | unverändert; Rechercheur optional als Managed-Agents-Scheduled-Deployment mit Budget je Session | Entscheidung nach Beta-Status: Vollmigration zu Managed Agents oder Verbleib |
-| Modelle | Fable 5.1 (Rechercheur, Autor, Kritiker), Sonnet 5 (Judge, Klassifikation), Haiku 4.5 (Extraktion) | effort- und Modellwahl je Rolle anhand Eval (Kapitel 11) nachjustiert; Zweitgutachter Opus 5 | Preference-Learning aus Feedback (Kapitel 9) |
+| Modelle | Fable 5.1 (Rechercheur, Autor), Opus 5 (Kritiker), Sonnet 5 (Judge, Tagesauswahl, Fakten-Check, Klassifikations-Eskalation), Haiku 4.5 (Extraktion, Injection-Screen, Konsistenz-Check, Tracker-Klassifikation) | effort- und Modellwahl je Rolle anhand Eval (Kapitel 11) nachjustiert | Preference-Learning aus Feedback (Kapitel 9) |
 | Quellen | BA-API, ATS-Watchlist, Adzuna, Job-Alert-Mails (Kapitel 6) | SerpAPI/Google for Jobs mit Volumendeckel | weitere ATS-Adapter, Portal-Vorbefüllung |
 | Matching | Muss-Filter + BM25 + Judge (Batch) | + Embeddings (LanceDB, BGE-M3 oder API) + Reranker | gelernte Gewichte |
 | Versand | Entwurfsmodus (IMAP-APPEND / Drafts-API) | SMTP-Versand im Fenster nach Freigabe, Sendeprotokoll | Portal-Formulare per Playwright MCP, Freigabe vor Absenden |
@@ -2015,14 +2105,14 @@ Die Migration ist bausteinweise möglich, weil alle Modellaufrufe hinter `src/be
 Bis du anders entscheidest (Fragenkatalog Kapitel 22):
 
 - Betrieb auf einem Hetzner-VPS in Deutschland mit Commercial-API-Key, nicht über das Claude-Abo und nicht über Managed Agents.
-- Fable 5.1 für Rechercheur, Autor und Kritiker, mit der 30-Tage-Datenspeicherung als bewusst hingenommene Bedingung; Umschalter auf Opus 5 vorhanden.
-- Budget 10 USD je Tageslauf (Teil 2), Tageslimit 10 Bewerbungen, Versandfenster Di–Do 07:00–09:30 mit Jitter.
+- Fable 5.1 für Rechercheur und Autor, mit der 30-Tage-Datenspeicherung als bewusst hingenommene Bedingung; der Kritiker läuft als vom Autor getrenntes Grader-Modell bereits auf dem ZDR-fähigen Opus 5. Umschalter `MODEL_TOP` auf Opus 5 auch für Rechercheur und Autor vorhanden.
+- Budget 45 USD je Tageslauf (Teil 2, Kapitel 18.2), Tageslimit 10 Bewerbungen, Versandfenster Di–Do 07:00–09:30 mit Jitter.
 - Entwurfsmodus im MVP (du sendest selbst), SMTP-Versand erst in v1.
 - Ein Daten-Repository, SQLite, sops+age; keine Vektoren im MVP.
 - Tagesauswahl Montag bis Freitag; Quellenabruf täglich.
 - Cockpit als FastAPI+HTMX-Web-App plus Telegram-Bot; Undo-Fenster 60 Sekunden nach Freigabe.
 
-Offene Fragen an dich werden in Kapitel 22 gesammelt: Abo oder API-Key; eigener Server oder vollverwaltet; Fable 5.1 mit 30-Tage-Speicherung oder Opus 5 mit ZDR; Budgetgrenzen; primäres E-Mail-Konto; Mac lokal oder VPS; Wochenend-Läufe; Zweitgutachter ja/nein; Telegram-Push oder nur E-Mail-Digest; Länge des Undo-Fensters.
+Offene Fragen an dich werden in Kapitel 22 gesammelt: Abo oder API-Key; eigener Server oder vollverwaltet; Fable 5.1 mit 30-Tage-Speicherung oder durchgängig Opus 5 mit ZDR (`MODEL_TOP`); Budgetgrenzen; primäres E-Mail-Konto; Mac lokal oder VPS; Wochenend-Läufe; Telegram-Push oder nur E-Mail-Digest; Länge des Undo-Fensters.
 
 **Quellen dieses Kapitels:**
 
@@ -2100,7 +2190,7 @@ Offene Fragen an dich werden in Kapitel 22 gesammelt: Abo oder API-Key; eigener 
 
 ## 8. Modul Kandidatenprofil: Master-Lebenslauf, Story-Bank, Stimmprofil, Onboarding
 
-Das Kandidatenprofil ist die einzige Quelle der Wahrheit über dich. Rechercheur, Autor, Kritiker, Matcher, ATS-Prüfer und Setzer lesen daraus, aber kein Modell schreibt hinein (Kapitel 7, 7.3). Was hier fehlt, kann später niemand erfinden – es entsteht eine Rückfrage oder die Bewerbung bleibt ohne diesen Punkt. Was hier falsch steht, wandert in jede Bewerbung. Die Sorgfalt beim Aufbau dieses Moduls bestimmt deshalb direkter als jeder Prompt, wie gut der Bewerbungsagent wird.
+Das Kandidatenprofil ist die einzige Quelle der Wahrheit über dich. Rechercheur, Autor, Kritiker, Matcher, ATS-Prüfer und Setzer lesen daraus, aber kein Modell schreibt hinein (Kapitel 7, 7.3). Was hier fehlt, kann später niemand erfinden – es entsteht eine Rückfrage oder die Bewerbung bleibt ohne diesen Punkt. Was hier falsch steht, wandert in jede Bewerbung. Die Sorgfalt beim Aufbau dieses Moduls bestimmt deshalb direkter als jeder Prompt, wie gut der Bewerbungsagent wird. Alle Beispielinhalte in diesem Kapitel (Rollen, Tags wie „SAP EWM", Zahlen) sind Platzhalter derselben fiktiven Bewerbung wie in Kapitel 2 und 11; Beruf, Branche und Zielrollen des Nutzers sind nicht bekannt und werden in Kapitel 22 erfragt.
 
 Fünf Dateien im Daten-Repository unter `profil/` (Kapitel 7, 7.9) bilden das Profil: `lebenslauf.yaml` (Master-Lebenslauf), `story_bank.yaml` (belegte Erfolge), `stimmprofil.md` (Schreibstil), `praeferenzen.yaml` (Rollen, Orte, Gehalt, Ausschlüsse) und `standardantworten.yaml` (Formularantworten), ergänzt um einen Dokumentenordner (8.7). Dieses Kapitel definiert ihren Inhalt vollständig; Kapitel 7 definiert nur, wo sie liegen und wie sie versioniert werden.
 
@@ -2125,7 +2215,7 @@ Fünf Dateien im Daten-Repository unter `profil/` (Kapitel 7, 7.9) bilden das Pr
 
 ### 8.2 Master-Lebenslauf (`lebenslauf.yaml`)
 
-**Entscheidung:** Der Master-Lebenslauf wird als YAML-Datei geführt, mit einem an [JSON Resume](https://jsonresume.org/) angelehnten, aber eigenständig erweiterten Schema. **Begründung:** JSON Resume ist ein offenes, seit 2014 stabiles Schema mit den vertrauten Blöcken `basics`, `work`, `education`, `skills`, `languages` und einer breiten Theme-Landschaft, deckt aber keine Story-Bank-Verweise, Synonym-Mappings, Titel-Aliase oder Lücken-Wortlaute ab – genau die Felder, die Kapitel 11 für das Tailoring braucht. YAML statt JSON, weil es in Git lesbar bleibt und sich im Editor direkt pflegen lässt; RenderCV, der für den Setzer vorgesehene YAML-zu-PDF-Renderer (Kapitel 13), erwartet ohnehin YAML ([RenderCV](https://rendercv.com/)). **Alternative:** Strikte JSON-Resume-Konformität, die aber Zusatzfelder nur über eine Extension (`meta`) statt nativ erlauben würde und die Story-Bank-Kopplung verschleiert.
+**Entscheidung:** Der Master-Lebenslauf wird als YAML-Datei geführt, mit einem an [JSON Resume](https://jsonresume.org/) angelehnten, aber eigenständig erweiterten Schema. **Begründung:** JSON Resume ist ein offenes, seit 2014 stabiles Schema mit den vertrauten Blöcken `basics`, `work`, `education`, `skills`, `languages` und einer breiten Theme-Landschaft, deckt aber keine Story-Bank-Verweise, Synonym-Mappings, Titel-Aliase oder Lücken-Wortlaute ab – genau die Felder, die Kapitel 11 für das Tailoring braucht. YAML statt JSON, weil es in Git lesbar bleibt und sich im Editor direkt pflegen lässt; der Setzer liest die Datei über sein Dossier-Schema ein und rendert damit PDF über WeasyPrint sowie DOCX über python-docx (Kapitel 13.2). RenderCV ([RenderCV](https://rendercv.com/)) dient dem Setzer nur als Referenz für Datenmodell und Typografie, nicht als Renderer (Kapitel 13.2). **Alternative:** Strikte JSON-Resume-Konformität, die aber Zusatzfelder nur über eine Extension (`meta`) statt nativ erlauben würde und die Story-Bank-Kopplung verschleiert.
 
 ```yaml
 # profil/lebenslauf.yaml
@@ -2408,7 +2498,7 @@ Ablauf in sechs Schritten, angelehnt an das Muster aus Anthropics `doc-coauthori
 
 **Wann aktualisieren:** Nach jedem neuen nennenswerten Erfolg ein Story-Bank-Eintrag ergänzen, nicht erst wenn eine passende Stelle gefunden ist – frisch erinnerte Details sind belegbarer. Nach jeder Beförderung, jedem Jobwechsel oder jeder neuen Qualifikation den Master-Lebenslauf aktualisieren. Das Stimmprofil ändert sich seltener; eine Überarbeitung lohnt sich, wenn der Kritiker wiederholt dieselbe Art von Korrektur meldet (Feedback-Schleife, Kapitel 14).
 
-**Datenschutz:** `profil/` liegt ausschließlich im privaten Daten-Repository auf deinem eigenen Server oder Rechner (Kapitel 7.9), nie in einem SaaS-Werkzeug eines Dritten und nie im Code-Repository, das später veröffentlicht werden könnte. Eine etwaige Notion- oder Kanban-Spiegelung des Cockpits (Kapitel 14) überträgt nur Status und Metadaten einzelner Bewerbungen, nie die Profildateien selbst. Master-Lebenslauf, Story-Bank und Stimmprofil gehen als Kontext in jeden Autor- und Kritiker-Aufruf ein; läuft dieser Aufruf über Claude Fable 5.1, gilt dafür die in Kapitel 7 und 16 beschriebene 30-Tage-Datenspeicherung bei Anthropic als bewusst in Kauf genommene Bedingung, nicht als Standardverhalten der API. Unterschriftsbild und Foto sind davon ausgenommen: Sie erreichen nach 8.7 nie einen Prompt.
+**Datenschutz:** `profil/` liegt ausschließlich im privaten Daten-Repository auf deinem eigenen Server oder Rechner (Kapitel 7.9), nie in einem SaaS-Werkzeug eines Dritten und nie im Code-Repository, das später veröffentlicht werden könnte. Eine etwaige Notion- oder Kanban-Spiegelung des Cockpits (Kapitel 14) überträgt nur Status und Metadaten einzelner Bewerbungen, nie die Profildateien selbst. Master-Lebenslauf, Story-Bank und Stimmprofil gehen als Kontext in jeden Autor- und Kritiker-Aufruf ein; der Autor-Aufruf läuft auf Claude Fable 5.1, wofür die in Kapitel 7 und 16 beschriebene 30-Tage-Datenspeicherung bei Anthropic als bewusst in Kauf genommene Bedingung gilt, nicht als Standardverhalten der API. Der Kritiker-Aufruf läuft immer auf Claude Opus 5 und unterliegt dieser 30-Tage-Speicherpflicht nicht. Unterschriftsbild und Foto sind davon ausgenommen: Sie erreichen nach 8.7 nie einen Prompt.
 
 ### 8.11 Default-Annahmen und offene Fragen
 
@@ -2440,7 +2530,7 @@ Offene Fragen an dich, gesammelt in Kapitel 22: Wie viele echte Textproben kanns
 
 ## 9. Modul Scout und Matcher: Suche, Normalisierung, Dedup, Scoring, Tagesauswahl
 
-Scout und Matcher sind die ersten beiden Stationen der Status-Pipeline (Kapitel 3). Der Scout überführt eine Stellenanzeige von „nicht im System“ zu „entdeckt“, entfernt Duplikate (Status „dedupliziert“) und normalisiert sie in ein festes Schema. Der Matcher bewertet jede normalisierte Anzeige (Status „bewertet“) und wählt daraus die Tagesauswahl (Status „ausgewählt“), die anschließend an den Rechercheur übergeht (Kapitel 10). Die Quellenmatrix selbst — welche Jobbörse, welches ATS-Feed, welche API — ist Gegenstand von Kapitel 6; dieses Kapitel beschreibt, wie der Scout diese Quellen technisch anzapft, und wie der Matcher aus der Masse der gefundenen Anzeigen zehn belastbare Kandidaten für den Menschen herausfiltert.
+Scout und Matcher sind die ersten beiden Stationen der Status-Pipeline (Kapitel 7.4). Der Scout überführt eine Stellenanzeige von „nicht im System“ zu „entdeckt“, entfernt Duplikate (Status „dedupliziert“) und normalisiert sie in ein festes Schema. Der Matcher bewertet jede normalisierte Anzeige (Status „bewertet“) und wählt daraus die Tagesauswahl (Status „ausgewählt“), die anschließend an den Rechercheur übergeht (Kapitel 10). Die Quellenmatrix selbst — welche Jobbörse, welches ATS-Feed, welche API — ist Gegenstand von Kapitel 6; dieses Kapitel beschreibt, wie der Scout diese Quellen technisch anzapft, und wie der Matcher aus der Masse der gefundenen Anzeigen zehn belastbare Kandidaten für den Menschen herausfiltert.
 
 ### 9.1 Scout: Quellen-Adapter, Rate Limits, inkrementelles Crawlen
 
@@ -2496,24 +2586,31 @@ Jede Rohanzeige wird unabhängig von ihrer Quelle in ein festes Schema überfüh
     "contact_email": {"type": ["string", "null"]},
     "application_channel": {"type": "string", "enum": ["email", "ats_formular", "portal_upload", "unklar"]},
     "reference_number_raw": {"type": ["string", "null"]},
-    "is_temp_agency_suspected": {"type": "boolean"},
-    "temp_agency_signal": {"type": ["string", "null"]},
+    "signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vermittler_verdacht": {"type": "boolean"},
+        "vermittler_hinweis": {"type": ["string", "null"]}
+      },
+      "required": ["vermittler_verdacht"]
+    },
     "posted_at_text": {"type": ["string", "null"]},
     "language": {"type": "string", "enum": ["de", "en", "andere"]}
   },
   "required": ["source", "source_id", "url", "title_raw", "company_name_raw", "remote_type",
     "employment_type", "contract_type", "salary_period", "salary_is_estimated",
-    "must_haves", "nice_to_haves", "application_channel", "is_temp_agency_suspected", "language"]
+    "must_haves", "nice_to_haves", "application_channel", "signals", "language"]
 }
 ```
 
-Um dieses Schema herum ergänzt der Code (nicht das Modell) interne Felder: `id` (eigener Primärschlüssel), `ats_type` (regelbasiert erkannt, siehe 9.3), `dedup_group_id`, `status` (Wert aus der Status-Pipeline, Kapitel 3), `first_seen_at`/`last_seen_at`, sowie die in 9.4–9.6 berechneten Score- und Erklärungsfelder. Kontaktdaten aus Anzeigen sind personenbezogene Daten; ihre Aufbewahrung und Löschung regelt Kapitel 16.
+Um dieses Schema herum ergänzt der Code (nicht das Modell) interne Felder: `id` (eigener Primärschlüssel), `ats_type` (regelbasiert erkannt, siehe 9.3), `dedup_group_id`, `status` (Wert aus der Status-Pipeline, Kapitel 7.4), `first_seen_at`/`last_seen_at`, sowie die in 9.4–9.6 berechneten Score- und Erklärungsfelder. Das Feld `signals` aus dieser Extraktion liefert nur den Personalvermittler-Hinweis aus dem Anzeigentext; der Code füllt daraus zusammen mit dem Injection-Screen (`signals.injection`, `signals.scam`, Kapitel 7.8 Regel 5, siehe 9.5) und der in 9.4/9.7 berechneten Reposting-Häufigkeit (`signals.reposting_count`) sowie dem Ghost-Job-Malus (`signals.ghost_job`, 9.7) das vollständige `job_posting.signals`-Objekt aus Kapitel 7.3. Kontaktdaten aus Anzeigen sind personenbezogene Daten; ihre Aufbewahrung und Löschung regelt Kapitel 16.
 
 ### 9.3 Extraktion strukturierter Felder per Structured Outputs
 
 **Entscheidung:** Die Felder aus 9.2 werden pro Anzeige per Claude Structured Output (`output_config.format`, kein Beta-Header nötig) mit **Claude Haiku 4.5** ($1/$5 pro 1 Mio. Token Input/Output) extrahiert. **Begründung:** Es handelt sich um einen Massenschritt (200–500 Anzeigen/Tag laut Zielvolumen) mit vergleichsweise einfacher Aufgabe (Feldextraktion aus vorliegendem Text); der Kostenunterschied zu Fable 5.1 ($10/$50) ist bei diesem Volumen erheblich. **Alternative:** Bei Extraktionsfehlern (leere Pflichtfelder, Format-Ausreißer) eskaliert der Code den einzelnen Fall auf Claude Sonnet 5 als Fallback, statt das gesamte Volumen teurer zu fahren.
 
-Wichtige Einschränkung von Claude Structured Outputs: Schemas dürfen kein `pattern` (Regex), keine `minLength`/`maxLength`- oder numerischen Min/Max-Constraints und keine rekursiven Strukturen enthalten; `additionalProperties` muss `false` sein [Claude Structured Outputs](https://docs.claude.com/en/docs/build-with-claude/structured-outputs). Das Schema in 9.2 hält sich daran — Formatprüfung (z. B. das Muster einer Kennziffer) läuft deshalb nachgelagert im Code:
+Wichtige Einschränkung von Claude Structured Outputs: Schemas dürfen kein `pattern` (Regex), keine `minLength`/`maxLength`- oder numerischen Min/Max-Constraints und keine rekursiven Strukturen enthalten; `additionalProperties` muss `false` sein [Claude Structured Outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs). Das Schema in 9.2 hält sich daran — Formatprüfung (z. B. das Muster einer Kennziffer) läuft deshalb nachgelagert im Code:
 
 ```python
 import re
@@ -2548,15 +2645,16 @@ Ein Grenzband (Jaro-Winkler 0,75–0,90 bzw. MinHash-Jaccard 0,50–0,75) wird *
 
 ### 9.5 Scoring-Modell: harte Filter und gewichtete Dimensionen
 
-Bevor eine Anzeige einen kostenpflichtigen API-Aufruf auslöst, durchläuft sie ein Boolean-Gate aus harten Muss-Filtern — Sprache, maximale Pendelzeit/-distanz, Vertragsart, Arbeitserlaubnis. Die Schwellenwerte selbst kommen aus den Präferenzen des Kandidatenprofils (Kapitel 8); der Matcher wendet sie nur an, pflegt sie aber nicht. Ein zusätzlicher harter Ausschluss ist sicherheitsbedingt, nicht qualitätsbedingt: Kontaktaufnahme ausschließlich über WhatsApp/Telegram oder die Forderung nach Video-Ident-Verfahren bzw. Kontoeröffnung vor Vertragsabschluss gilt als Job-Scamming-Signal und führt zum sofortigen Ausschluss, unabhängig vom sonstigen Score — seriöse Arbeitgeber verlangen das laut Verbraucherzentrale nicht vor Vertragsschluss [Verbraucherzentrale: Jobscamming](https://www.verbraucherzentrale.de/jobscamming-was-tun-wenn-das-traumangebot-zur-falle-wird-110906), [Verbraucherzentrale Niedersachsen](https://www.verbraucherzentrale-niedersachsen.de/wissen/digitale-welt/datenschutz/jobscamming-so-erkennen-sie-gefaelschte-jobangebote-und-schuetzen-ihre-daten-120421).
+Bevor eine Anzeige einen kostenpflichtigen API-Aufruf auslöst, durchläuft sie ein Boolean-Gate aus harten Muss-Filtern — Sprache, maximaler Umkreis, Vertragsart, Arbeitserlaubnis. Die Schwellenwerte selbst kommen aus den Präferenzen des Kandidatenprofils (Kapitel 8); der Matcher wendet sie nur an, pflegt sie aber nicht. Im MVP gibt es kein Werkzeug, das eine echte Pendelzeit in Minuten berechnet — der Hard-Filter arbeitet deshalb mit `max_umkreis_km`, angewendet auf den `umkreis`-Parameter der BA-Jobsuche-API beziehungsweise auf die PLZ-Zentroid-Distanz bei anderen Quellen. Ein optionales `max_pendelzeit_minuten` wird erst in v1 ausgewertet, sobald eine Routing-API zur Verfügung steht (Google Maps Routes API, Kapitel 17.4); bis dahin bleibt das Feld im Kandidatenprofil gespeichert, aber ungeprüft. Ein zusätzlicher harter Ausschluss ist sicherheitsbedingt, nicht qualitätsbedingt: Kontaktaufnahme ausschließlich über WhatsApp/Telegram oder die Forderung nach Video-Ident-Verfahren bzw. Kontoeröffnung vor Vertragsabschluss gilt als Job-Scamming-Signal und führt zum sofortigen Ausschluss, unabhängig vom sonstigen Score — seriöse Arbeitgeber verlangen das laut Verbraucherzentrale nicht vor Vertragsschluss [Verbraucherzentrale: Jobscamming](https://www.verbraucherzentrale.de/jobscamming-was-tun-wenn-das-traumangebot-zur-falle-wird-110906), [Verbraucherzentrale Niedersachsen](https://www.verbraucherzentrale-niedersachsen.de/wissen/digitale-welt/datenschutz/jobscamming-so-erkennen-sie-gefaelschte-jobangebote-und-schuetzen-ihre-daten-120421).
 
-Alles, was den Hard-Filter passiert, erhält einen gewichteten Gesamtscore aus fünf Dimensionen:
+Alles, was den Hard-Filter passiert, erhält einen gewichteten Gesamtscore aus fünf Dimensionen. Alle Teilscores und der Gesamtscore liegen einheitlich auf der Skala 0..1 mit zwei Nachkommastellen — auch das Judge-Schema in 9.6 liefert 0..1, nicht 0..100:
 
 ```yaml
 scoring:
   hard_filter:
     - sprache_erforderlich          # aus Kandidatenprofil, Kapitel 8
-    - max_pendelzeit_minuten        # aus Kandidatenprofil, Kapitel 8
+    - max_umkreis_km                # aus Kandidatenprofil, Kapitel 8; MVP: Ort/Umkreis der BA-API bzw. PLZ-Zentroid-Distanz
+    - max_pendelzeit_minuten        # optional, erst v1 mit Routing-API (Kapitel 17.4); im MVP nicht ausgewertet
     - vertragsart_ausgeschlossen    # aus Kandidatenprofil, Kapitel 8
     - arbeitserlaubnis_erforderlich
     - jobscamming_signal            # WhatsApp/Telegram-only, Video-Ident/Konto vor Vertragsschluss
@@ -2570,13 +2668,24 @@ scoring:
   schwelle_rueckfrage: [0.45, 0.60] # Band "unsicher" -> Nutzer fragen statt automatisch verwerfen
 ```
 
-**Passung** wird über eine dreistufige Retrieval-Pipeline ermittelt, nicht durch einen einzelnen LLM-Aufruf pro Anzeige — das hält die Kosten bei mehreren Hundert Anzeigen/Tag beherrschbar:
+Der Gesamtscore ergibt sich als gewichtete Summe:
 
-1. **Hybrid-Retrieval**: BM25 (`bm25s` mit deutschem Stemmer) plus Dense-Embeddings mit **BGE-M3** — MIT-lizenziert, 100+ Sprachen, selbst gehostet über `sentence-transformers`, keine Tokenkosten [bm25s](https://github.com/xhluca/bm25s), [FlagEmbedding/BGE-M3](https://github.com/FlagOpen/FlagEmbedding), [sentence-transformers](https://github.com/UKPLab/sentence-transformers) — kombiniert per Reciprocal Rank Fusion auf die Top 30–50 Kandidaten des Tages. Skill-Begriffe aus Anzeige und Kandidatenprofil (Kapitel 8) werden dabei über die ESCO-Taxonomie normalisiert, die kostenlos in deutscher Sprache vorliegt [ESCO](https://esco.ec.europa.eu/en/use-esco/download).
-2. **Reranking** der Top 30–50 auf die engere Top 20 mit **Cohere Rerank 3.5** (0,001 USD/Suche) [Cohere Rerank 3.5](https://openrouter.ai/cohere/rerank-v3.5); Voyage `rerank-2.5` ist eine Alternative mit Freikontingent, über die Bibliothek `rerankers` austauschbar implementiert, um keinen Anbieter fest zu verdrahten [rerankers](https://github.com/AnswerDotAI/rerankers).
-3. **LLM-Judge** mit **Claude Sonnet 5** ($2/$10 pro 1 Mio. Token) bewertet die verbleibende Top 20 gegen eine feste Rubrik und liefert `passung_score`, `attraktivitaet_score`, `erfolgschance_score` sowie eine kurze Begründung in einem Aufruf. **Begründung der Modellwahl:** Erklärbarkeit und Rubrik-Treue sind hier wichtiger als bei der Massenextraktion, das Volumen (Top 20/Tag) ist aber klein genug, dass Sonnet 5 die Kosten niedrig hält; Fable 5.1 bleibt den schreibkritischen Schritten in Kapitel 11 vorbehalten, wo der Nutzer die höchste Qualität ausdrücklich wünscht. **Alternative:** Fable 5.1 auch hier einsetzen, wenn dir Erklärbarkeit wichtiger ist als die 30-Tage-Datenspeicherung, die Fable 5.1 erfordert (Kapitel 16).
+```
+score_total = 0.35 * passung + 0.20 * attraktivitaet + 0.15 * erfolgschance
+            + 0.15 * arbeitgeberqualitaet + 0.15 * frische
+```
 
-**Erfolgschance** und **Frische** sind größtenteils regelbasiert (Posting-Alter, Zeit seit letzter Änderung, Reposting-Häufigkeit) und benötigen keinen LLM-Aufruf. **Arbeitgeberqualität** kombiniert, was ohne Vollautomatisierung verfügbar ist: Handelsregister-Status (Kapitel 10), grobe Größen-zu-offene-Stellen-Relation, und optional eine manuelle kununu-Stichprobe — eine automatisierte kununu-API existiert nicht, nur ToS-riskante Drittanbieter-Scraper [Apify kununu-Scraper](https://apify.com/lexis-solutions/kununu-scraper/api); eine Insolvenzprüfung läuft mangels offiziellem API entweder manuell auf dem Bundesportal oder über kostenpflichtiges Monitoring [Insolvenz-Radar](https://insolvenz-radar.de/funktionen/).
+**Passung** wird zweistufig ermittelt, gestaffelt nach Ausbaustufe, nicht durch einen einzelnen LLM-Aufruf pro Anzeige — das hält die Kosten bei mehreren Hundert Anzeigen/Tag beherrschbar:
+
+**MVP:**
+
+1. **BM25-Vorauswahl**: `bm25s` mit deutschem Stemmer wählt aus allen Anzeigen, die den Hard-Filter passiert haben, die 30–50 relevantesten Kandidaten des Tages [bm25s](https://github.com/xhluca/bm25s). Skill-Begriffe aus Anzeige und Kandidatenprofil (Kapitel 8) werden dabei über die ESCO-Taxonomie normalisiert, die kostenlos in deutscher Sprache vorliegt [ESCO](https://esco.ec.europa.eu/en/use-esco/download).
+2. **Injection-Screen**: Vor dem Judge prüft ein Haiku-4.5-Aufruf mit festem Schema jede der 30–50 Kandidaten-Anzeigen auf anweisungsartige Passagen, verborgenen Text und Scam-Signale (Kapitel 7.8 Regel 5). Ein Treffer setzt `signals.injection` beziehungsweise `signals.scam`; Anzeigen mit `signals.injection` bleiben von der Tagesauswahl ausgeschlossen, bis du sie im Review-Cockpit (Kapitel 14) ausdrücklich freigibst, `signals.scam` führt zum harten Ausschluss über den Hard-Filter oben.
+3. **LLM-Judge** mit **Claude Sonnet 5** ($2/$10 pro 1 Mio. Token, effort medium) bewertet die verbliebenen Kandidaten gegen eine feste Rubrik und liefert `passung_score`, `attraktivitaet_score`, `erfolgschance_score` sowie eine kurze Begründung. Die Bewertung läuft als **Message Batch** (50 Prozent Rabatt gegenüber dem Normalpreis, [Batch API](https://platform.claude.com/docs/en/build-with-claude/batch-processing)) über alle 30–50 Kandidaten des Tages; ist das Batch-Ergebnis um 05:30 Uhr nicht da, bewertet ein synchroner Fallback die Top 40 nach BM25-Score (Kapitel 7.5). **Begründung der Modellwahl:** Erklärbarkeit und Rubrik-Treue sind hier wichtiger als bei der Massenextraktion; Fable 5.1 bleibt den schreibkritischen Schritten in Kapitel 11 vorbehalten, wo der Nutzer die höchste Qualität ausdrücklich wünscht. **Alternative:** Fable 5.1 auch hier einsetzen, wenn dir Erklärbarkeit wichtiger ist als die 30-Tage-Datenspeicherung, die Fable 5.1 erfordert (Kapitel 16).
+
+**v1** (Auslöser V-11, Kapitel 19.7 — erst wenn der Betrieb zeigt, dass BM25 relevante Anzeigen verfehlt): zusätzlich **Dense-Embeddings** mit **BGE-M3** — MIT-lizenziert, 100+ Sprachen, über `sentence-transformers` nutzbar [FlagEmbedding/BGE-M3](https://github.com/FlagOpen/FlagEmbedding), [sentence-transformers](https://github.com/UKPLab/sentence-transformers) — per Reciprocal Rank Fusion mit dem BM25-Ergebnis kombiniert, danach **Reranking** der erweiterten Kandidatenliste auf die engere Top 20 mit **Cohere Rerank 3.5** (0,001 USD/Suche) [Cohere Rerank 3.5](https://openrouter.ai/cohere/rerank-v3.5); Voyage `rerank-2.5` ist eine Alternative mit Freikontingent, über die Bibliothek `rerankers` austauschbar implementiert, um keinen Anbieter fest zu verdrahten [rerankers](https://github.com/AnswerDotAI/rerankers). Diese Stufe braucht entweder ein API-Embedding oder einen größeren Server als die MVP-Grundausstattung: Ein lokal gehostetes BGE-M3 passt nicht in die 4 GB RAM des Hetzner CPX22 (Kapitel 19.5); die Entscheidung zwischen API-Embedding, größerem Server oder Verzicht fällt erst nach den ersten Betriebswochen (Kapitel 19.7). Die verbindliche Kostenrechnung für den laufenden Betrieb — MVP wie v1-Erweiterung — steht in Kapitel 18, nicht in diesem Kapitel.
+
+**Erfolgschance** und **Frische** sind größtenteils regelbasiert (Posting-Alter, Zeit seit letzter Änderung, Reposting-Häufigkeit aus `signals.reposting_count`, Kapitel 9.4) und benötigen keinen LLM-Aufruf. **Arbeitgeberqualität** kombiniert, was ohne Vollautomatisierung verfügbar ist: Handelsregister-Status (Kapitel 10), grobe Größen-zu-offene-Stellen-Relation, und optional eine manuelle kununu-Stichprobe — eine automatisierte kununu-API existiert nicht, nur ToS-riskante Drittanbieter-Scraper [Apify kununu-Scraper](https://apify.com/lexis-solutions/kununu-scraper/api); eine Insolvenzprüfung läuft mangels offiziellem API entweder manuell auf dem Bundesportal oder über kostenpflichtiges Monitoring [Insolvenz-Radar](https://insolvenz-radar.de/funktionen/). Liegt für eine Anzeige weder Handelsregister-Status noch Größenangabe noch kununu-Stichprobe vor, setzt der Code `arbeitgeberqualitaet` (beziehungsweise, bei fehlendem `posted_at`, auch `frische`) auf einen neutralen Default von 0,50, statt eine unbelegte Bewertung zu erzeugen.
 
 ### 9.6 Erklärbarkeit: das „Warum“ zu jeder Bewertung
 
@@ -2584,9 +2693,9 @@ Jede bewertete Anzeige trägt ein strukturiertes Begründungsfeld, das der LLM-J
 
 ```json
 {
-  "passung_score": 78,
-  "attraktivitaet_score": 65,
-  "erfolgschance_score": 55,
+  "passung_score": 0.78,
+  "attraktivitaet_score": 0.65,
+  "erfolgschance_score": 0.55,
   "begruendung_kurz": "Kernanforderungen A und B klar erfüllt; Sprachanforderung C nur teilweise durch die Story-Bank belegt.",
   "unsichere_felder": ["sprachanforderung_c"],
   "rueckfrage_notwendig": false
@@ -2613,11 +2722,11 @@ zaehler_personalvermittler = 0
 für jeden Kandidaten in der sortierten Liste:
     wenn len(top10) == 10: stoppe
     wenn zaehler_firma[Kandidat.firma] >= 2: in Warteliste, weiter
-    wenn Kandidat.ist_personalvermittler_verdacht und zaehler_personalvermittler >= 2:
+    wenn Kandidat.signals.vermittler_verdacht und zaehler_personalvermittler >= 2:
         in Warteliste, weiter
     top10.anhängen(Kandidat)
     zaehler_firma[Kandidat.firma] += 1
-    wenn Kandidat.ist_personalvermittler_verdacht: zaehler_personalvermittler += 1
+    wenn Kandidat.signals.vermittler_verdacht: zaehler_personalvermittler += 1
 ```
 
 Maximal zwei Anzeigen pro Arbeitgeber und maximal zwei Personalvermittler-Anzeigen sind Startwerte; übersprungene Kandidaten verschwinden nicht, sondern bleiben in der Warteliste sichtbar. Diese Top-10-Liste mit Status „ausgewählt“ geht an den Rechercheur (Kapitel 10) und wird im Review-Cockpit (Kapitel 14) präsentiert.
@@ -2633,17 +2742,18 @@ Maximal zwei Anzeigen pro Arbeitgeber und maximal zwei Personalvermittler-Anzeig
 | Extraktion normalisierter Felder | Claude Haiku 4.5 ($1/$5 pro 1 Mio. Token) | pro Anzeige, Massenschritt |
 | ATS-Typ-Erkennung | regelbasiert (URL-/HTML-Muster) | $0 |
 | Dedup (Blocking + MinHashLSH) | `datasketch`, lokal | $0, nur Rechenzeit |
-| Hybrid-Retrieval (Embeddings) | BGE-M3, selbst gehostet | $0, Compute separat (Kapitel 18) |
-| Reranking Top 30–50 → Top 20 | Cohere Rerank 3.5 (0,001 USD/Suche) | pro Anzeige im Retrieval-Fenster |
-| LLM-Judge mit Begründung | Claude Sonnet 5 ($2/$10 pro 1 Mio. Token) | nur für die engste Auswahl (Top 20) |
+| Injection-Screen | Claude Haiku 4.5 | pro Kandidat der BM25-Vorauswahl (30–50/Tag) |
+| LLM-Judge mit Begründung | Claude Sonnet 5, Message Batch (50 % Rabatt) | pro Kandidat der BM25-Vorauswahl (30–50/Tag), Fallback synchron Top 40 |
+| Hybrid-Retrieval (Embeddings) — **v1** | BGE-M3, API oder selbst gehostet | $0 bei Self-Hosting (RAM-Bedingung Kapitel 19.5) bzw. API-Kosten |
+| Reranking — **v1** | Cohere Rerank 3.5 (0,001 USD/Suche) | pro Anzeige im erweiterten Retrieval-Fenster |
 
-Grobe Rechnung für die Extraktion (Haiku 4.5): bei angenommen rund 1.500 Input-Token (Anzeigetext, Schema, Prompt) und 300 Output-Token pro Anzeige ergeben sich für 1.000 Anzeigen etwa 1,5 Mio. Input- und 0,3 Mio. Output-Token, also ca. 1,5 USD + 1,5 USD ≈ **3 USD pro 1.000 Anzeigen** allein für die Extraktion. Der LLM-Judge läuft nur auf der engsten Auswahl (rund 20 von durchschnittlich 200–500 gescannten Anzeigen pro Tag), verursacht dadurch pro 1.000 gescannte Anzeigen nur einen kleinen zweistelligen Cent- bis niedrigen Dollar-Betrag; Reranking-Kosten liegen im Cent-Bereich. In Summe ist für 1.000 gescannte Anzeigen eine Größenordnung von grob **5–10 USD** plausibel — eine Schätzung zur Orientierung, keine Preiszusage; die genaue Kostenrechnung für den laufenden Monatsbetrieb steht in Kapitel 18. Zu beachten: Modelle ab Claude 4.7 (dazu zählen Opus 5, Sonnet 5, Fable 5.x) nutzen einen neuen Tokenizer, der für denselben Text tendenziell mehr Token erzeugt als ältere Modelle — bei der Kalibrierung in Kapitel 19 einen Aufschlag einplanen. Prompt Caching (Cache-Read zu 0,1x des Normalpreises, bei Fable-Modellen 0,025x) kann die Kosten für wiederholt genutzte Schema- und Rubrik-Texte weiter senken [Anthropic Pricing](https://platform.claude.com/docs/en/about-claude/pricing).
+Grobe Rechnung für die Extraktion (Haiku 4.5): bei angenommen rund 1.500 Input-Token (Anzeigetext, Schema, Prompt) und 300 Output-Token pro Anzeige ergeben sich für 1.000 Anzeigen etwa 1,5 Mio. Input- und 0,3 Mio. Output-Token, also ca. 1,5 USD + 1,5 USD ≈ **3 USD pro 1.000 Anzeigen** allein für die Extraktion. Der LLM-Judge läuft im MVP als Message Batch nur auf der BM25-Vorauswahl (rund 30–50 von durchschnittlich 200–500 gescannten Anzeigen pro Tag) und profitiert vom 50-Prozent-Batch-Rabatt, verursacht dadurch pro 1.000 gescannte Anzeigen nur einen kleinen zweistelligen Cent- bis niedrigen Dollar-Betrag. In Summe ist für 1.000 gescannte Anzeigen im MVP eine Größenordnung von grob **3–6 USD** plausibel — eine Schätzung zur Orientierung, keine Preiszusage. Kommen in v1 Embeddings und Reranking hinzu, liegen deren Kosten im niedrigen Cent-Bereich pro 1.000 Anzeigen zusätzlich zum MVP-Betrag. Kapitel 18 ist in jedem Fall die verbindliche Kostenquelle für den laufenden Monatsbetrieb, MVP wie v1; diese Rechnung hier ist nur eine grobe Einordnung pro 1.000 Anzeigen. Zu beachten: Modelle ab Claude 4.7 (dazu zählen Opus 5, Sonnet 5, Fable 5.x) nutzen einen neuen Tokenizer, der für denselben Text tendenziell mehr Token erzeugt als ältere Modelle — bei der Kalibrierung in Kapitel 19 einen Aufschlag einplanen. Prompt Caching (Cache-Read zu 0,1x des Normalpreises, bei Fable-Modellen 0,025x) kann die Kosten für wiederholt genutzte Schema- und Rubrik-Texte weiter senken [Anthropic Pricing](https://platform.claude.com/docs/en/about-claude/pricing).
 
 ### Offene Fragen
 
 - Sollen Personalvermittler-/Zeitarbeit-Anzeigen standardmäßig einbezogen, ausgeschlossen oder nur markiert werden? **Default-Annahme:** einbeziehen, aber mit Label und Rückfrage bei Unsicherheit (9.7).
 - Sind die vorgeschlagenen Standardgewichte (Passung 35 %, Attraktivität 20 %, Erfolgschance 15 %, Arbeitgeberqualität 15 %, Frische 15 %) passend, oder sollen sie von Anfang an anders justiert werden? **Default-Annahme:** wie in 9.5 angegeben, Anpassung über das Feedback-Lernen (9.9).
-- Ist die Nutzung kostenpflichtiger Rerank-/Embedding-APIs (Cohere/Voyage, geschätzt Cent-Bereich/Tag) akzeptabel, oder soll ausschließlich mit selbst gehosteten Modellen (BGE-M3) gearbeitet werden? **Default-Annahme:** BGE-M3 selbst gehostet für Embeddings, Cohere Rerank 3.5 für Reranking (Kosten vernachlässigbar).
+- Wann genau soll v1 die Embeddings-/Reranking-Stufe (BGE-M3, Cohere Rerank 3.5) einführen, und mit API-Embedding oder größerem Server, weil ein lokales BGE-M3 nicht in die 4 GB RAM des Hetzner CPX22 passt (Kapitel 19.5)? **Default-Annahme:** Im MVP kein Embedding/Reranking (BM25 plus Judge genügt); Einführung erst nach dem Auslöser V-11 (Kapitel 19.7), dann API-Embedding statt lokalem BGE-M3, Cohere Rerank 3.5 für Reranking (Kosten vernachlässigbar, Kapitel 18).
 - Wie viele „unsichere“ Kandidaten pro Tag (Rückfrage-Band aus 9.5) sind akzeptabel, bevor sie dem Nutzer vorgelegt statt automatisch verworfen werden? **Default-Annahme:** kein festes Limit, alle im Band werden angezeigt; Feinjustierung in der MVP-Phase (Kapitel 19).
 - Soll automatisiertes kununu-Scraping über einen Drittanbieter (ToS-Grauzone) für die Arbeitgeberqualität genutzt werden, oder nur manuelle Stichproben? **Default-Annahme:** keine automatisierte Drittanbieter-Abfrage, nur manuelle/stichprobenartige Prüfung.
 
@@ -2662,7 +2772,8 @@ Grobe Rechnung für die Extraktion (Haiku 4.5): bei angenommen rund 1.500 Input-
 - Arbeitnow Job Board API — https://arbeitnow.com/api/job-board-api
 - Jooble API — https://jooble.org/api/about
 - webappanalyzer (GitHub) — https://github.com/enthec/webappanalyzer
-- Claude Structured Outputs — https://docs.claude.com/en/docs/build-with-claude/structured-outputs
+- Claude Structured Outputs — https://platform.claude.com/docs/en/build-with-claude/structured-outputs
+- Claude Batch Processing — https://platform.claude.com/docs/en/build-with-claude/batch-processing
 - Anthropic Pricing — https://platform.claude.com/docs/en/about-claude/pricing
 - FlagEmbedding / BGE-M3 (GitHub) — https://github.com/FlagOpen/FlagEmbedding
 - sentence-transformers (GitHub) — https://github.com/UKPLab/sentence-transformers
@@ -2706,10 +2817,10 @@ Die Recherche läuft in einer festen Stufenfolge, jede Stufe billiger und verlä
 | 3 | Impressum | rechtssicherer Firmenname, Rechtsform, Sitz, Vertretungsberechtigte, allgemeine Kontaktdaten nach § 5 DDG, Nachfolgeregelung zu § 5 TMG seit 14.5.2024 (unbestätigt: in dieser Recherche nicht live nachprüfbar, gilt aber als stabile Rechtslage) [§ 5 DDG](https://www.gesetze-im-internet.de/ddg/__5.html) | Web Fetch auf `{domain}/impressum`; bei Fehlschlag ein Web-Search-Aufruf „{firma} impressum“ | Pflicht – einzige kostenlose, rechtlich verbindliche Primärquelle |
 | 4 | Handelsregister/Northdata | Auflösung bei Widerspruch: exakte Rechtsform, Sitz, Geschäftsführung | ein Web-Search/-Fetch-Aufruf auf die öffentliche Northdata-Ergebnisseite oder das lesende MCP-Tool `mcp__bundesapi__handelsregister_suche`; **nie** automatisierter Zugriff auf handelsregister.de selbst | nur im Zweifelsfall (Abbruchkriterium 1) |
 | 5 | LinkedIn/XING | Bestätigung, ob eine gefundene Ansprechperson noch im Unternehmen ist | **nur lesend und manuell durch dich** – der Rechercheur hat auf diesen Domains kein Werkzeug, sondern liefert einen vorbereiteten Such-Link im Dossier | immer optional, nie automatisiert |
-| 6 | Kununu | Kultur/Ton-Kontext, Erfahrungsberichte zum Bewerbungsprozess, ggf. Gehaltsangaben | ein einzelner Web-Fetch-Aufruf auf die öffentliche Profilseite der Firma – kein systematisches Erfassen aller Bewertungen | optional, nur wenn Karriereseite/Anzeige zu Kultur/Ton nichts liefern |
+| 6 | Kununu | Kultur/Ton-Kontext, Erfahrungsberichte zum Bewerbungsprozess, ggf. Gehaltsangaben | ein einzelner Web-Fetch-Aufruf auf die öffentliche Profilseite der Firma – kein systematisches Erfassen aller Bewertungen | optional, nur nach ausdrücklicher Nutzerfreigabe in der Konfiguration (Default: aus) |
 | 7 | News | aktuelle Themen (Finanzierungsrunde, Fusion, Stellenabbau, Produktlaunch) | Web Search mit Zeitfilter, nur Treffer der letzten sechs Monate | optional, nur im verbleibenden Budget |
 
-**Entscheidung:** Die Reihenfolge ist fest kodiert, nicht dem Modell überlassen – Ablaufplan im System-Prompt, keine freie Recherchestrategie. **Begründung:** Das Impressum ist die verbindlichste kostenlose Quelle für Firmenname/Rechtsform und sollte dem Handelsregister-Abgleich vorausgehen ([§ 5 DDG](https://www.gesetze-im-internet.de/ddg/__5.html)); LinkedIn/XING automatisiert zu befragen, verstößt gegen deren Nutzungsbedingungen und war im Fall *hiQ Labs v. LinkedIn* trotz eines Teilerfolgs zum Ausspähungsvorwurf am Ende ein verlorener Rechtsstreit auf Vertragsbruch-Basis [Privacy World: hiQ/LinkedIn](https://www.privacyworld.blog/2022/12/linkedins-data-scraping-battle-with-hiq-labs-ends-with-proposed-judgment/) [LinkedIn User Agreement](https://www.linkedin.com/help/linkedin/answer/a1341387). **Alternative:** ein einziger breiter Web-Search-Aufruf statt der Stufenfolge – schneller, aber ungeprüfte Drittquellen landen dann im Dossier, bevor das Impressum überhaupt geprüft wurde.
+**Entscheidung:** Die Reihenfolge ist fest kodiert, nicht dem Modell überlassen – Ablaufplan im System-Prompt, keine freie Recherchestrategie. **Begründung:** Das Impressum ist die verbindlichste kostenlose Quelle für Firmenname/Rechtsform und sollte dem Handelsregister-Abgleich vorausgehen ([§ 5 DDG](https://www.gesetze-im-internet.de/ddg/__5.html)); LinkedIn/XING automatisiert zu befragen, verstößt gegen deren Nutzungsbedingungen und war im Fall *hiQ Labs v. LinkedIn* trotz eines Teilerfolgs zum Ausspähungsvorwurf am Ende ein verlorener Rechtsstreit auf Vertragsbruch-Basis [Privacy World: hiQ/LinkedIn](https://www.privacyworld.blog/2022/12/linkedins-data-scraping-battle-with-hiq-labs-ends-with-proposed-judgment/) [LinkedIn User Agreement](https://www.linkedin.com/help/linkedin/answer/a1341387). **Alternative:** ein einziger breiter Web-Search-Aufruf statt der Stufenfolge – schneller, aber ungeprüfte Drittquellen landen dann im Dossier, bevor das Impressum überhaupt geprüft wurde. Stufe 6 (Kununu) läuft standardmäßig deaktiviert, damit sie nicht automatisch greift, wo Kapitel 9.5 als Default-Annahme „keine automatisierte Drittanbieter-Abfrage, nur manuelle/stichprobenartige Prüfung“ festlegt; aktivierst du sie in der Konfiguration, bleibt der Zugriff auf einen einzelnen Fetch der öffentlichen Profilseite je Firma begrenzt, nicht auf ein systematisches Erfassen aller Bewertungen.
 
 ### 10.2 Konfidenzstufen pro Feld
 
@@ -2765,13 +2876,15 @@ Ein Abbruchkriterium beendet nicht die Bewerbung, sondern die *automatische* Wei
 }
 ```
 
-Drei Fragetypen kommen in der Praxis vor, jeder mit eigenem Verhalten bei Ablauf (`status = verfallen`, `expires_at` Default: Beginn des nächsten Tageslaufs, Kapitel 7.5):
+Drei Fragetypen kommen in der Praxis vor. Entscheidend für ihr Verhalten bei Ablauf ist, ob ein Default existiert – Rückfragen mit Default löst der Orchestrator beim nächsten Tageslauf automatisch auf, Rückfragen ohne Default bleiben offen, bis du antwortest oder die Frist verstreicht (Kapitel 14.1, Kapitel 14.6):
 
-1. **Adress-Konflikt** (Anzeige-Standort ≠ Impressum/Karriereseite): Optionen sind die konkreten Standorte selbst, kein Textbaustein. Es gibt **keinen** automatischen Default – die Anschrift ist ein Pflichtfeld im Setzer (Kapitel 13), also bleibt `rueckfrage_offen` bestehen, bis du antwortest oder die Bewerbung verwirfst.
-2. **Kein Name mit brauchbarer Konfidenz** (kein Ansprechpartner mit Konfidenz ≥ 0,5 auffindbar): Optionen sind „Team-Anrede“ und „klassisch“. **Default bei Nichtantwort:** „Sehr geehrtes Recruiting-Team [Firma]“ – warm genug, um nicht generisch zu wirken, aber ohne das Risiko einer falsch geratenen Anrede.
-3. **Name sicher, Anrede/Titel unsicher** (wie im Beispiel oben): Optionen sind „Guten Tag [Vorname] [Nachname]“, „Team-Anrede“, „klassisch“. **Default bei Nichtantwort:** „Guten Tag [Vorname] [Nachname]“ – nutzt den bereits belegten Namen, ohne ein Geschlecht zu erraten.
+1. **Adress-Konflikt** (Anzeige-Standort ≠ Impressum/Karriereseite), **ohne Default:** Optionen sind die konkreten Standorte selbst, kein Textbaustein. Es gibt **keinen** automatischen Default – die Anschrift ist ein Pflichtfeld im Setzer (Kapitel 13). `expires_at` = `created_at` + 5 Werktage. Nach vier Stunden ohne Antwort erinnert der Telegram-Bot einmalig, danach erscheint die Rückfrage täglich im Digest, solange sie offen ist (Kapitel 14.6). Antwortest du nicht innerhalb der 5 Werktage, archiviert der Orchestrator die betroffene Stelle mit `archive_reason: "rueckfrage_nicht_beantwortet"` statt sie zu senden oder selbst eine Option zu wählen – ein Timeout ist nie eine Freigabe (Kapitel 14.1).
+2. **Kein Name mit brauchbarer Konfidenz** (kein Ansprechpartner mit Konfidenz ≥ 0,5 auffindbar), **mit Default:** Optionen sind „Team-Anrede“ und „klassisch“. **Default bei Nichtantwort:** „Sehr geehrtes Recruiting-Team [Firma]“ – warm genug, um nicht generisch zu wirken, aber ohne das Risiko einer falsch geratenen Anrede. `expires_at` = Beginn des nächsten Tageslaufs.
+3. **Name sicher, Anrede/Titel unsicher** (wie im Beispiel oben), **mit Default:** Optionen sind „Guten Tag [Vorname] [Nachname]“, „Team-Anrede“, „klassisch“. **Default bei Nichtantwort:** „Guten Tag [Vorname] [Nachname]“ – nutzt den bereits belegten Namen, ohne ein Geschlecht zu erraten. `expires_at` = Beginn des nächsten Tageslaufs.
 
-Findet der Rechercheur überhaupt keinen Ansprechpartner (kein Fragetyp 2 oder 3 ausgelöst, weil gar kein Kandidat vorliegt), greift kein Rückfrage-Mechanismus, sondern direkt der in Kapitel 13 festgelegte klassische Fallback „Sehr geehrte Damen und Herren“. Die Anrede liefert der Rechercheur in zwei grammatischen Formen – Nominativ für die Anrede-Zeile, Akkusativ für das Anschriftfeld („Herr“/„Herrn“, „Frau“/„Frau“) –, der Setzer kombiniert sie nur (Kapitel 13). Offene Rückfragen erscheinen im Review-Cockpit mit den Optionen als Klick-Auswahl und zusätzlich per Telegram-Kurzaktion (Kapitel 14, Kapitel 7.7.9); ihre Auflösung (Antwort oder Verfall) schreibt der Orchestrator als `event_log`-Eintrag fest.
+Bei Fragetyp 2 und 3 setzt der Orchestrator, wenn `expires_at` erreicht ist, ohne dass du geantwortet hast, den Datensatz automatisch auf `status: "beantwortet"`, `antwort_quelle: "default"` und trägt den genannten Default in die Pipeline ein, damit der Tageslauf weiterläuft; der Punkt erscheint in der Review-Checkliste (Kapitel 14.4) als „per Default beantwortet – bitte prüfen“, sodass du ihn vor der endgültigen Freigabe trotzdem siehst. Bei Fragetyp 1 gibt es diesen automatischen Übergang nicht: Ohne Default bleibt `rueckfrage_offen` bestehen, bis du antwortest oder die 5-Werktage-Frist verstreicht und die Stelle archiviert wird.
+
+Findet der Rechercheur überhaupt keinen Ansprechpartner (kein Fragetyp 2 oder 3 ausgelöst, weil gar kein Kandidat vorliegt), greift kein Rückfrage-Mechanismus, sondern direkt der in Kapitel 13 festgelegte klassische Fallback „Sehr geehrte Damen und Herren“. Die Anrede liefert der Rechercheur in zwei grammatischen Formen – Nominativ für die Anrede-Zeile, Akkusativ für das Anschriftfeld („Herr“/„Herrn“, „Frau“/„Frau“) –, der Setzer kombiniert sie nur (Kapitel 13). Offene Rückfragen erscheinen im Review-Cockpit mit den Optionen als Klick-Auswahl und zusätzlich per Telegram-Kurzaktion (Kapitel 14, Kapitel 7.7.8); ihre Auflösung (Antwort oder Verfall) schreibt der Orchestrator als `event_log`-Eintrag fest.
 
 ### 10.5 Ausgabeschema: company_dossier.json
 
@@ -2790,7 +2903,7 @@ Der Rechercheur antwortet ausschließlich im Schema `schemas/dossier.json` (Kapi
 | `ats` | object | ja | exakt die Struktur `ats_profile` aus Kapitel 4.6 (`vendor`, `detected_by`, `confidence`, `parser_hint`, `ai_ranking`, `knockout_expected`, `format_default`, `ki_screening_hinweis`, `rules_version`, `checked_at`) |
 | `kultur_und_ton.{zusammenfassung, belege[]}` | object | nein | nie als Fakt-Claim, nur Hinweis für Kapitel 11 |
 | `aktuelle_themen[]` | array | nein | je Eintrag: `thema`, `datum`, `quelle_url` |
-| `kununu.{score, anzahl_bewertungen, quelle_url}` | object | nein | nur bei Stufe 6 |
+| `kununu.{score, anzahl_bewertungen, quelle_url}` | object | nein | nur bei Stufe 6, sofern in der Konfiguration aktiviert; ohne Aktivierung bleibt das Feld leer, kein Standardwert |
 | `manuelle_pruefung.{linkedin_suchlink, xing_suchlink, hinweis}` | object | nein | für Stufe 5, Kapitel 14 |
 | `signale.{prompt_injection_verdacht, anzeige_alt, fundstelle_url}` | object | ja | siehe 10.3, 10.9 |
 | `fragen[]` | array | nein | Referenzen auf `question.id` (10.4) |
@@ -2805,16 +2918,16 @@ Der Rechercheur antwortet ausschließlich im Schema `schemas/dossier.json` (Kapi
   "recherchiert_am": "2026-09-09T05:41:12+02:00",
   "quellenkette": [
     {"stufe": 1, "typ": "anzeige", "url": "<Anzeigen-URL>", "abgerufen_am": "2026-09-09T05:38:00+02:00", "status": "ok"},
-    {"stufe": 2, "typ": "karriereseite", "url": "https://www.musterhandel-solutions.example/karriere", "abgerufen_am": "2026-09-09T05:38:40+02:00", "status": "ok"},
-    {"stufe": 3, "typ": "impressum", "url": "https://www.musterhandel-solutions.example/impressum", "abgerufen_am": "2026-09-09T05:39:05+02:00", "status": "ok"},
-    {"stufe": 6, "typ": "kununu", "url": "https://www.kununu.com/de/musterhandel-solutions", "abgerufen_am": "2026-09-09T05:40:10+02:00", "status": "ok"}
+    {"stufe": 2, "typ": "karriereseite", "url": "{URL Karriereseite der Beispielfirma}", "abgerufen_am": "2026-09-09T05:38:40+02:00", "status": "ok"},
+    {"stufe": 3, "typ": "impressum", "url": "{URL Impressum der Beispielfirma}", "abgerufen_am": "2026-09-09T05:39:05+02:00", "status": "ok"},
+    {"stufe": 6, "typ": "kununu", "url": "{URL Kununu-Profil der Beispielfirma}", "abgerufen_am": "2026-09-09T05:40:10+02:00", "status": "ok"}
   ],
   "firma": {
     "name": "Musterhandel Solutions GmbH",
     "rechtsform": "GmbH",
     "konfidenz": 0.93,
     "quelle": "impressum",
-    "quelle_url": "https://www.musterhandel-solutions.example/impressum"
+    "quelle_url": "{URL Impressum der Beispielfirma}"
   },
   "anschrift": {
     "strasse": "Beispielallee 12",
@@ -2837,7 +2950,7 @@ Der Rechercheur antwortet ausschließlich im Schema `schemas/dossier.json` (Kapi
     "konfidenz_name": 0.82,
     "konfidenz_anrede": 0.55,
     "quelle": "karriereseite",
-    "quelle_url": "https://www.musterhandel-solutions.example/karriere/team",
+    "quelle_url": "{URL Team-Seite der Beispielfirma}",
     "zuletzt_bestaetigt_am": "2026-06-15"
   },
   "bewerbungsadresse": {
@@ -2861,16 +2974,16 @@ Der Rechercheur antwortet ausschließlich im Schema `schemas/dossier.json` (Kapi
   "kultur_und_ton": {
     "zusammenfassung": "Karriereseite duzt durchgängig, wirbt mit flachen Hierarchien; Kununu-Bewertungen (n=<Platzhalter>) bestätigen informellen Umgangston.",
     "belege": [
-      {"aussage": "\"Bei uns duzen sich alle, vom Azubi bis zur Geschäftsführung.\"", "quelle_url": "https://www.musterhandel-solutions.example/karriere", "quelle_typ": "karriereseite"}
+      {"aussage": "\"Bei uns duzen sich alle, vom Azubi bis zur Geschäftsführung.\"", "quelle_url": "{URL Karriereseite der Beispielfirma}", "quelle_typ": "karriereseite"}
     ]
   },
   "aktuelle_themen": [
     {"thema": "<Platzhalter: z. B. neue Produktlinie/Standorteröffnung>", "datum": "2026-07", "quelle_url": "<News-URL>"}
   ],
-  "kununu": {"score": 3.8, "anzahl_bewertungen": 142, "quelle_url": "https://www.kununu.com/de/musterhandel-solutions"},
+  "kununu": {"score": 3.8, "anzahl_bewertungen": 142, "quelle_url": "{URL Kununu-Profil der Beispielfirma}"},
   "manuelle_pruefung": {
-    "linkedin_suchlink": "https://www.linkedin.com/search/results/people/?keywords=Erika%20Musterfrau%20Musterhandel%20Solutions",
-    "xing_suchlink": "https://www.xing.com/search/members?keywords=Erika%20Musterfrau%20Musterhandel%20Solutions",
+    "linkedin_suchlink": "{LinkedIn-Personensuchlink für Name + Firma}",
+    "xing_suchlink": "{XING-Personensuchlink für Name + Firma}",
     "hinweis": "Bitte manuell bestätigen, ob Erika Musterfrau noch bei Musterhandel Solutions tätig ist (letzte Quelle: Juni 2026)."
   },
   "signale": {"prompt_injection_verdacht": false, "anzeige_alt": false, "fundstelle_url": null},
@@ -2893,16 +3006,16 @@ Automatisierte Massenabfragen bleiben ausgeschlossen: handelsregister.de nur als
 
 | Tool | Zweck | Zugriff | Kosten | Bewertung |
 |---|---|---|---|---|
-| Anthropic Web Search | Firmensuche, News, Fallback wenn Domain/URL unbekannt | serverseitiges Claude-Tool, `max_uses`, `allowed_domains` | 10 USD je 1.000 Suchen zzgl. Tokens [Preise](https://platform.claude.com/docs/en/about-claude/pricing) | empfohlen, Standardquelle (Kapitel 7.7.8) |
+| Anthropic Web Search | Firmensuche, News, Fallback wenn Domain/URL unbekannt | serverseitiges Claude-Tool, `max_uses`, `allowed_domains` | 10 USD je 1.000 Suchen zzgl. Tokens [Preise](https://platform.claude.com/docs/en/about-claude/pricing) | empfohlen, Standardquelle (Kapitel 7.7.9) |
 | Anthropic Web Fetch | bekannte URLs abrufen (Impressum, Karriereseite, Kununu-Profil) | serverseitig, nur URLs aus Nutzer-/Werkzeugkontext, `max_content_tokens` | keine Zusatzgebühr, nur Tokenkosten [Web Fetch Tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool) | empfohlen, Standardquelle für die Mehrzahl der Abrufe |
 | `mcp__bundesapi__handelsregister_suche` (lesend) | Register-Einzelabfrage in Stufe 4 | lesendes MCP-Tool, Teil des Agent-SDK-Werkzeugsatzes (Kapitel 7.6) | keine Zusatzgebühr über die Modellaufrufe hinaus | empfohlen für den Zweifelsfall, nicht für Massenabfragen |
 | Northdata (Web-UI/-Suche) | Firmen-/Registerdaten bei Widerspruch | öffentliche Ergebnisseite per Web Search/Fetch, kein Vertrag im MVP | Web-Suche eingeschränkt kostenlos, API-Preise nicht verifiziert [Northdata](https://www.northdata.de/) | optional, nur Einzelfall |
-| Kununu | Kultur/Ton, Erfahrungsberichte | einzelner Web-Fetch-Aufruf pro Firma | kostenlos lesbar | empfohlen, punktuell |
+| Kununu | Kultur/Ton, Erfahrungsberichte | einzelner Web-Fetch-Aufruf pro Firma, nur bei aktivierter Konfiguration | kostenlos lesbar | optional, nur nach expliziter Aktivierung in der Konfiguration |
 | Firecrawl | strukturiertes Crawlen mehrseitiger Team-/Karriereseiten, falls Web Fetch nicht reicht | API-Key, Credits | Preise in dieser Recherche nicht verifizierbar, vor Nutzung prüfen [Firecrawl](https://www.firecrawl.dev/) | optional, nur Ausnahmefall (JS-lastige Mehrseiten-Teamübersichten) |
 | Exa / Tavily | semantische bzw. RAG-freundliche Zweitsuche | API-Key, jeweils eigene Kontingente | Preise in dieser Recherche nicht zuverlässig verifizierbar [Exa](https://exa.ai/), [Tavily](https://tavily.com/) | optional, v2 |
 | Brave Search API | günstige, datenschutzfreundliche Zweitsuche | API-Key; kostenloser Tier seit Februar 2026 abgeschafft, seither ca. 5 USD Gratis-Guthaben/Monat je Plan, ca. 0,005 USD/Suche | niedrig, aber Kreditkarte Pflicht [Brave-Tier-Ende](https://www.implicator.ai/brave-drops-free-search-api-tier-puts-all-developers-on-metered-billing/), [Brave-Preise](https://agentdeals.dev/vendor/brave-search-api) | optional |
 
-Web Search/Fetch als Standardquelle ist dieselbe Entscheidung wie in Kapitel 7.7.8, hier nur auf die Stufen 1–3, 6 und 7 angewendet; Firecrawl/Exa/Tavily bleiben Ergänzung für die seltenen Fälle mehrseitiger, schwer zu erfassender Team-Übersichten, nicht Standard. Bei rund vier bis sechs Web-Fetch- und zwei bis drei Web-Search-Aufrufen pro Firma (10.1) bleiben die Kosten pro Recherche im Cent-Bereich; die Gesamtrechnung inklusive Modelltokens steht in Kapitel 18.
+Web Search/Fetch als Standardquelle ist dieselbe Entscheidung wie in Kapitel 7.7.9, hier nur auf die Stufen 1–3, 6 und 7 angewendet; Firecrawl/Exa/Tavily bleiben Ergänzung für die seltenen Fälle mehrseitiger, schwer zu erfassender Team-Übersichten, nicht Standard. Bei rund vier bis sechs Web-Fetch- und zwei bis drei Web-Search-Aufrufen pro Firma (10.1) bleiben die Kosten pro Recherche im Cent-Bereich; die Gesamtrechnung inklusive Modelltokens steht in Kapitel 18.
 
 ### 10.9 Prompt-Injection-Schutz beim Lesen fremder Webseiten
 
@@ -2912,7 +3025,7 @@ Der Rechercheur liest pro Tag Dutzende fremde Seiten – Karriereseiten, Impress
 - **Drittinhalte sind Daten, nie Befehle.** Jeder Web-Fetch-Treffer kommt als gekennzeichneter Werkzeugblock in den Kontext, nicht als System- oder Nutzertext; derselbe `untrusted_content_policy`-Grundsatz wie in Kapitel 7.8 gilt: eingebettete Anweisungen sind zu melden, nicht zu befolgen [Anthropic: Mitigate jailbreaks](https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks).
 - **Auffälligkeiten werden protokolliert, nicht verschwiegen.** Findet der Rechercheur eine anweisungsartige Passage, setzt er `signale.prompt_injection_verdacht = true` im Dossier (10.5), verwirft die Quelle für dieses Feld und meldet es ans Cockpit – dieselbe Struktur wie bei Scout/Matcher (`signals.injection`, Kapitel 7.8, Kapitel 9).
 
-Trotzdem prüfen zwei nachgeschaltete Instanzen jedes Feld erneut, bevor es Wirkung entfaltet: der Kritiker gleicht Behauptungen gegen die Story-Bank ab (Kapitel 11), der Setzer rendert nicht ohne Pflichtfeld über der Konfidenzschwelle (Kapitel 13) – und Web Fetch kann ohnehin keine URL abrufen, die nur das Modell selbst erzeugt hat, was gezielte Exfiltration zusätzlich ausschließt (Kapitel 7.7.8).
+Trotzdem prüfen zwei nachgeschaltete Instanzen jedes Feld erneut, bevor es Wirkung entfaltet: der Kritiker gleicht Behauptungen gegen die Story-Bank ab (Kapitel 11), der Setzer rendert nicht ohne Pflichtfeld über der Konfidenzschwelle (Kapitel 13) – und Web Fetch kann ohnehin keine URL abrufen, die nur das Modell selbst erzeugt hat, was gezielte Exfiltration zusätzlich ausschließt (Kapitel 7.7.9).
 
 **Quellen dieses Kapitels:**
 - [§ 5 DDG – Digitale-Dienste-Gesetz](https://www.gesetze-im-internet.de/ddg/__5.html)
@@ -3012,7 +3125,7 @@ Die Regeln sind so formuliert, dass sie im Kritiker prüfbar sind. Der Autor bek
 5. **Muss-Kriterien explizit beantworten:** Jedes Muss-Kriterium der Anzeige, das der Kandidat erfüllt, bekommt einen Satz oder Halbsatz mit Beleg (R03). Nicht erfüllte Muss-Kriterien werden nicht kaschiert; der Matcher hat sie vorher bewertet (Kapitel 9), und der Autor umgeht sie ehrlich („Statt X bringe ich Y mit“) oder gar nicht.
 6. **Das Anschreiben erklärt Warum und Wie, der Lebenslauf das Was.** Keine Nacherzählung der Stationen. Ein Erfolg aus dem Lebenslauf darf im Anschreiben vertieft werden (Kontext, Vorgehen, Ergebnis), nicht wiederholt.
 7. **Keine Selbstattribute, nur Belege:** Kein „teamfähig, belastbar, kommunikationsstark“. Wer teamfähig ist, beschreibt ein Team-Ergebnis mit Zahl.
-8. **Anrede:** Standard ist „Sie“, auch wenn die Anzeige duzt ([bewerbung.com](https://bewerbung.com/du-in-stellenanzeigen/), [peopleatventure](https://www.peopleatventure.de/bewerbung-anrede)). „Du“ nur, wenn die Anzeige durchgehend duzt, die Firmenkultur laut Rechercheur eindeutig Du-geprägt ist (Startup, explizite Aufforderung) und deine Profil-Präferenz es erlaubt; dann professionell, ohne Kumpelton ([Karriereakademie](https://www.karriereakademie.de/duzen-stellenanzeige)). Die namentliche Anrede folgt dem vierstufigen Fallback aus Kapitel 10; ein geratener Name oder Titel ist ein K.-o.-Fehler.
+8. **Anrede:** Standard ist „Sie“, auch wenn die Anzeige duzt ([bewerbung.com](https://bewerbung.com/du-in-stellenanzeigen/), [peopleatventure](https://www.peopleatventure.de/bewerbung-anrede)). „Du“ nur, wenn die Anzeige durchgehend duzt, die Firmenkultur laut Rechercheur eindeutig Du-geprägt ist (Startup, explizite Aufforderung) und deine Profil-Präferenz es erlaubt; dann professionell, ohne Kumpelton ([Karriereakademie](https://www.karriereakademie.de/duzen-stellenanzeige)). Die namentliche Anrede folgt der Rückfrage-Kaskade aus Kapitel 10.4 (Name mit Konfidenz ≥ 0,7 → namentlich; Name sicher, Anrede unsicher → „Guten Tag [Vorname] [Nachname]“; kein brauchbarer Name → „Sehr geehrtes Recruiting-Team [Firma]“; gar kein Kandidat → „Sehr geehrte Damen und Herren“, Kapitel 13); ein geratener Name oder Titel ist ein K.-o.-Fehler.
 9. **Schluss ohne Konjunktiv:** „Ich freue mich auf das Gespräch“ statt „würde mich freuen“; Gehaltsvorstellung als Bruttojahresgehalt oder Spanne und Eintrittstermin nur, wenn die Anzeige explizit danach fragt, immer aus dem Profilfeld, nie geschätzt ([bewerbung.net](https://bewerbung.net/gehaltsvorstellung-bewerbung), [JobTeaser](https://www.jobteaser.com/de/advices/gehaltsvorstellung-in-der-bewerbung-formulieren-so-geht-s), [Karrierebibel](https://karrierebibel.de/bewerbung-eintrittstermin-nennen-sofort/)). Fehlt das Profilfeld, entsteht eine Rückfrage, kein Platzhalter.
 10. **Rhythmus wie ein Mensch:** Satzlängen variieren (kurze Sätze neben langen), keine Dreierlisten aus parallelen Adjektiven, keine „nicht nur …, sondern auch“-Konstruktion, kein „Es geht nicht um X, sondern um Y“ ([Decrypt](https://decrypt.co/348923/5-biggest-tells-something-written-ai), [QuillBot](https://quillbot.com/blog/ai-writing-tools/burstiness-and-perplexity/)). Absätze dürfen unterschiedlich lang sein.
 11. **Fachbegriffe ja, Anzeigensätze nein:** Werkzeuge, Zertifikate und Rollentitel in der Schreibweise der Anzeige, sofern belegt (R01); keine übernommenen Satzteile (Urheberrecht an Anzeigentexten, Kapitel 4). Der Kritiker prüft n-Gramm-Überlappung (11.5).
@@ -3025,94 +3138,25 @@ Die Regeln sind so formuliert, dass sie im Kritiker prüfbar sind. Der Autor bek
 
 Der Katalog arbeitet zweistufig: eine deterministische Liste (Regex, läuft vor jedem Kritiker-Aufruf, kostet keine Tokens) und ein Rubrik-Kriterium im Kritiker für die Generik, die keine Wortliste fängt. Jeder Eintrag hat eine Schwere: `hart` blockiert den Entwurf (zurück an den Autor), `weich` senkt die Rubrik-Note und erzeugt einen Hinweis. Der Katalog ist ein Startbestand aus den zitierten Ratgeber- und Studienquellen ([ulmato](https://www.ulmato.de/anschreiben/), [20 Minuten](https://www.20min.ch/story/kuenstliche-intelligenz-merken-recruiter-wenn-bewerbungen-ki-generiert-sind-103298940), [Decrypt](https://decrypt.co/348923/5-biggest-tells-something-written-ai)) plus redaktioneller Ergänzung; du erweiterst ihn im Onboarding um deine eigenen Tabus (Kapitel 8) und im Betrieb über das Review-Cockpit („diese Wendung nie wieder“, Kapitel 14).
 
-**Deutsch (38 Einträge)**
+**Deutsch (Auszug: die 10 wirkungsvollsten harten Einträge)**
 
 | Nr. | Floskel oder Muster | Schwere | Ersatzstrategie |
 |---|---|---|---|
 | D01 | „Hiermit bewerbe ich mich …“ | hart | Einstieg mit Erfolg oder Firmenbezug (Regel 2) |
 | D02 | „Mit großem Interesse habe ich Ihre Stellenanzeige gelesen“ | hart | streichen; Interesse zeigt sich am Detail |
-| D03 | „Ihre Anzeige hat mich sofort angesprochen“ | hart | konkretes Detail nennen, das angesprochen hat |
 | D04 | „auf der Suche nach einer neuen Herausforderung“ | hart | Wechselmotiv aus dem Profil |
-| D05 | „bin ich auf Ihre Stellenanzeige aufmerksam geworden“ (als Einstieg) | weich | Quelle nur im Betreff oder gar nicht |
 | D06 | „Teamplayer“, „teamfähig“ (ohne Beleg) | hart | Team-Ergebnis mit Zahl |
 | D07 | „belastbar“ | hart | Situation mit Last und Ergebnis |
-| D08 | „hochmotiviert“, „sehr motiviert“ | hart | streichen; Motivation zeigt der Firmenbezug |
-| D09 | „flexibel und zuverlässig“ | hart | streichen oder belegen |
 | D10 | „kommunikationsstark“ | hart | Beispiel: Präsentation, Verhandlung, Zahl |
-| D11 | „lösungsorientiert“, „ergebnisorientiert“ | hart | das Ergebnis nennen |
-| D12 | „Hands-on-Mentalität“ | weich | konkrete Tätigkeit |
-| D13 | „Leidenschaft für …“, „ich brenne für …“ | weich | was du dafür getan hast |
-| D14 | „schnelle Auffassungsgabe“ | hart | Einarbeitungsbeispiel mit Zeitangabe |
-| D15 | „strukturierte Arbeitsweise“ (ohne Beleg) | weich | Methode, Werkzeug, Ergebnis |
-| D16 | „Ich bin überzeugt, dass ich …“ | weich | Aussage direkt, ohne Überzeugungsrahmen |
 | D17 | „Ich bringe alles mit, was Sie suchen“ | hart | Muss-Kriterien einzeln belegen |
-| D18 | „gepaart mit“ | hart | zwei Sätze statt Koppelphrase |
 | D19 | „nicht nur …, sondern auch …“ | hart | eine Aussage pro Satz |
-| D20 | „Es geht nicht um X, sondern um Y“ | hart | Y direkt sagen |
-| D21 | „in der heutigen schnelllebigen Zeit/Arbeitswelt“ | hart | streichen |
-| D22 | „Synergien“ | hart | benennen, was zusammenwirkt |
-| D23 | „nahtlos“ | hart | streichen |
-| D24 | „ganzheitlich“ | weich | Bestandteile nennen |
-| D25 | „innovativ“, „zukunftsorientiert“ (als Selbst- oder Firmenattribut) | weich | das konkrete Neue nennen |
-| D26 | „spannende Aufgaben“, „spannendes Umfeld“ | weich | welche Aufgabe genau |
-| D27 | „maßgeblich beigetragen“ (ohne Zahl) | weich | Anteil und Ergebnis beziffern |
-| D28 | „einen wertvollen Beitrag leisten“ | hart | den Beitrag nennen |
-| D29 | „Mehrwert schaffen“ (ohne Zahl) | weich | Zahl oder streichen |
 | D30 | „Ihr renommiertes Unternehmen“, „Marktführer“ (pauschal) | hart | recherchiertes Detail |
-| D31 | „vielfältige Aufgaben“, „umfangreiche Erfahrungen sammeln“ | weich | zwei konkrete Aufgaben |
-| D32 | „im Rahmen meiner Tätigkeit“ | weich | streichen (Füllwort) |
 | D33 | „Über eine Einladung … würde ich mich sehr freuen“ | hart | Indikativ (Regel 9) |
-| D34 | „Ich würde mich freuen, von Ihnen zu hören“ | hart | Indikativ |
-| D35 | „Für Rückfragen stehe ich jederzeit gerne zur Verfügung“ | weich | streichen; Kontaktdaten stehen im Kopf |
-| D36 | „Ich hoffe, Ihr Interesse geweckt zu haben“ | hart | streichen |
-| D37 | drei parallele Adjektive oder Substantive in Reihe („engagiert, zuverlässig und teamfähig“) | weich | auf eins reduzieren und belegen |
-| D38 | mehr als 40 Prozent der Sätze beginnen mit „Ich“ | weich | Satzanfänge variieren |
 
-**Englisch (36 Einträge)**
-
-| Nr. | Phrase oder Muster | Schwere | Ersatzstrategie |
-|---|---|---|---|
-| E01 | “I am writing to apply for …” | hart | open with a result or a company detail |
-| E02 | “I am writing to express my interest in …” | hart | same |
-| E03 | “To whom it may concern” | hart | named contact or “Dear Hiring Team at …” |
-| E04 | “Please find attached my CV” | weich | drop; attachment is visible |
-| E05 | “I believe I would be a great fit” | hart | show the fit with evidence |
-| E06 | “passionate about” | hart | what you did because of it |
-| E07 | “excited about the opportunity” | weich | which part, and why |
-| E08 | “team player” | hart | team result with a number |
-| E09 | “hard-working”, “hard worker” | hart | drop |
-| E10 | “detail-oriented” | hart | example with consequence |
-| E11 | “results-driven”, “results-oriented” | hart | the result |
-| E12 | “self-starter”, “go-getter” | hart | something you started |
-| E13 | “think outside the box” | hart | drop |
-| E14 | “hit the ground running” | hart | onboarding example with time |
-| E15 | “proven track record” | hart | the record itself, two numbers |
-| E16 | “leverage” (verb) | weich | “use” |
-| E17 | “synergy”, “synergies” | hart | name what combines |
-| E18 | “dynamic” (self or company) | hart | drop |
-| E19 | “fast-paced environment” | hart | drop |
-| E20 | “wear many hats” | weich | list two hats |
-| E21 | “add value”, “value-add” (no number) | hart | number |
-| E22 | “utilize” | weich | “use” |
-| E23 | “in today's rapidly changing world” | hart | drop |
-| E24 | “not only …, but also …” | hart | one claim per sentence |
-| E25 | “it's not about X, it's about Y” | hart | say Y |
-| E26 | “delve”, “delve into” | weich | “look at”, “examine” |
-| E27 | “tapestry”, “landscape”, “journey” (metaphor) | weich | literal noun |
-| E28 | “seamless”, “seamlessly” | hart | drop |
-| E29 | “cutting-edge”, “state-of-the-art” | hart | the concrete technology |
-| E30 | “unique blend of skills” | hart | list two skills with evidence |
-| E31 | “a perfect match” | hart | drop |
-| E32 | “robust” (of skills or experience) | weich | specific adjective or drop |
-| E33 | “spearheaded” | weich | “led” plus scope |
-| E34 | “I would welcome the opportunity to discuss” | weich | “I look forward to discussing …” with a concrete topic |
-| E35 | “Thank you for your time and consideration” | weich | one concrete closing sentence |
-| E36 | exactly three parallel adjectives (“motivated, reliable and creative”) | weich | cut to one, add evidence |
-
-Maschinenlesbar, damit Kritiker und Review-Cockpit dieselbe Datei nutzen:
+Vollständige Liste: 38 deutsche Einträge (D01–D38, harte und weiche) und, für englische Bewerbungen (11.11), 36 englische Einträge (E01–E36) nach demselben Muster – inklusive der weichen Treffer D27 und D35, auf die die Beispiele in 11.8 und 11.9 verweisen. Sie lebt ausschließlich maschinenlesbar in `config/anti_generik.yaml`, Version 2026-09, damit Kritiker und Review-Cockpit dieselbe Datei nutzen und der Schreib-Prompt des Autors sie nie ausgeschrieben sieht (11.10).
 
 ```yaml
-# anti_generik.yaml – Version 2026-09; Regex case-insensitive, Wortgrenzen beachten
+# config/anti_generik.yaml – Version 2026-09; Regex case-insensitive, Wortgrenzen beachten
 - id: D01
   sprache: de
   muster: '\bhiermit bewerbe ich mich\b'
@@ -3397,7 +3441,7 @@ Eine unbelegte Aussage ist ein hartes Gate. Ob sie automatisch gestrichen oder d
 | Termine, Gehalt | fragt / fragt nicht | – | nur wenn gefragt; Werte identisch mit Profilfeldern |
 | Datum, Version | – | Dossier-Version | dieselbe Version; Datum setzt der Setzer |
 
-**Kosten pro Bewerbung, Größenordnung.** Mit den Listenpreisen (Fable 5.1 10/50, Opus 5 5/25, Sonnet 5 2/10, Haiku 4.5 1/5 US-Dollar je Million Token Input/Output; [Pricing](https://platform.claude.com/docs/en/about-claude/pricing)) und Projektannahmen von rund 15.000 Input- und 20.000 Output-Tokens für die Fable-Aufrufe (inklusive Thinking), 15.000/8.000 für Opus 5 und je unter 10.000 für Sonnet und Haiku liegt eine vollständige Schleife mit `voll`-Anschreiben, Tailoring, zwei Kritikrunden, Fakten-, Stimm- und Konsistenz-Check bei etwa 1,5 bis 2,5 US-Dollar; mit dem ab Claude 4.7 rund 30 Prozent token-intensiveren Tokenizer ([Pricing](https://platform.claude.com/docs/en/about-claude/pricing), Prüfer-Hinweis) und ohne Cache-Treffer eher 2 bis 3,5 US-Dollar. Prompt Caching senkt den Input-Anteil deutlich: Cache-Lesen kostet bei Fable 5.1 0,025-fach, Mindestlänge des Prefix 512 Tokens ([Prompt Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)). Die belastbare Rechnung steht in Kapitel 18.
+**Kosten pro Bewerbung, Größenordnung.** Autor und Kritiker sind zwei von fünf Schritten der Pipeline (Rechercheur, Autor, Kritiker, ATS-Prüfer, Setzer, Kapitel 10–13); ihr Anteil lässt sich deshalb nicht als eigener Gesamtpreis je Bewerbung lesen. Im „empfohlen“-Szenario aus Kapitel 18 entfallen auf Autor und Kritiker zusammen rund 2,00 US-Dollar der insgesamt rund 3,71 US-Dollar (≈ 3,45 €) pro Bewerbung: rund 1,74 US-Dollar auf den Autor (Briefing, zwei Entwürfe, Überarbeitung) und rund 0,26 US-Dollar auf den Kritiker (Rubrik, Fakten-Check, Stimm- und Leser-Test, Konsistenz-Check). Prompt Caching senkt den Input-Anteil dieser Schleife zusätzlich: Cache-Lesen kostet bei Fable 5.1 0,025-fach, Mindestlänge des Prefix 512 Tokens ([Prompt Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)). Verbindlich ist die Rechnung in Kapitel 18; die hier genannte Größenordnung ist nur eine Plausibilitätsprobe.
 
 ### 11.9 Die Rubrik
 
@@ -3413,9 +3457,9 @@ Sieben Kriterien, Skala 1 bis 5 mit definierten Ankern, gewichtete Summe. Zwei K
 | K6 Faktentreue | 10 % | ≥ 1 unbelegte Zahl oder Kenntnis | alles belegt, 1 Rundung unsauber | jede Aussage mit Beleg-ID, Rundungen wie in der Story-Bank | unbelegt = Gate |
 | K7 Formales | 10 % | Anrede/Name falsch, Gehalt ungefragt, Konjunktiv-Schluss | 1 Formfehler | Anrede korrekt, Betreff vollständig, Du/Sie durchgehend, Schluss im Indikativ, Gehalt/Eintritt regelkonform | Anrede-Fehler = Gate |
 
-Schwellen: gewichteter Gesamtwert mindestens 4,0 und jedes Kriterium mindestens 3 → „geprüft“; 3,3 bis 3,9 → eine Überarbeitung mit gezielten Anweisungen; unter 3,3 → neue Entwürfe mit anderem Einstiegstyp. Die Schwellen sind Startwerte; nach den ersten 20 Bewerbungen kalibrierst du sie im Review-Cockpit anhand deiner Freigaben und Ablehnungen (Feedback-Schleife, Kapitel 14). Der Kritiker liefert außerdem eine Selbsteinschätzung seiner Sicherheit je Kriterium, damit unsichere Bewertungen im Cockpit markiert werden.
+Schwellen: gewichteter Gesamtwert mindestens 4,0 und jedes Kriterium mindestens 3 → „geprüft“; 3,3 bis 3,9 → eine Überarbeitung mit gezielten Anweisungen; unter 3,3 → neue Entwürfe mit anderem Einstiegstyp. Die Schwellen sind Startwerte; nach den ersten 20 Bewerbungen kalibrierst du sie im Review-Cockpit anhand deiner Freigaben und Ablehnungen (Feedback-Schleife, Kapitel 14). Der Kritiker liefert außerdem eine Selbsteinschätzung seiner Sicherheit je Kriterium, damit unsichere Bewertungen im Cockpit markiert werden. Ein weicher Floskeltreffer (Schwere „weich“, 11.5) senkt nur die Note des betroffenen Kriteriums; ist die Freigabeschwelle trotzdem erreicht, erscheint er im Kritikbericht als nicht blockierender Hinweis, den der Autor bei der nächsten Überarbeitung aufgreifen kann, aber nicht muss. Ein harter Treffer bleibt in jedem Fall ein Gate (11.5).
 
-**Beispiel-Kritikausgabe** (Structured Output, Schema in `kritik.schema.json`):
+**Beispiel-Kritikausgabe** (Structured Output, Schema in `kritik.schema.json`): Der Entwurf erreicht die Freigabeschwelle (Gesamt 4,25, kein Kriterium unter 3, keine Gates verletzt); `entscheidung` lautet deshalb „geprueft“. Der weiche Treffer D27 unter K4 und die Einträge unter `anweisungen` sind hier nicht blockierende Hinweise für die nächste Bewerbung, keine Bedingung für diese Freigabe.
 
 ```json
 {
@@ -3438,7 +3482,7 @@ Schwellen: gewichteter Gesamtwert mindestens 4,0 und jedes Kriterium mindestens 
   },
   "gates": {"tabu": "ok", "floskel_hart": "ok", "unbelegt": "ok", "anrede": "ok", "anzeige_kopie": "ok"},
   "gesamt": 4.25,
-  "entscheidung": "ueberarbeiten",
+  "entscheidung": "geprueft",
   "anweisungen": [
     {"absatz": 2, "satz": 7, "problem": "„maßgeblich beigetragen“ ohne Zahl (D27)", "vorschlag": "Ergebnis aus S-007 beziffern oder Satz streichen"},
     {"absatz": 2, "satz": 7, "problem": "Stimme: Nominalstil, Textproben nutzen Verben", "vorschlag": "Verb voran: „Ich habe 40 Lieferanten … umgestellt“"},
@@ -3536,7 +3580,7 @@ description: Schreibt Anschreiben-Varianten und passt den Lebenslauf aus dem Mas
 model: claude-fable-5-1
 effort: high
 tools: Read, Write
-skills: anschreiben-schreiben, lebenslauf-tailoring
+skills: anschreiben, lebenslauf-tailoring
 ---
 Du arbeitest nur mit den Dateien im Ordner der Stelle: briefing.json, stories.json,
 master.json, stimmprofil.json. Du liest keine anderen Bewerbungen und keine Webseiten.
@@ -3630,7 +3674,6 @@ Regeln für Autor und Kritiker im englischen Modus:
 - Define success (Claude Platform Docs) – https://platform.claude.com/docs/en/test-and-evaluate/define-success
 - LLM-as-a-Judge Position Bias (arXiv 2602.02219) – https://arxiv.org/html/2602.02219v2
 - LLM-as-a-Judge Reliability and Bias (Adaline) – https://www.adaline.ai/blog/llm-as-a-judge-reliability-bias
-- Pricing (Claude Platform Docs) – https://platform.claude.com/docs/en/about-claude/pricing
 - Prompt caching (Claude Platform Docs) – https://platform.claude.com/docs/en/build-with-claude/prompt-caching
 - API and data retention (Claude Platform Docs) – https://platform.claude.com/docs/en/manage-claude/api-and-data-retention
 - Structured outputs (Claude Platform Docs) – https://platform.claude.com/docs/en/build-with-claude/structured-outputs
@@ -3649,8 +3692,8 @@ Der ATS-Prüfer ist die letzte automatische Instanz vor dem Review-Cockpit. Er s
 
 Der ATS-Prüfer arbeitet in zwei Stufen, die an unterschiedlichen Stellen der Pipeline sitzen:
 
-- **Stufe 1 (Text, vor dem Rendern).** Läuft auf dem Bewerbungsdossier im Status „geprüft“ (Ausgabe des Kritikers, Kapitel 11), also auf reinem Text – noch bevor der Setzer eine Zeile PDF oder DOCX erzeugt. Sie prüft Begriffsabdeckung und Stuffing-Regeln (12.2–12.4) und ist billig: Code plus ein kurzer Modellaufruf. Ein Fehlschlag hier bedeutet, dass der Autor nachbessert, bevor der Setzer überhaupt zu tun bekommt – das entspricht dem Pfeil „ATS-PRÜFER → SETZER“ im Komponentendiagramm (Kapitel 7.2).
-- **Stufe 2 (Datei, nach dem Rendern).** Läuft auf den tatsächlich erzeugten Dateien, nachdem die Setzer-QA (Kapitel 13.10) grün ist. Sie testet Formatregeln und Test-Parsing (12.5–12.7) auf den echten Bytes. Erst wenn Setzer-QA **und** ATS-Prüfer-Stufe-2 grün sind, wechselt die Stelle auf „bereit zur Freigabe“ (Kapitel 13.1).
+- **Stufe 1 (Text, vor dem Rendern).** Läuft auf dem Bewerbungsdossier im Status „geschrieben“, unmittelbar nach der Kritiker-Rubrik (Kapitel 11.8, Schritt 3) und vor dem Übergang nach „geprüft“ – also auf reinem Text, noch bevor der Setzer eine Zeile PDF oder DOCX erzeugt. Sie prüft Begriffsabdeckung und Stuffing-Regeln (12.2–12.4) und ist billig: Code plus ein kurzer Modellaufruf. Der Übergang „geschrieben“ → „geprüft“ wird erst gesetzt, wenn Kritiker-Rubrik **und** ATS-Prüfer Stufe 1 bestanden sind (Kapitel 7.4); ein Fehlschlag hier bedeutet, dass der Autor nachbessert, bevor der Setzer überhaupt zu tun bekommt – das entspricht dem Pfeil „ATS-PRÜFER → SETZER“ im Komponentendiagramm (Kapitel 7.2).
+- **Stufe 2 (Datei, nach dem Rendern).** Läuft auf den tatsächlich erzeugten Dateien im Status „geprüft“, nachdem die Setzer-QA (Kapitel 13.10) grün ist. Sie testet Formatregeln und Test-Parsing (12.5–12.7) auf den echten Bytes. Erst wenn Setzer-QA **und** ATS-Prüfer-Stufe-2 grün sind, wechselt die Stelle von „geprüft“ auf „bereit zur Freigabe“ (Kapitel 13.1).
 
 Beide Stufen schreiben ihre Befunde in denselben ATS-Report (12.8), der im Review-Cockpit neben dem Kritikbericht angezeigt wird (Kapitel 14). Scheitert Stufe 1 an einem harten Kriterium, geht die Stelle mit der Liste der fehlenden Begriffe zurück an den Autor – in die bestehende Überarbeitungsschleife aus Kapitel 11.8, nicht als eigene, dritte Schleife. Scheitert Stufe 2 an einem Formatfehler, der plausibel am Rendern liegt (z. B. eine Tabelle im Template), geht die Stelle an die Vorlagenpflege des Setzers zurück, nicht an den Autor – dieselbe Unterscheidung, die der Setzer bei seiner eigenen QA schon trifft (Kapitel 13.10).
 
@@ -3785,7 +3828,7 @@ Der Prüfer bekommt **nicht** das JSON-Dossier, sondern den von Tika extrahierte
 }
 ```
 
-Ein „unknown“ bei einem Kann-Kriterium ist informativ; ein „unknown“ bei einem Muss-Kriterium ist ein weicher Hinweis (kein hartes Gate, weil das Modell selbst fehleranfällig ist und der Fakten-Check des Kritikers dasselbe Kriterium bereits mit Opus 5 auf semantischer Ebene geprüft hat, Kapitel 11.8 Schritt 5) – aber ein Hinweis, der im Review-Cockpit sichtbar bleibt, weil er auf ein Format- statt ein Inhaltsproblem hindeutet (im Beispiel: eine Sprachtabelle, die beim Parsing verloren ging).
+Ein „unknown“ bei einem Kann-Kriterium ist informativ; ein „unknown“ bei einem Muss-Kriterium ist ein weicher Hinweis (kein hartes Gate, weil das Modell selbst fehleranfällig ist und der Fakten-Check des Kritikers dasselbe Kriterium bereits gegen die Story-Bank geprüft hat – Sonnet 5, Kapitel 11.8 Schritt 5; die semantische Rubrikprüfung K2 läuft davon getrennt auf Opus 5, Kapitel 11.8 Schritt 3) – aber ein Hinweis, der im Review-Cockpit sichtbar bleibt, weil er auf ein Format- statt ein Inhaltsproblem hindeutet (im Beispiel: eine Sprachtabelle, die beim Parsing verloren ging).
 
 ### 12.8 Der ATS-Report: Schema, Score, Schwellen
 
@@ -3839,7 +3882,7 @@ Nach zwei erfolglosen Rücksprüngen an dieselbe Komponente – dieselbe Grenze 
 
 Der Name „ATS-Prüfer“ verspricht mehr, als das Modul halten kann, und das muss hier offen stehen. Kein Werkzeug in diesem Kapitel ist die tatsächliche Ziel-Software: Textkernel (Personio, softgarden, d.vinci), SAP Joule, SmartRecruiters SmartAssistant und Workday HiredScore sind Enterprise-Systeme ohne öffentlichen Testzugang (Kapitel 4.3); Tika und OpenResume-Parser sind kostenlose Stellvertreter, der Lesetest ist eine Nachbildung des einzigen dokumentierten Falls (Teamtailor), nicht ein Test gegen Teamtailor selbst. Ein „bestanden“ im ATS-Report reduziert das Risiko groben Parsing-Versagens (fehlender Text, falsche Reihenfolge, verlorene Kontaktdaten) und literaler Begriffslücken – es sagt nichts über eine bestimmte Platzierung, ein Ranking oder eine Score-Zahl in einem echten System aus, und der Report behauptet das auch nicht.
 
-Das ist keine Schwäche, die ein besseres Werkzeug beheben könnte, sondern die Konsequenz der Marktlage: Kapitel 4.4 zeigt, dass der Mythos „75 % aller Bewerbungen werden automatisch abgelehnt“ widerlegt ist und 92 % der befragten Recruiter bestätigen, dass ihr ATS nicht nach Formatierung oder Match-Score automatisch ablehnt ([The Interview Guys](https://blog.theinterviewguys.com/ats-resume-rejection-myth/), [HR.com](https://www.hr.com/en/app/blog/2026/04/ats-rejection-myth-debunked-92-of-recruiters-confi_mntajhyq.html)). Der ATS-Prüfer optimiert deshalb bewusst nicht auf einen erfundenen Zielwert, sondern auf die zwei Risiken, die tatsächlich belegt sind: technisches Parsing-Versagen und fehlende literale Begriffe für die Minderheit der Systeme, die tatsächlich automatisiert filtern (Knockout-Fragen, Kapitel 4.6). Ebenso ausgeschlossen bleibt jede Form von Weißtext oder Prompt-Injection als „Abkürzung“ – die Studienlage zeigt sinkende Wirksamkeit bei Verbreitung und ein Entdeckungsrisiko von 65 % bei Hiring Managern ([The Interview Guys](https://blog.theinterviewguys.com/job-seekers-are-hiding-secret-text-in-their-resumes/)); der ATS-Prüfer scannt aktiv danach (12.4), setzt es aber nie selbst ein.
+Das ist keine Schwäche, die ein besseres Werkzeug beheben könnte, sondern die Konsequenz der Marktlage: Kapitel 4.4 zeigt, dass der Mythos „75 % aller Bewerbungen werden automatisch abgelehnt“ widerlegt ist und 92 % der befragten Recruiter bestätigen, dass ihr ATS nicht nach Formatierung oder Match-Score automatisch ablehnt ([The Interview Guys](https://blog.theinterviewguys.com/ats-resume-rejection-myth/), [HR.com](https://www.hr.com/en/app/blog/2026/04/ats-rejection-myth-debunked-92-of-recruiters-confi_mntajhyq.html)). Der ATS-Prüfer optimiert deshalb bewusst nicht auf einen erfundenen Zielwert, sondern auf die zwei Risiken, die tatsächlich belegt sind: technisches Parsing-Versagen und fehlende literale Begriffe für die Minderheit der Systeme, die tatsächlich automatisiert filtern (Knockout-Fragen, Kapitel 4.6). Ebenso ausgeschlossen bleibt jede Form von Weißtext oder Prompt-Injection als „Abkürzung“ – die Studienlage zeigt sinkende Wirksamkeit bei Verbreitung und die Erfahrung, dass 65 % der befragten Hiring Manager bereits KI-gestützte Täuschungsversuche erkannt haben (kein Entdeckungsrisiko pro Einzelfall) ([The Interview Guys](https://blog.theinterviewguys.com/job-seekers-are-hiding-secret-text-in-their-resumes/)); der ATS-Prüfer scannt aktiv danach (12.4), setzt es aber nie selbst ein.
 
 Weil Anbieter ihre KI-Schichten schnell und undokumentiert ändern (Beispiel Personio/aurio, Kapitel 4.3), ist der Regelkatalog dieses Kapitels wie die Regelwerke aus Kapitel 4 ein versioniertes, quartalsweise zu prüfendes Dokument, kein einmal fertiges System.
 
@@ -3885,7 +3928,7 @@ Ausgaben: fertige Dateien mit Endnamen, Seitenvorschauen (PNG) für das Review-C
 
 Fünf Grundsätze:
 
-1. **Kein Modell im Renderpfad.** Der Setzer ist ein Werkzeug, im Agent SDK als In-Process-MCP-Tool `render_documents` registriert ([Custom Tools](https://code.claude.com/docs/en/agent-sdk/custom-tools)), das der Orchestrator aufruft. Kosten: Rechenzeit, keine Token. Einzige Ausnahme ist die optionale Sichtprüfung (13.10).
+1. **Kein Modell im Renderpfad.** Der Setzer ist eine gewöhnliche Python-Funktion, die der Orchestrator aufruft (Kapitel 7.2). Für interaktive Sitzungen steht sie zusätzlich als In-Process-MCP-Tool `render_documents` bereit ([Custom Tools](https://code.claude.com/docs/en/agent-sdk/custom-tools)); für alle Subagents mit Drittinhalten ist `mcp__setzer__*` über die Deny-Liste (Kapitel 7.8) gesperrt, damit kein Modell das Renderwerkzeug selbst aufrufen kann. Kosten: Rechenzeit, keine Token. Einzige Ausnahme ist die optionale Sichtprüfung (13.10).
 2. **Eine Datenquelle, mehrere Ausgaben.** Dieselbe JSON-Struktur speist PDF, DOCX und Textvariante. Kein Format wird aus einem anderen konvertiert.
 3. **Echte Textebene, eingebettete Schriften, lineare Lesereihenfolge** – bei jedem Dokument.
 4. **Reproduzierbar:** gleiche Daten, gleiche Vorlagenversion, gleiche Schriftdateien ergeben dieselbe Datei; Zeitstempel in den PDF-Metadaten werden fixiert.
@@ -3924,7 +3967,7 @@ Das Datenmodell lehnt sich an JSON Resume an ([jsonresume.org](https://jsonresum
 ```json
 {
   "schema": "bewerbungsdossier/1.0",
-  "bewerbung_id": "a1b2c3",
+  "application_id": "a1b2c3",
   "sprache": "de",
   "layout": "sachlich",
   "bewerbungsweg": "email",
@@ -4131,7 +4174,7 @@ Auswahl pro Bewerbung durch Regel, nicht durch Modell: die letzten zwei bis drei
 
 Eine Unterschrift ist rechtlich nicht vorgeschrieben; bei Online-Bewerbungen ist sie unüblich, bei postalischen und konservativen Bewerbungen wird sie weiterhin erwartet ([Karrierebibel](https://karrierebibel.de/bewerbung-lebenslauf-unterschreiben/), [enhancv](https://enhancv.com/de/blog/datum-und-unterschrift-auf-lebenslauf/)); eine Ratgeberquelle nennt rund 80 % der Personaler, die sie weiterhin schätzen ([Karrierebibel](https://karrierebibel.de/unterschrift-bei-online-bewerbung/), ohne Studienangabe, unbestätigt).
 
-**Entscheidung:** Default keine Unterschrift. Ist im Profil ein Unterschriftsbild hinterlegt, fügt der Setzer es ein, wenn Layout `klassisch` gewählt ist oder das Dossier `unterschrift_einfuegen: true` trägt (Kapitel 11 setzt das nach Branchenregel). Position im Anschreiben: zwischen Grußformel und Namenszeile, 14 mm hoch; im Lebenslauf: letzte Seite unten, „Ort, Datum“ links, Unterschrift darunter – dasselbe Datum wie im Anschreiben. Format: PNG mit transparentem Hintergrund, ca. 600 px breit, freigestellt ohne Linie.
+**Entscheidung:** Default keine Unterschrift. Ist im Profil ein Unterschriftsbild hinterlegt, fügt der Setzer es ein, wenn Layout `klassisch` gewählt ist oder das Dossier `unterschrift_einfuegen: true` trägt. Die Branchenregel dafür (konservativ: Banken, Versicherungen, Behörden) legt Kapitel 5.3 fest; Kapitel 11 setzt das Feld im Bewerbungsdossier entsprechend dieser Regel oder nach ausdrücklicher Vorgabe im konkreten Dossier. Position im Anschreiben: zwischen Grußformel und Namenszeile, 14 mm hoch; im Lebenslauf: letzte Seite unten, „Ort, Datum“ links, Unterschrift darunter – dasselbe Datum wie im Anschreiben. Format: PNG mit transparentem Hintergrund, ca. 600 px breit, freigestellt ohne Linie.
 
 Das Unterschriftsbild ist ein missbrauchsanfälliges Asset: Es liegt ausschließlich lokal im Profilverzeichnis, geht nie in einen Prompt oder Modellkontext, wird nie in Vorschaubildern des Review-Cockpits verschickt und ist nur dem Setzer-Tool zugänglich (Kapitel 16).
 
@@ -4153,7 +4196,7 @@ Jede Render-Version durchläuft diese Prüfungen, bevor der ATS-Prüfer (Kapitel
 | DOCX | LibreOffice headless → PDF, pandoc → Text | gleiche Seitenzahl wie PDF ± 0; Text-Diff leer | zurück an Vorlagenpflege |
 | Sichtprüfung (optional) | pdftoppm → PNG → Claude Haiku 4.5 mit Bild | Frage: „Sichtbarer Layoutfehler? ja/nein, Grund“ | Hinweis im Review-Cockpit, kein Stopp |
 
-Der Setzer verkleinert nie eigenmächtig Schrift oder Ränder, um Text passend zu machen; eine Seite mit 9-pt-Schrift fällt auf. Überlänge geht als Zahl zurück („Anschreiben: 6 Zeilen zu lang, ca. 60 Wörter kürzen“), der Autor kürzt, der Kritiker prüft erneut, der Setzer rendert Version n+1. Nach drei Schleifen stoppt der Orchestrator und legt den Fall ins Review-Cockpit.
+Der Setzer verkleinert nie eigenmächtig Schrift oder Ränder, um Text passend zu machen; eine Seite mit 9-pt-Schrift fällt auf. Überlänge geht als Zahl zurück („Anschreiben: 6 Zeilen zu lang, ca. 60 Wörter kürzen“), der Autor kürzt, der Kritiker prüft erneut, der Setzer rendert Version n+1. Diese Renderschleife ist auf zwei Durchläufe begrenzt – dieselbe Grenze wie beim Kritiker (Kapitel 11.8) und beim ATS-Prüfer (Kapitel 12.8). Nach zwei Schleifen stoppt der Orchestrator und legt den Fall mit vollständigem Bericht ins Review-Cockpit.
 
 Die Seitenvorschauen (PNG, 110 dpi) sind Teil jeder Version und werden im Review-Cockpit neben dem Text-Diff angezeigt, damit du das Dokument so siehst, wie es der Empfänger sieht.
 
@@ -4178,7 +4221,7 @@ bewerbungen/
 
 ```json
 {
-  "bewerbung_id": "a1b2c3",
+  "application_id": "a1b2c3",
   "status": "gesendet",
   "layout": "sachlich",
   "sprache": "de",
@@ -4292,49 +4335,51 @@ Eine zweite Regel betrifft externe Texte: Zitate aus Stellenanzeigen oder Firmen
 
 **Entscheidung:** Der MVP nutzt einen Telegram-Bot als primären Push- und Freigabekanal, ergänzt um eine schlanke lokale FastAPI+htmx-Seite auf demselben Server wie das Agent SDK (Kapitel 7) für die vertiefte Prüfung (Diff, Checkliste, Seitenvorschau, Statistik). v1 baut daraus eine vollwertige lokale Web-App mit Kanban-Ansicht über alle Pipeline-Zustände und einer Statistikseite; eine optionale Notion-Spiegelung bleibt eine spätere Erweiterung, kein Bestandteil von v1 selbst.
 
-**Begründung:** python-telegram-bot ist aktiv gepflegt (29.500 Sterne, 3.229 Commits, Stand 9.9.2026), asynchron und passt zur Python-Basis des Agent SDK ([GitHub](https://github.com/python-telegram-bot/python-telegram-bot)); ein Bot-Token ist in Minuten eingerichtet, liefert native mobile Push-Benachrichtigungen und Datei-Anhänge, ohne dass eine eigene App gebaut werden muss. Für die vertiefte Prüfung reicht Telegram nicht: Ein Wort-Diff über einen ganzen Lebenslauf oder eine mehrseitige PDF-Vorschau passt nicht sinnvoll in eine Chat-Nachricht. FastAPI ist mit 102.200 Sternen die am weitesten verbreitete, MIT-lizenzierte Basis für einen solchen Endpunkt ([GitHub](https://github.com/fastapi/fastapi)); htmx (49.400 Sterne) erlaubt Teil-Updates einer Seite über einfache HTML-Attribute, ohne ein SPA-Framework zu benötigen ([GitHub](https://github.com/bigskysoftware/htmx)) – die Lizenzangabe ließ sich per Abruf nicht eindeutig aus dem Repository extrahieren und ist vor Einsatz direkt in der LICENSE-Datei zu prüfen. Reines Markdown/PDF im Git-Ordner scheitert an einem technischen Fakt: PDFs sind binär und werden von Git nicht sinnvoll als Diff dargestellt; ohne parallele Versionierung der Textquelle wäre die geforderte Diff-Ansicht wertlos. Ein Claude Artifact ist auffällig günstig umzusetzen, weil es Datenbank-, Datei- und Kommentar-Fähigkeiten ohne eigenes Hosting mitbringt, ist aber laut dieser Recherche ein sich weiterentwickelnder Produktbereich ohne dokumentierte Stabilitätsgarantie und wird deshalb nur als Experiment behandelt, nicht als Produktionsschicht neben der SQLite-Datenbank.
+**Begründung:** python-telegram-bot ist aktiv gepflegt (29.500 Sterne, 3.229 Commits, Stand 9.9.2026), asynchron und passt zur Python-Basis des Agent SDK ([GitHub](https://github.com/python-telegram-bot/python-telegram-bot)); ein Bot-Token ist in Minuten eingerichtet und liefert native mobile Push-Benachrichtigungen mit Inline-Buttons, ohne dass eine eigene App gebaut werden muss. Für die vertiefte Prüfung reicht Telegram nicht: Ein Wort-Diff über einen ganzen Lebenslauf oder eine mehrseitige PDF-Vorschau passt nicht sinnvoll in eine Chat-Nachricht. FastAPI ist mit 102.200 Sternen die am weitesten verbreitete, MIT-lizenzierte Basis für einen solchen Endpunkt ([GitHub](https://github.com/fastapi/fastapi)); htmx (49.400 Sterne) erlaubt Teil-Updates einer Seite über einfache HTML-Attribute, ohne ein SPA-Framework zu benötigen ([GitHub](https://github.com/bigskysoftware/htmx)) – die Lizenzangabe ließ sich per Abruf nicht eindeutig aus dem Repository extrahieren und ist vor Einsatz direkt in der LICENSE-Datei zu prüfen. Reines Markdown/PDF im Git-Ordner scheitert an einem technischen Fakt: PDFs sind binär und werden von Git nicht sinnvoll als Diff dargestellt; ohne parallele Versionierung der Textquelle wäre die geforderte Diff-Ansicht wertlos. Ein Claude Artifact ist auffällig günstig umzusetzen, weil es Datenbank-, Datei- und Kommentar-Fähigkeiten ohne eigenes Hosting mitbringt, ist aber laut dieser Recherche ein sich weiterentwickelnder Produktbereich ohne dokumentierte Stabilitätsgarantie und wird deshalb nur als Experiment behandelt, nicht als Produktionsschicht neben der SQLite-Datenbank.
+
+**Datenschutz-Entscheidung Telegram-Kanal:** Kapitel 8.10 hält als Grundsatz fest, dass `profil/`-Daten nie in einem SaaS-Werkzeug eines Dritten liegen dürfen; ein vollständiger Lebenslauf oder Zeugnisse als Telegram-Anhang würden dagegen verstoßen, weil Telegram-Server außerhalb der eigenen Infrastruktur liegen. Über den Telegram-Kanal gehen deshalb ausschließlich Metadaten – Firmenname, Rolle, Score, Matcher-Begründung und die ersten Sätze des Anschreibens – sowie ein Link auf die Detailseite. PDF, Seitenvorschau und der vollständige Anschreibentext bleiben auf dem Server und sind nur über die per SSH-Tunnel erreichbare FastAPI+htmx-Seite (Kapitel 7.7.8) einsehbar, nie als Anhang einer Telegram-Nachricht. Das kostet Komfort bei der Schnellprüfung unterwegs, ist aber Voraussetzung dafür, dass ein Drittanbieter außerhalb der eigenen Kontrolle nie Lebenslauf- oder Zeugnisinhalte zu Gesicht bekommt.
 
 **Alternativen:** NiceGUI (16.200 Sterne, MIT) und Reflex (28.900 Sterne, Apache-2.0) wären fertige Python-UI-Baukästen mit weniger eigenem HTML/CSS, aber mehr Lernaufwand für ein Ein-Personen-MVP ([NiceGUI](https://github.com/zauberzeug/nicegui), [Reflex](https://github.com/reflex-dev/reflex)). Streamlit (45.700 Sterne) ist ebenso naheliegend, aber sein Rerun-Modell – das gesamte Skript läuft bei jeder Interaktion neu – wird unhandlich, sobald zehn Zeilen je mehrere unabhängige Buttons (Freigeben/Ablehnen/Kommentar) tragen ([Streamlit](https://github.com/streamlit/streamlit)); zudem nimmt das Projekt aktuell keine externen Pull Requests mehr an. GitHub Issues/PRs als Diff- und Kommentar-Kanal ist für einen Git-affinen Nutzer attraktiv und würde zur ohnehin geplanten Repo-Versionierung passen, verschiebt aber die Prüfoberfläche in ein Werkzeug, das nicht für PDF-Vorschau gebaut ist; als v1-Option offen, nicht MVP.
 
 ### 14.3 Funktionsliste
 
 1. Sofort-Push pro Stelle, sobald der Status „bereit zur Freigabe“ erreicht ist, plus ein Tagesdigest am Ende des Tageslaufs mit allen offenen Punkten.
-2. Pro Stelle: Score und „Warum diese Stelle“-Begründung des Matchers (Kapitel 9), Kurzvorschau des Anschreibens, PDF-Anhang.
+2. Pro Stelle: Score und „Warum diese Stelle“-Begründung des Matchers (Kapitel 9), Kurzvorschau des Anschreibens, Link zur Detailseite mit PDF-Vorschau (14.2).
 3. Automatisch vorausgefüllte Checkliste (14.4) mit Sprungmarken zu unsicheren Punkten.
 4. Wort-Diff des Lebenslaufs, Master-Fassung gegen angepasste Fassung (14.5).
 5. Seitenvorschau (PNG) aller erzeugten Dokumente, aus dem Setzer übernommen (Kapitel 13.10).
 6. Rückfrage-Kanal mit Auswahloptionen und asynchroner Antwort (14.6).
 7. Vier getrennte Aktionen: Freigeben, Ändern mit Kommentar, Ablehnen mit Grund, Später (14.7).
-8. Unveränderliches Audit-Log jeder Aktion (14.8).
-9. Statistik-Ansicht über Kennzahlen der laufenden Pipeline (14.9).
+8. Unveränderliches Audit-Log jeder Aktion (14.9).
+9. Statistik-Ansicht über Kennzahlen der laufenden Pipeline (14.10).
 10. Bedienung von unterwegs über die Telegram-App; responsive Detailseite für die vertiefte Prüfung vom Telefon aus.
 
 ### 14.4 Die Review-Checkliste
 
-Jede Bewerbung im Zustand „bereit zur Freigabe“ trägt eine Checkliste aus 20 Punkten in sieben Gruppen. Die meisten Punkte sind bereits durch vorgelagerte Module automatisch geprüft und grün oder rot markiert; das Cockpit fasst diese Ergebnisse nur zusammen und verlinkt auf die Fundstelle. Nur wenige Punkte – vor allem in der Gruppe Ton – verlangen ein tatsächliches menschliches Urteil, weil kein vorgelagertes Modul „liest sich das wie ich“ zuverlässig beantworten kann.
+Jede Bewerbung im Zustand „bereit zur Freigabe“ trägt eine Checkliste aus 20 Punkten in sieben Gruppen, 14 davon automatisch geprüft und 6 manuell. Die meisten Punkte sind bereits durch vorgelagerte Module automatisch geprüft und grün oder rot markiert; das Cockpit fasst diese Ergebnisse nur zusammen und verlinkt auf die Fundstelle. Nur wenige Punkte – vor allem in der Gruppe Ton – verlangen ein tatsächliches menschliches Urteil, weil kein vorgelagertes Modul „liest sich das wie ich“ zuverlässig beantworten kann. Jeder Punkt trägt eine feste ID (C01–C20); `review_item.checklist` (Kapitel 7.3) verweist maschinenlesbar auf genau diese IDs, statt den Prüftext jedes Mal neu zu speichern.
 
-| Gruppe | Prüfpunkt | Herkunft |
-|---|---|---|
-| Fakten | Jede Aussage im Anschreiben trägt eine Quellenmarkierung (CV-Fakt / Stellenanzeige / Recherche-Fakt); unmarkierte Sätze sind rot hervorgehoben | automatisch (Autor, Kapitel 11) |
-| Fakten | Zahlen, Zeiträume und Titel stimmen mit dem Master-Lebenslauf und der Story-Bank überein | automatisch (Kritiker, Kapitel 11) |
-| Fakten | Keine Tätigkeit, kein Titel, kein Datum wurde gegenüber dem Master-Lebenslauf erweitert oder übertrieben | automatisch (Kritiker, Kapitel 11) |
-| Adressat | Firmenname, Anschrift und Ansprechpartner stimmen mit dem Rechercheur-Datensatz überein, Konfidenz über der Schwelle | automatisch (Rechercheur, Kapitel 10) |
-| Adressat | Anredeform im Anschriftfeld (Akkusativ) und in der Anrede (Nominativ) sind konsistent und korrekt | automatisch (Setzer-QA, Kapitel 13.10) |
-| Adressat | Betreffzeile enthält Stellentitel und Kennziffer korrekt aus der Stellenanzeige | automatisch (Setzer-QA, Kapitel 13.10) |
-| Dokumente | Layout und Sprache (sachlich/klassisch/international-en, de/en) passen zu Stellenanzeige und Branche | manuell (Du) |
-| Dokumente | Lebenslauf-Diff zeigt nur Umordnung, Betonung und Formulierung, keine neuen Fakten | manuell (Du, mit Diff aus 14.5) |
-| Dokumente | Seitenzahlen eingehalten, Setzer-QA vollständig grün | automatisch (Setzer, Kapitel 13.10) |
-| Ton | Stimmprofil eingehalten, keine Anti-Generik-Verstöße, Text liest sich wie du selbst | manuell (Du) |
-| Ton | Keine unbelegte Selbsteinschätzung („hochmotiviert“, „Teamplayer“) ohne Beleg aus der Story-Bank | manuell (Du) |
-| ATS | ATS-Prüfer-Bericht ist grün: Keyword-Abdeckung und Test-Parsing bestanden | automatisch (ATS-Prüfer, Kapitel 12) |
-| ATS | Textebene, Schrifteinbettung, kein Text in Tabellen oder Bildern | automatisch (Setzer-QA, Kapitel 13.10) |
-| Anhänge | Ausgewählte Zeugnisse und Zertifikate sind die für diese Stelle relevanten, Reihenfolge korrekt | automatisch (Setzer-Regel, Kapitel 13.8) |
-| Anhänge | Gesamtgröße innerhalb des Budgets für den gewählten Bewerbungsweg | automatisch (Setzer-QA, Kapitel 13.10) |
-| Anhänge | Keine veraltete oder falsche Anlage versehentlich mitgeschickt | manuell (Du) |
-| Versandweg | Bewerbungsweg (E-Mail, Portal getrennt, Portal einzeln, Freitext) korrekt erkannt und Formularfelder passend zugeordnet | automatisch (Rechercheur/Bote, Kapitel 10/15) |
-| Versandweg | E-Mail- oder Portal-Entwurf stimmt inhaltlich mit dem Anschreiben überein | manuell (Du) |
-| Versandweg | Sonderanforderungen aus der Stellenanzeige erfüllt (Gehaltsangabe, geforderte Anlagen, Sprache) | automatisch (Rechercheur, Kapitel 10) |
-| Versandweg | Bei Portalen: Testbefüllung des Formulars ohne Absenden liegt als Nachweis vor | automatisch (Bote, Kapitel 15) |
+| ID | Gruppe | Prüfpunkt | Herkunft |
+|---|---|---|---|
+| C01 | Fakten | Jede Aussage im Anschreiben trägt eine Quellenmarkierung (CV-Fakt / Stellenanzeige / Recherche-Fakt); unmarkierte Sätze sind rot hervorgehoben | automatisch (Autor, Kapitel 11) |
+| C02 | Fakten | Zahlen, Zeiträume und Titel stimmen mit dem Master-Lebenslauf und der Story-Bank überein | automatisch (Kritiker, Kapitel 11) |
+| C03 | Fakten | Keine Tätigkeit, kein Titel, kein Datum wurde gegenüber dem Master-Lebenslauf erweitert oder übertrieben | automatisch (Kritiker, Kapitel 11) |
+| C04 | Adressat | Firmenname, Anschrift und Ansprechpartner stimmen mit dem Rechercheur-Datensatz überein, Konfidenz über der Schwelle | automatisch (Rechercheur, Kapitel 10) |
+| C05 | Adressat | Anredeform im Anschriftfeld (Akkusativ) und in der Anrede (Nominativ) sind konsistent und korrekt | automatisch (Setzer-QA, Kapitel 13.10) |
+| C06 | Adressat | Betreffzeile enthält Stellentitel und Kennziffer korrekt aus der Stellenanzeige | automatisch (Setzer-QA, Kapitel 13.10) |
+| C07 | Dokumente | Layout und Sprache (sachlich/klassisch/international-en, de/en) passen zu Stellenanzeige und Branche | manuell (Du) |
+| C08 | Dokumente | Lebenslauf-Diff zeigt nur Umordnung, Betonung und Formulierung, keine neuen Fakten | manuell (Du, mit Diff aus 14.5) |
+| C09 | Dokumente | Seitenzahlen eingehalten, Setzer-QA vollständig grün | automatisch (Setzer, Kapitel 13.10) |
+| C10 | Ton | Stimmprofil eingehalten, keine Anti-Generik-Verstöße, Text liest sich wie du selbst | manuell (Du) |
+| C11 | Ton | Keine unbelegte Selbsteinschätzung („hochmotiviert“, „Teamplayer“) ohne Beleg aus der Story-Bank | manuell (Du) |
+| C12 | ATS | ATS-Prüfer-Bericht ist grün: Keyword-Abdeckung und Test-Parsing bestanden | automatisch (ATS-Prüfer, Kapitel 12) |
+| C13 | ATS | Textebene, Schrifteinbettung, kein Text in Tabellen oder Bildern | automatisch (Setzer-QA, Kapitel 13.10) |
+| C14 | Anhänge | Ausgewählte Zeugnisse und Zertifikate sind die für diese Stelle relevanten, Reihenfolge korrekt | automatisch (Setzer-Regel, Kapitel 13.8) |
+| C15 | Anhänge | Gesamtgröße innerhalb des Budgets für den gewählten Bewerbungsweg | automatisch (Setzer-QA, Kapitel 13.10) |
+| C16 | Anhänge | Keine veraltete oder falsche Anlage versehentlich mitgeschickt | manuell (Du) |
+| C17 | Versandweg | Bewerbungsweg (E-Mail, Portal getrennt, Portal einzeln, Freitext) korrekt erkannt und Formularfelder passend zugeordnet | automatisch (Rechercheur/Bote, Kapitel 10/15) |
+| C18 | Versandweg | E-Mail- oder Portal-Entwurf stimmt inhaltlich mit dem Anschreiben überein | manuell (Du) |
+| C19 | Versandweg | Sonderanforderungen aus der Stellenanzeige erfüllt (Gehaltsangabe, geforderte Anlagen, Sprache) | automatisch (Rechercheur, Kapitel 10) |
+| C20 | Versandweg | Bei Portalen: Testbefüllung des Formulars ohne Absenden liegt als Nachweis vor | automatisch (Bote, Kapitel 15) |
 
 Rot markierte oder fehlende automatische Prüfpunkte verhindern nicht den Aufruf im Cockpit, aber sie werden optisch hervorgehoben und öffnen standardmäßig aufgeklappt. Die manuellen Punkte sind bewusst wenige: Wenn Ton-Prüfung dauernd zu Ablehnungen führt, ist das ein Signal an Kapitel 11, das Stimmprofil zu schärfen – nicht ein Grund, mehr automatische Prüfpunkte zu erfinden, die am Ende doch wieder Vertrauensfragen an ein Modell wären.
 
@@ -4346,65 +4391,64 @@ Die Diff-Ansicht beantwortet die Frage, die die Fakten-Checkliste stellt, aber n
 
 ### 14.6 Rückfrage-Kanal
 
-Rückfragen entstehen in Kapitel 10 (Rechercheur, z. B. bei niedriger Konfidenz zum Ansprechpartner) und Kapitel 11 (Autor, z. B. bei fehlender Information für einen Pflichttext), nicht im Cockpit selbst; das Cockpit ist der Kanal, über den eine Rückfrage angezeigt und beantwortet wird. Jede Rückfrage ist ein eigener Datensatz:
+Rückfragen entstehen in Kapitel 10 (Rechercheur, z. B. bei niedriger Konfidenz zum Ansprechpartner) und Kapitel 11 (Autor, z. B. bei fehlender Information für einen Pflichttext), nicht im Cockpit selbst; das Cockpit ist der Kanal, über den eine Rückfrage angezeigt und beantwortet wird. Jede Rückfrage ist ein eigener Datensatz in der Tabelle `question` (Kapitel 7.3) – das Cockpit führt keine eigene Rückfrage-Tabelle, sondern liest und schreibt ausschließlich dort. Beispiel für eine Rückfrage ohne Default (Pflichtfeld eines Portals):
 
 ```json
 {
-  "rueckfrage_id": "rf-4711",
-  "bewerbung_id": "a1b2c3",
-  "gestellt_von": "Rechercheur",
-  "gestellt_am": "2026-09-08T06:40:00+02:00",
-  "frage": "Für dieses Portal ist eine Gehaltsvorstellung Pflichtfeld. Welchen Betrag?",
-  "kontext_zitat": "Feld „Gehaltswunsch p.a.“ – Pflichtangabe laut Bewerbungsformular",
-  "optionen": [
-    "Bandbreite aus dem Profil verwenden (65.000–72.000 €)",
-    "Anderen Betrag angeben",
-    "Feld mit „nach Vereinbarung“ versuchen"
+  "id": "q-4711",
+  "application_id": "a1b2c3",
+  "job_posting_id": null,
+  "company_id": null,
+  "asked_by": "autor",
+  "text": "Für dieses Portal ist eine Gehaltsvorstellung Pflichtfeld (Feld „Gehaltswunsch p.a.“ laut Bewerbungsformular). Welchen Betrag?",
+  "options": [
+    {"value": "bandbreite_profil", "label": "Bandbreite aus dem Profil verwenden (65.000–72.000 €)", "konfidenz": null},
+    {"value": "anderer_betrag", "label": "Anderen Betrag angeben", "konfidenz": null},
+    {"value": "nach_vereinbarung", "label": "Feld mit „nach Vereinbarung“ versuchen", "konfidenz": null}
   ],
-  "erlaubt_freitext": true,
+  "blocks_status": "geschrieben",
+  "answer": null,
+  "answered_at": null,
   "status": "offen",
-  "antwort": null,
-  "beantwortet_am": null,
-  "faellig_bis": "2026-09-15"
+  "expires_at": "2026-09-15T06:00:00+02:00",
+  "created_at": "2026-09-08T06:40:00+02:00"
 }
 ```
 
-Ist die Zahl der Optionen klein (in der Praxis bis zu vier bis fünf), erscheinen sie im Telegram-Kanal als Inline-Buttons; ist Freitext sinnvoll oder nötig, bietet der Bot zusätzlich eine Antwort per Textnachricht an, die der Bot dem offenen `rueckfrage_id` zuordnet. Die Antwort fließt strukturiert zurück in die Pipeline – an das Modul, das die Rückfrage gestellt hat – statt einen kompletten Neustart der Stelle auszulösen.
+Ist die Zahl der Optionen klein (in der Praxis bis zu vier bis fünf), erscheinen sie im Telegram-Kanal als Inline-Buttons; ist Freitext sinnvoll oder nötig, bietet der Bot zusätzlich eine Antwort per Textnachricht an, die der Bot der offenen `question.id` zuordnet. Die Antwort fließt strukturiert zurück in die Pipeline – an das Modul, das die Rückfrage gestellt hat (`asked_by`) – statt einen kompletten Neustart der Stelle auszulösen.
 
-**Timeout-Verhalten:** Eine offene Rückfrage läuft nie in eine automatische Entscheidung. Nach vier Stunden ohne Antwort erinnert der Bot einmalig; solange die Rückfrage offen ist, erscheint sie täglich im Tagesdigest. Bleibt sie länger als eine konfigurierbare Frist (Default fünf Werktage) unbeantwortet, wechselt die betroffene Stelle auf „archiviert“ mit dem Grund „Rückfrage nicht beantwortet, Frist überschritten“ – nicht auf „gesendet“ und nicht auf eine automatisch gewählte Option. Diese Regel ist eine direkte Konsequenz aus 14.1: Verstreichen ist niemals gleich Zustimmung.
+**Timeout-Verhalten:** Was beim Verstreichen der Frist passiert, hängt davon ab, ob die Rückfrage einen Default trägt (Kapitel 10.4). Rückfragen **mit** hinterlegtem Default – etwa „Sehr geehrtes Recruiting-Team [Firma]“ bei fehlendem Ansprechpartner oder „Guten Tag [Vorname] [Nachname]“ bei sicherem Namen, aber unsicherer Anrede – löst der Orchestrator beim nächsten Tageslauf automatisch auf: `question.status` wechselt auf „beantwortet“ mit `antwort_quelle: "default"`, und der Punkt erscheint in der Review-Checkliste (14.4) als „per Default beantwortet – bitte prüfen“, sodass du ihn vor der endgültigen Freigabe trotzdem siehst. Das ist keine Freigabe, sondern nur eine Textentscheidung; die Bewerbung bleibt danach ganz normal im Zustand „bereit zur Freigabe“ und durchläuft die volle Checkliste. Rückfragen **ohne** Default – etwa der Adresskonflikt oder die Gehaltsangabe im Beispiel oben – bleiben offen: Nach vier Stunden ohne Antwort erinnert der Bot einmalig, danach erscheint die Rückfrage täglich im Tagesdigest, solange sie offen ist. Bleibt sie länger als fünf Werktage unbeantwortet, wechselt die betroffene Stelle auf „archiviert“ mit dem Grund „Rückfrage nicht beantwortet, Frist überschritten“ – nicht auf „gesendet“ und nicht auf eine automatisch gewählte Option. Ein Zeitablauf ist nie eine Freigabe: Die Default-Auflösung schließt lediglich die Rückfrage selbst, nie die Bewerbung; die eigentliche Freigabe bleibt in jedem Fall dein expliziter Klick (14.1).
 
 ### 14.7 Aktionen
 
 Vier Aktionen, niemals eine binäre Freigabe/Ablehnung-Entscheidung:
 
-1. **Freigeben.** Setzt den Status auf „freigegeben“, schreibt Akteur und Zeitstempel. Ein Undo-Fenster von 60 Sekunden (Default, siehe 14.12) zeigt einen „Rückgängig“-Button; erst danach wird die Stelle für den Boten (Kapitel 15) zur Abholung sichtbar. Dieser Statuswechsel ist zugleich das Signal, das laut Kapitel 7 die Freigabesperre vor dem Versand-Werkzeug öffnet – das Cockpit setzt den Haken, der Bote führt aus.
-2. **Ändern mit Kommentar.** Freitext, was geändert werden soll (z. B. „dritter Absatz zu förmlich, bitte direkter“). Die Stelle geht zurück auf den Status „geschrieben“ – die Recherche bleibt gültig, nur Autor und Kritiker (Kapitel 11) laufen mit dem Kommentar als zusätzlichem Eingabetext erneut, danach automatisch wieder Setzer (Kapitel 13) und ATS-Prüfer (Kapitel 12). Die neue Version erscheint als eigener Eintrag in `render/v{n+1}` (Kapitel 13.11) wieder im Cockpit.
-3. **Ablehnen mit Grund.** Eine Kategorie aus einer festen Liste (z. B. „Rolle passt nicht“, „Unternehmen ausschließen“, „Ton nicht passend“, „Sonstiges“) plus optionaler Freitext. Status wechselt auf „archiviert“. Der Grund wird strukturiert erfasst und ist das Feedback-Signal für die Kalibrierung des Matchers (Kapitel 9) und, bei Ton-Gründen, für das Stimmprofil (Kapitel 8/11) – das Lernen selbst findet in jenen Kapiteln statt, das Cockpit liefert nur das saubere, kategorisierte Signal.
-4. **Später.** Kein Statuswechsel, sondern ein Feld `zurückgestellt_bis` (Datum) auf dem bestehenden Zustand „bereit zur Freigabe“. Die Stelle verschwindet bis zu diesem Datum aus dem aktiven Digest, ohne die Prüfung der übrigen Stellen aufzuhalten, und taucht danach automatisch wieder auf.
+1. **Freigeben.** Setzt `application.status` auf „freigegeben“, schreibt Akteur und Zeitstempel in `application.approved_at`/`approved_by`. Ein Undo-Fenster von 60 Sekunden (Default, siehe 14.13) zeigt einen „Rückgängig“-Button; erst danach wird die Stelle für den Boten (Kapitel 15) zur Abholung sichtbar. Dieser Statuswechsel ist zugleich das Signal, das laut Kapitel 7 die Freigabesperre vor dem Versand-Werkzeug öffnet – das Cockpit setzt den Haken, der Bote führt aus.
+2. **Ändern mit Kommentar.** Freitext, was geändert werden soll (z. B. „dritter Absatz zu förmlich, bitte direkter“). `review_item.status` wechselt auf „zurueck_an_autor“, die Stelle selbst zurück auf den Status „geschrieben“ – die Recherche bleibt gültig, nur Autor und Kritiker (Kapitel 11) laufen mit dem Kommentar als zusätzlichem Eingabetext erneut, danach automatisch wieder Setzer (Kapitel 13) und ATS-Prüfer (Kapitel 12). Die neue Version erscheint als eigener Eintrag in `render/v{n+1}` (Kapitel 13.11) wieder im Cockpit.
+3. **Ablehnen mit Grund.** Eine Kategorie aus einer festen Liste (z. B. „Rolle passt nicht“, „Unternehmen ausschließen“, „Ton nicht passend“, „Sonstiges“) plus optionaler Freitext. `application.status` wechselt auf „archiviert“, `review_item.status` auf „abgelehnt“. Der Grund wird strukturiert erfasst und ist das Feedback-Signal für die Kalibrierung des Matchers (Kapitel 9) und, bei Ton-Gründen, für das Stimmprofil (Kapitel 8/11) – das Lernen selbst findet in jenen Kapiteln statt, das Cockpit liefert nur das saubere, kategorisierte Signal.
+4. **Später.** Kein Statuswechsel bei `application.status`: `review_item.status` wechselt auf „spaeter“, bewusst ohne Zeitdruck und ohne festes Datum (Kapitel 7.3) – anders als bei den drei anderen Aktionen ist „Später“ ein reines Filterkriterium, kein Termin. Die Stelle bleibt im Zustand „bereit zur Freigabe“, verschwindet nur aus dem aktiven Tagesdigest, ohne die Prüfung der übrigen Stellen aufzuhalten, und taucht wieder auf, sobald du sie im Cockpit erneut öffnest oder gezielt nach zurückgestellten Stellen filterst (v1: eigene Spalte in der Kanban-Ansicht, 14.2).
 
 ### 14.8 Benachrichtigungen und Mobile
 
-Primärkanal ist der Telegram-Bot: Sofort-Push pro Stelle bei Erreichen von „bereit zur Freigabe“, zusätzlich ein Tagesdigest mit allen offenen Rückfragen und zurückgestellten Stellen. Als Rückfallebene bei ausgefallenem oder verpasstem Bot-Kanal dient ein tägliches E-Mail-Digest mit Zusammenfassung und Link zur Detailseite – Telegram als einziger interaktiver Kanal wäre ein Single Point of Failure. Mobile Bedienung ist über die Telegram-App bereits abgedeckt (native Push, Buttons, Datei-Vorschau); die FastAPI+htmx-Detailseite bekommt ein einfaches, mobilfreundliches Einspalten-Layout für den Fall, dass eine vertiefte Prüfung unterwegs nötig ist, ist aber primär für Desktop/Tablet gestaltet, wo Diff und Seitenvorschau nebeneinander Platz haben.
+Primärkanal ist der Telegram-Bot: Sofort-Push pro Stelle bei Erreichen von „bereit zur Freigabe“, zusätzlich ein Tagesdigest mit allen offenen Rückfragen und zurückgestellten Stellen. Als Rückfallebene bei ausgefallenem oder verpasstem Bot-Kanal dient ein tägliches E-Mail-Digest mit Zusammenfassung und Link zur Detailseite – Telegram als einziger interaktiver Kanal wäre ein Single Point of Failure. Mobile Bedienung ist über die Telegram-App bereits abgedeckt (native Push, Buttons, Link zur Detailseite; PDF und Seitenvorschau bleiben serverseitig, 14.2); die FastAPI+htmx-Detailseite bekommt ein einfaches, mobilfreundliches Einspalten-Layout für den Fall, dass eine vertiefte Prüfung unterwegs nötig ist, ist aber primär für Desktop/Tablet gestaltet, wo Diff und Seitenvorschau nebeneinander Platz haben.
 
 ### 14.9 Audit-Log
 
-Jede Statusänderung – Freigeben, Ändern, Ablehnen, Später, Rückfrage-Antwort – landet als eigener Eintrag in einer Protokolltabelle:
+Jede Statusänderung – Freigeben, Ändern, Ablehnen, Später, Rückfrage-Antwort – schreibt das Cockpit als eigenen Eintrag in die zentrale Protokolltabelle `event_log` (Kapitel 7.3). Ein zweites, eigenes Audit-Log führt das Cockpit nicht: Kapitel 7 legt `event_log` bereits als die einzige, per Trigger unveränderliche Protokolltabelle des Systems fest, und ein paralleles Log würde dieselbe Information doppelt und potenziell widersprüchlich vorhalten. Eine Cockpit-Aktion erzeugt genau einen Eintrag mit `entity_type` (`application` oder `question`), `entity_id`, `actor` (`nutzer` für einen Klick, `cockpit` für eine automatische Default-Auflösung, 14.6), `action` (`status_change` oder `decision`), `from_status`/`to_status` sowie `payload` mit Kanal, Kommentar bzw. Ablehnungsgrund:
 
-```sql
-CREATE TABLE audit_log (
-  id INTEGER PRIMARY KEY,
-  bewerbung_id TEXT NOT NULL,
-  zeitstempel TEXT NOT NULL,      -- ISO 8601, Europe/Berlin
-  akteur TEXT NOT NULL,           -- 'Nutzer' oder Modulname
-  aktion TEXT NOT NULL,           -- freigeben | aendern | ablehnen | spaeter | rueckfrage_antwort
-  alter_status TEXT,
-  neuer_status TEXT,
-  kommentar TEXT,
-  kanal TEXT NOT NULL             -- telegram | web | api
-);
+```json
+{
+  "entity_type": "application",
+  "entity_id": "a1b2c3",
+  "actor": "nutzer",
+  "action": "status_change",
+  "from_status": "bereit zur Freigabe",
+  "to_status": "freigegeben",
+  "payload": {"kanal": "telegram", "kommentar": null}
+}
 ```
 
-SQLite kennt keine tabellenweisen Schreibrechte wie Postgres; Unveränderlichkeit wird deshalb auf Anwendungsebene erzwungen (kein UPDATE- oder DELETE-Codepfad für diese Tabelle) und zusätzlich durch einen periodischen Export in das private Git-Repository (Kapitel 13.11) abgesichert – die Git-Historie selbst wird damit zur zweiten, unabhängigen Unveränderlichkeitsschicht. Das Audit-Log ist der Nachweis der menschlichen Freigabe vor jedem Versand und damit direkt an die Compliance-Anforderungen aus Kapitel 16 angebunden.
+SQLite kennt keine tabellenweisen Schreibrechte wie Postgres; Unveränderlichkeit wird deshalb per Trigger erzwungen (`event_log_no_update`, `event_log_no_delete`, Kapitel 7.3) und zusätzlich durch einen periodischen Export in das private Git-Repository (Kapitel 13.11) abgesichert – die Git-Historie selbst wird damit zur zweiten, unabhängigen Unveränderlichkeitsschicht. Das Audit-Log ist der Nachweis der menschlichen Freigabe vor jedem Versand und damit direkt an die Compliance-Anforderungen aus Kapitel 16 angebunden.
 
 ### 14.10 Statistik-Ansicht
 
@@ -4425,7 +4469,7 @@ Telegram-Nachricht pro Stelle:
 │ Anschreiben (Anfang):                        │
 │ „Mit über vier Jahren Erfahrung im…"         │
 │                                               │
-│ Anhang: Mueller_Anna_Bewerbung.pdf, 3 Seiten │
+│ PDF/Mappe: nur per Link, kein Anhang         │
 │                                               │
 │ [ Freigeben ] [ Kommentar ]                  │
 │ [ Ablehnen  ] [ Später   ]                   │
@@ -4440,7 +4484,7 @@ Detailseite (FastAPI + htmx), Desktop-Layout:
 │ Beispiel GmbH – Senior Controller (m/w/d)   Status: bereit     │
 │                                              zur Freigabe       │
 ├────────────────────────────────┬──────────────────────────────┤
-│ CHECKLISTE (17/20 automatisch)  │ SEITENVORSCHAU                │
+│ CHECKLISTE (14/20 automatisch)  │ SEITENVORSCHAU                │
 │ Fakten      [x][x][x]           │  ┌─────────┐  ┌─────────┐     │
 │ Adressat    [x][x][x]           │  │ Seite 1 │  │ Seite 2 │     │
 │ Dokumente   [x][ ][x] ← Du      │  │  PNG    │  │  PNG    │     │
@@ -4466,18 +4510,18 @@ Review-Cockpit und Bote/Tracker (Kapitel 15) teilen sich dieselbe SQLite-Datenba
 
 | Feld | Schreibt | Liest |
 |---|---|---|
-| `status` (bis „freigegeben“) | Review-Cockpit | Orchestrator, Bote |
-| `freigegeben_am`, `freigegeben_von` | Review-Cockpit | Bote, Tracker, Statistik |
-| `zurückgestellt_bis` | Review-Cockpit | Orchestrator (Digest-Filter) |
-| `status` (ab „gesendet“), Versandkanal, Nachweis | Bote (Kapitel 15) | Review-Cockpit (nur Anzeige) |
-| `rückmeldung_status`, Interviewtermin | Tracker (Kapitel 15) | Review-Cockpit (Anzeige, Statistik) |
-| `audit_log` | Review-Cockpit (Freigeben/Ändern/Ablehnen/Später/Rückfrage) und Bote/Tracker (Sende- und Rückmeldeereignisse) | alle Module, Statistik |
+| `application.status` (bis „freigegeben“) | Review-Cockpit | Orchestrator, Bote |
+| `application.approved_at`, `application.approved_by` | Review-Cockpit | Bote, Tracker, Statistik |
+| `review_item.status` (inkl. „spaeter“, „abgelehnt“) | Review-Cockpit | Orchestrator (Digest-Filter), Statistik |
+| `application.status` (ab „gesendet“), Versandkanal, Nachweis | Bote (Kapitel 15) | Review-Cockpit (nur Anzeige) |
+| `application.status` (Rückmeldung/Interview/Absage/Zusage), `application.outcome`, Interviewtermin | Tracker (Kapitel 15) | Review-Cockpit (Anzeige, Statistik) |
+| `event_log` | Review-Cockpit (Freigeben/Ändern/Ablehnen/Später/Rückfrage) und Bote/Tracker (Sende- und Rückmeldeereignisse) | alle Module, Statistik |
 
 Das Cockpit kennt damit den weiteren Werdegang einer Bewerbung nur lesend – die Statistikseite zeigt Rückmeldequoten, greift aber nie selbst in den Versand- oder Nachfassprozess ein. Das hält die Verantwortung klar getrennt: Freigabe ist ein menschlicher Akt im Cockpit, alles danach ist Sache des Boten.
 
 ### 14.13 Default-Annahmen dieses Moduls
 
-Bis du anders entscheidest (Fragenkatalog Kapitel 22): MVP-Kanal ist ein Telegram-Bot plus lokale FastAPI+htmx-Detailseite, keine Notion- oder GitHub-Spiegelung im MVP; Undo-Fenster nach Freigeben 60 Sekunden; unbeantwortete Rückfragen werden nach fünf Werktagen automatisch archiviert statt gesendet; Sofort-Push pro Stelle plus tägliches Digest, kein reiner Fest-Termin; keine Mehrnutzer-Freigabe, ausschließlich Einzelnutzer-Zugang; Statistik als einfache SQL-Aggregation ohne separates BI-Tool.
+Bis du anders entscheidest (Fragenkatalog Kapitel 22): MVP-Kanal ist ein Telegram-Bot plus lokale FastAPI+htmx-Detailseite, keine Notion- oder GitHub-Spiegelung im MVP; über Telegram gehen nur Metadaten und ein Link, PDF und Seitenvorschau bleiben serverseitig (14.2); Undo-Fenster nach Freigeben 60 Sekunden; Rückfragen mit hinterlegtem Default werden beim nächsten Tageslauf automatisch mit diesem Default aufgelöst (Kapitel 10.4), Rückfragen ohne Default werden nach fünf Werktagen automatisch archiviert statt gesendet; Sofort-Push pro Stelle plus tägliches Digest, kein reiner Fest-Termin; keine Mehrnutzer-Freigabe, ausschließlich Einzelnutzer-Zugang; Statistik als einfache SQL-Aggregation ohne separates BI-Tool.
 
 **Quellen dieses Kapitels:**
 
@@ -4528,34 +4572,33 @@ Von Managed-E-Mail-Konnektoren wie Composio, Pipedream oder Zapier MCP wird für
 Sobald v1 echten Versand erlaubt, protokolliert der Bote jeden Versandversuch unveränderlich. Feste Regeln, unabhängig vom gewählten Konto:
 
 - **Zeitfenster mit Jitter:** Kernfenster Dienstag–Donnerstag, ca. 7:00–9:30 Uhr (optional zusätzlich 14:00–16:00 Uhr), mit zufälligem Versatz von ±15–40 Minuten je E-Mail. Das ist HR-Ratgeber-Konsens, keine belastbare Studie – als Heuristik gegen ein erkennbares Cron-Muster nutzen, nicht als Fakt zitieren [arwa.de](https://arwa.de/de/blog/wann-sollte-man-eine-bewerbung-abschicken).
-- **Tageslimit:** 10–15 E-Mails/Tag, unabhängig von den Provider-Limits selbst überwacht (weit unter jeder Missbrauchsschwelle bei iCloud oder Gmail).
+- **Tageslimit:** 10 E-Mails/Tag (Default aus `config/zeitplan.yaml`, konfigurierbar, hart im Boten geprüft; Kapitel 7.5), unabhängig von den Provider-Limits selbst überwacht (weit unter jeder Missbrauchsschwelle bei iCloud oder Gmail). Zum Start des echten Versands in v1 (Woche 5) gilt zunächst ein reduziertes Tageslimit von 3, danach greift der Default von 10 (Kapitel 19.5).
 - **Format:** Plaintext oder schlichtes HTML, kein Tracking-Pixel, kein Link-Tracking, keine Lesebestätigung – Tracking-Pixel senken nachweislich die Zustellbarkeit und wirken unseriös [Instantly](https://instantly.ai/blog/email-tracking-and-deliverability-why-tracking-pixels-can-hurt-your-inbox-placement/).
 - **Betreffkonvention:** `Bewerbung als [Position] – [Referenznummer, falls vorhanden]`. Kein Marketing-Ton, keine Emojis.
 - **Signatur:** Name, Postanschrift, Telefon, ggf. LinkedIn/Portfolio-Link – Foto, Geburtsdatum und Familienstand gehören nicht in die Signatur (AGG-Risiko, Details Kapitel 16).
 - **Anhang:** genau eine kombinierte PDF-Datei (Anschreiben, Lebenslauf, ggf. Zeugnisse), erzeugt vom Setzer (Kapitel 13); Zielgröße 1–3 MB, hartes Limit 5 MB.
 
-```sql
-CREATE TABLE sendeprotokoll (
-  id               INTEGER PRIMARY KEY AUTOINCREMENT,
-  bewerbung_id     TEXT NOT NULL,        -- FK zur Bewerbung (Kapitel 7)
-  konto            TEXT NOT NULL,        -- z.B. 'icloud:privat', 'gmail:privat'
-  empfaenger_domain TEXT NOT NULL,       -- nur Domain, keine volle Adresse im Log
-  betreff_hash     TEXT NOT NULL,        -- SHA-256 statt Klartext
-  message_id       TEXT,                 -- eigene Message-ID, RFC 2822
-  status           TEXT NOT NULL CHECK (status IN ('entwurf','freigegeben','gesendet','fehler')),
-  geplant_um       TEXT,                 -- Zielzeit inkl. Jitter-Versatz
-  versendet_um     TEXT,
-  anhang_groesse_kb INTEGER,
-  fehlermeldung    TEXT,
-  erzeugt_um       TEXT NOT NULL DEFAULT (datetime('now'))
-);
+Der Bote führt dafür keine eigene Tabelle: Eine dritte Ablage neben `application` und `event_log` (Kapitel 7.3) würde nur ein zusätzliches, konkurrierendes Statusvokabular schaffen. Stattdessen schreibt er Versandtatsachen in die dort bereits vorhandenen Spalten der Tabelle `application` (`sent_at`, `sent_to`, `message_id`, `sent_account`, `send_window_start`) und protokolliert jeden einzelnen Versuch – auch Entwürfe und Fehlschläge – als eigenen, unveränderlichen Eintrag im `event_log`:
+
+```json
+{
+  "actor": "bote",
+  "action": "draft | send | error",
+  "entity_type": "application",
+  "payload": {
+    "empfaenger_domain": "beispielfirma.de",
+    "betreff_hash": "sha256-hex …",
+    "anhang_groesse_kb": 1820,
+    "fehlermeldung": null
+  }
+}
 ```
 
-Diese Tabelle liegt in derselben SQLite-Datenbank wie der übrige Zustand (Kapitel 7); sie ist die Grundlage für das Tageslimit, für Statistiken (15.7) und für den Audit-Nachweis „wann wurde was an wen mit welchem Status verschickt“.
+`empfaenger_domain` (nur die Domain, keine volle Adresse), `betreff_hash` (SHA-256 statt Klartext) und `anhang_groesse_kb` brauchen keine eigenen Tabellenspalten, weil `event_log.payload` laut Kapitel 7.3 bereits ein geprüftes JSON-Feld ist. Diese Kombination aus `application`-Spalten und `event_log`-Einträgen ist die Grundlage für das Tageslimit, für Statistiken (15.7) und für den Audit-Nachweis „wann wurde was an wen mit welchem Status verschickt“.
 
 ### 15.4 Sicherheit der Zugangsdaten
 
-App-spezifische Passwörter und OAuth-Tokens gehören nie in eine Klartext-`.env`-Datei oder ins Git-Repo. Empfehlung: macOS-Keychain (`security add-generic-password` / `find-generic-password`, kostenlos, systemeigen) [ss64](https://ss64.com/mac/security-password.html) oder, falls der Nutzer bereits ein Abo hat, 1Password CLI mit Secret-Reference-URIs (`op read op://vault/item/field`) [1Password](https://developer.1password.com/docs/cli/secrets-scripts). Beide injizieren das Secret nur zur Laufzeit, nie in eine Datei.
+App-spezifische Passwörter und OAuth-Tokens gehören nie in eine Klartext-`.env`-Datei oder ins Git-Repo. **Entscheidung:** Auf dem VPS ist sops + age der verbindliche Weg (Kapitel 7.7.6): Die Zugangsdaten des Boten liegen verschlüsselt in `config/secrets.enc.yaml` und werden zur Laufzeit per `sops exec-env` als Umgebungsvariablen in den Prozess injiziert, nie in eine Klartextdatei und nie in den Modellkontext geschrieben. macOS-Keychain oder 1Password CLI kommen für den Boten selbst nicht zum Einsatz; sie sind ausschließlich für den lokal auf dem Rechner des Nutzers laufenden Portal-Co-Piloten in v2 vorgesehen (Kapitel 15.5), sobald dort pro Arbeitgeber getrennte Zugangsdaten außerhalb des VPS verwaltet werden müssen.
 
 Zwei betriebliche Besonderheiten muss der Bote aktiv behandeln, statt sie zu ignorieren:
 
@@ -4587,7 +4630,7 @@ Ein Standardantworten-Profil deckt die immer wiederkehrenden Knockout-Fragen ab 
 
 ### 15.6 Tracker: Statusmodell und Antwortklassifikation
 
-Der Tracker überwacht die konfigurierten Postfächer per IMAP IDLE (Push statt Poll), providerunabhängig über Standard-IMAP [ikvk/imap_tools](https://github.com/ikvk/imap_tools). Eine eingehende Antwort wird über die Header `Message-ID`, `In-Reply-To` und `References` (RFC 2822) der ursprünglichen Bewerbung zugeordnet, wenn der Bote beim Versand eine eigene `Message-ID` gesetzt hat. Die Statuspipeline selbst (entdeckt → … → gesendet → Rückmeldung → Interview → Absage/Zusage/archiviert, plus „Rückfrage offen“) ist in Kapitel 3 definiert; der Tracker ist die Komponente, die eine eingehende E-Mail in einen dieser Statusübergänge übersetzt.
+Der Tracker überwacht die konfigurierten Postfächer per IMAP IDLE (Push statt Poll), providerunabhängig über Standard-IMAP [ikvk/imap_tools](https://github.com/ikvk/imap_tools). Eine eingehende Antwort wird über die Header `Message-ID`, `In-Reply-To` und `References` (RFC 2822) der ursprünglichen Bewerbung zugeordnet, wenn der Bote beim Versand eine eigene `Message-ID` gesetzt hat. Die Statuspipeline selbst (entdeckt → … → gesendet → Rückmeldung → Interview → Absage/Zusage/archiviert) ist in Kapitel 3 definiert; „Rückfrage offen“ ist dabei kein eigener Status, sondern ein Flag (`rueckfrage_offen`), das den aktuellen Status unverändert festhält, bis die Frage beantwortet ist (Kapitel 7.4). Der Tracker ist die Komponente, die eine eingehende E-Mail in einen dieser Statusübergänge übersetzt oder das Flag setzt.
 
 Dafür klassifiziert ein LLM-Schritt jede neue Antwort strukturiert:
 
@@ -4602,12 +4645,14 @@ Dafür klassifiziert ein LLM-Schritt jede neue Antwort strukturiert:
 
 | Kategorie | Beispiel-Merkmal | Status-Übergang | Folgeaktion |
 |---|---|---|---|
-| Absage | „... entschieden uns für ...“ | → archiviert | Grund protokollieren, falls genannt |
-| Einladung (mit Termin) | ICS-Anhang oder Datum im Text | → Interview | Termin in Tracker + optionaler ICS-Export |
-| Einladung (ohne Termin) | Terminvorschlag gefordert | → Interview | „Rückfrage offen“ bis Nutzer Termin bestätigt |
-| Rückfrage | z. B. Gehaltsangabe fehlt | → Rückfrage offen | Benachrichtigung (Kapitel 14) |
-| Autoresponder | „Eingang bestätigt“ | bleibt gesendet | nur Protokolleintrag |
+| Absage | „... entschieden uns für ...“ | gesendet → Rückmeldung → Absage | Grund protokollieren, falls genannt; Archivierung erst im Wartungslauf (Kapitel 7.4, 7.5) |
+| Einladung (mit Termin) | ICS-Anhang oder Datum im Text | gesendet → Rückmeldung → Interview | Termin in Tracker + optionaler ICS-Export |
+| Einladung (ohne Termin) | Terminvorschlag gefordert | gesendet → Rückmeldung, Flag `rueckfrage_offen` | nach Terminbestätigung durch Nutzer → Interview |
+| Rückfrage | z. B. Gehaltsangabe fehlt | gesendet → Rückmeldung, Flag `rueckfrage_offen` | Benachrichtigung (Kapitel 14) |
+| Autoresponder | „Eingang bestätigt“ | bleibt gesendet | nur `event_log`-Eintrag |
 | Unklar / niedrige Konfidenz | – | unverändert | Eskalation an Nutzer |
+
+Bei Konfidenz unter dem Schwellenwert setzt der Tracker nie selbst einen Statusübergang; er legt dem Nutzer die Antwort zur Bestätigung im Cockpit vor (Kapitel 7.4, 14).
 
 **Entscheidung:** Claude Haiku 4.5 klassifiziert im Standardfall; bei Konfidenz unter einem konfigurierbaren Schwellenwert (Default 0,7) eskaliert der Tracker an Claude Sonnet 5 für einen zweiten Versuch, bevor er dem Nutzer eine ungeklärte Antwort vorlegt.
 
@@ -4639,7 +4684,6 @@ Der Bote klickt nie selbst auf einen ToS-geschützten „Absenden“-Button eine
 - Soll LinkedIn/XING Easy-Apply überhaupt automatisiert werden (auch nur als Co-Pilot), oder grundsätzlich manuell bleiben? Default-Annahme: nur Co-Pilot, sehr geringe Frequenz.
 - Sollen für SAP SuccessFactors/Workday automatisch neue Bewerberkonten pro Arbeitgeber angelegt werden, oder erfolgt die Kontoerstellung immer manuell? Default-Annahme: manuell in v1.
 - Welches Nachfass-Intervall ist gewünscht (z. B. 7, 10 oder 14 Werktage)? Default-Annahme: 10 Werktage.
-- macOS-Keychain oder 1Password CLI für die Zugangsdaten? Default-Annahme: macOS-Keychain, falls das System auf macOS läuft, sonst 1Password CLI.
 
 **Quellen dieses Kapitels:**
 - [Apple: iCloud Mail – Sende- und Empfängerlimits](https://support.apple.com/en-us/102198)
@@ -4654,8 +4698,6 @@ Der Bote klickt nie selbst auf einen ToS-geschützten „Absenden“-Button eine
 - [Woodpecker: SPF/DKIM einrichten](https://woodpecker.co/blog/spf-dkim/)
 - [Instantly: Tracking-Pixel und Zustellbarkeit](https://instantly.ai/blog/email-tracking-and-deliverability-why-tracking-pixels-can-hurt-your-inbox-placement/)
 - [arwa.de: Beste Sendezeit für Bewerbungen](https://arwa.de/de/blog/wann-sollte-man-eine-bewerbung-abschicken)
-- [ss64: macOS Keychain (security)](https://ss64.com/mac/security-password.html)
-- [1Password: CLI Secrets in Skripten](https://developer.1password.com/docs/cli/secrets-scripts)
 - [GitHub: ikvk/imap_tools (IMAP IDLE)](https://github.com/ikvk/imap_tools)
 - [PyPI: icalendar](https://pypi.org/project/icalendar)
 - [LinkedIn: Nutzungsbedingungen (Automatisierung verboten)](https://www.linkedin.com/help/linkedin/answer/a1341387)
@@ -4709,7 +4751,7 @@ Für die *Vertragsgrundlage* gilt: Anthropics Consumer Terms (Free/Pro/Max) unte
 
 Für die *Datenretention* gilt, präzisiert durch die Faktenprüfung: Anthropic speichert Konversationsinhalte (Prompts/Outputs) bei der API standardmäßig **nicht** dauerhaft. Eine zwingende 30-Tage-Speicherung gilt nur für **Covered Models** – Claude Fable 5.1, Claude Mythos 5.1, Claude Fable 5 und Claude Mythos 5 – sowie für zustandsbehaftete Features (Files, Batches, Code-Execution-Container, jeweils bis 30 Tage) [Anthropic API-and-Data-Retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention). Ohne aktivierte 30-Tage-Retention scheitern Anfragen an ein Covered Model mit einem 400-Fehler; bei einem Trust-&-Safety-Flag kann Anthropic Daten bis zu zwei Jahre aufbewahren. **Wichtig für die Modellwahl:** Claude Opus 5, Claude Sonnet 5 und Claude Haiku 4.5 sind **keine** Covered Models und damit ZDR-fähig (Zero Data Retention) – Opus 5 ist damit die verfügbare Top-Modell-Alternative, wenn für einen Schritt keine 30-Tage-Speicherung akzeptiert werden soll.
 
-**Entscheidung:** Für Schritte, die den vollständigen Lebenslauf, Gehaltsangaben oder andere sensible Kandidatenprofil-Daten direkt verarbeiten (Autor und Kritiker, Kapitel 11), wird die 30-Tage-Retention von Claude Fable 5.1 gegenüber dem Nutzer **aktiv offengelegt und seine Zustimmung eingeholt** (Default-Annahme: Zustimmung liegt vor, da es die eigenen Daten des Nutzers sind und Fable 5.1 dessen Wunschmodell für qualitätskritische Schritte ist). Lehnt der Nutzer ab, ist Claude Opus 5 die technische Ausweichoption mit ZDR-Fähigkeit (erfordert eine aktivierte ZDR-Organisation im Anthropic-Workspace). **Begründung:** Fable 5.1 bleibt die gewünschte Basis für Recherche-Synthese, Schreiben und Kritik (Kapitel 7); die 30-Tage-Speicherung eines Lebenslaufs ist ein moderates, transparent kommuniziertes Risiko. **Alternative:** Durchgängig Opus 5 statt Fable 5.1 – identische Kostenstruktur ($5/$25 vs. $10/$50 pro 1M Token), aber laut Nutzervorgabe nicht die Wunschlösung, daher nur Fallback. **Offene Frage an den Nutzer:** Ist die 30-Tage-Retention für den vollständigen Lebenslauf akzeptabel, oder soll dafür durchgängig Opus 5 verwendet werden? Default-Annahme: akzeptabel, mit Offenlegung im Onboarding (Kapitel 8).
+**Entscheidung:** Für Schritte, die den vollständigen Lebenslauf, Gehaltsangaben oder andere sensible Kandidatenprofil-Daten direkt verarbeiten (Rechercheur und Autor, Kapitel 10 und 11), wird die 30-Tage-Retention von Claude Fable 5.1 gegenüber dem Nutzer **aktiv offengelegt und seine Zustimmung eingeholt** (Default-Annahme: Zustimmung liegt vor, da es die eigenen Daten des Nutzers sind und Fable 5.1 dessen Wunschmodell für qualitätskritische Schritte ist). Lehnt der Nutzer ab, ist Claude Opus 5 die technische Ausweichoption mit ZDR-Fähigkeit (Konfigurationsschalter `MODEL_TOP=claude-opus-5`, Kapitel 7.6; erfordert eine aktivierte ZDR-Organisation im Anthropic-Workspace). Der Kritiker (Kapitel 11) ist von dieser Abwägung nicht betroffen: Er läuft unabhängig von jeder Nutzerentscheidung immer auf Claude Opus 5, das kein Covered Model ist und damit von vornherein nicht der 30-Tage-Speicherpflicht unterliegt. **Begründung:** Fable 5.1 bleibt die gewünschte Basis für Recherche-Synthese und Schreiben (Kapitel 7); die 30-Tage-Speicherung eines Lebenslaufs ist ein moderates, transparent kommuniziertes Risiko, von dem der ohnehin auf Opus 5 laufende Kritiker gar nicht erst betroffen ist. **Alternative:** Durchgängig Opus 5 statt Fable 5.1 für Rechercheur und Autor – bei halbem Tokenpreis ($5/$25 statt $10/$50, Kapitel 17.2.1), aber laut Nutzervorgabe nicht die Wunschlösung, daher nur Fallback. **Offene Frage an den Nutzer:** Ist die 30-Tage-Retention für den vollständigen Lebenslauf akzeptabel, oder soll dafür durchgängig Opus 5 verwendet werden? Default-Annahme: akzeptabel, mit Offenlegung im Onboarding (Kapitel 8).
 
 ### 16.3 E-Mail-Versand: technische Limits und § 7 UWG
 
@@ -4741,7 +4783,7 @@ Der AI Act unterscheidet klar zwischen dem Arbeitgeber/ATS-Anbieter als möglich
 
 - **Art. 2 Abs. 10 KI-VO** nimmt natürliche Personen aus, die ein KI-System im Rahmen einer ausschließlich persönlichen, nicht beruflichen Tätigkeit nutzen [dejure.org KI-VO Art. 2](https://dejure.org/gesetze/KI-Verordnung/2.html) [ai-act-law.eu](https://ai-act-law.eu/de/artikel/2/). Ein Nutzer, der privat einen KI-Agenten für die eigene Jobsuche einsetzt, fällt unter diese Ausnahme und ist selbst **kein** KI-VO-Betreiber.
 - **Anhang III Nr. 4** stuft KI-gestützte Vorauswahl/Bewertung von Bewerbern durch den Arbeitgeber als Hochrisiko-Anwendungsfall ein – das betrifft die ATS-Anbieter (Personio, SAP SuccessFactors, Workday), nicht den Bewerbungsagenten (siehe Kapitel 4).
-- Ein sogenannter **Digital Omnibus** soll laut mehreren Sekundärquellen die Hochrisiko-Pflichten für Annex-III-Systeme vom 2. August 2026 auf den 2. Dezember 2027 verschieben, während die Transparenzpflichten nach Art. 50 unverändert ab 2. August 2026 gelten sollen [KPMG](https://kpmg.com/at/de/insights/2026/07/digital-omnibus-on-ai.html) [fgs.de](https://www.fgs.de/news-and-insights/blog/detail/eu-ai-act-was-ab-dem-2-august-2026-gilt-und-was-verschoben-wurde) [TÜV consulting](https://consulting.tuv.com/aktuelles/ki-im-fokus/digital-omnibus-ki-verordnung-fristen) – dieser Zeitraum ließ sich im Faktenprüfungs-Schritt nicht erneut bestätigen und ist daher **unbestätigt**, betrifft aber ohnehin primär die Arbeitgeberseite.
+- Der „Digital Omnibus" (Verordnung (EU) 2026/1744, Amtsblatt 24.7.2026, in Kraft seit 27.7.2026) verschiebt die Hochrisiko-Pflichten für eigenständige Systeme nach Anhang III – also auch Recruiting-KI – vom 2. August 2026 auf den 2. Dezember 2027; für in Produkte eingebettete Systeme nach Anhang I gilt der 2. August 2028 [Gibson Dunn](https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/) [KPMG](https://kpmg.com/at/de/insights/2026/07/digital-omnibus-on-ai.html) [fgs.de](https://www.fgs.de/news-and-insights/blog/detail/eu-ai-act-was-ab-dem-2-august-2026-gilt-und-was-verschoben-wurde) [TÜV consulting](https://consulting.tuv.com/aktuelles/ki-im-fokus/digital-omnibus-ki-verordnung-fristen); vom Faktenprüfer bestätigt (siehe Kapitel 4.5). Die Transparenzpflichten nach Art. 50 gelten unverändert seit 2. August 2026 – der verschobene Zeitplan betrifft ohnehin primär die Arbeitgeberseite.
 - Eine gesetzliche Pflicht, KI-Nutzung im eigenen Anschreiben offenzulegen, ließ sich in der Recherche **nicht belegen**. Art. 50 AI Act zielt laut den gefundenen Sekundärquellen auf KI-generierte Inhalte zur Information der Öffentlichkeit über Angelegenheiten von öffentlichem Interesse [forum-institut.de](https://forum-institut.de/eu-ai-act-2-august-2026/ki-kennzeichnung-nach-artikel-50) [ai-act-law.eu Art. 50](https://ai-act-law.eu/de/artikel/50/) – eine Bewerbung an einen einzelnen Arbeitgeber ist nach dieser Lesart keine solche Information der Öffentlichkeit.
 
 **Entscheidung:** Der Agent fügt **keinen** automatischen KI-Offenlegungshinweis in Anschreiben ein, da keine gesetzliche Pflicht ersichtlich ist. Wird der Nutzer im Gespräch direkt nach KI-Einsatz gefragt, soll er wahrheitsgemäß antworten (Fragerecht-Grundsatz aus 16.4: KI-Nutzung ist keine unzulässige Frage). **Begründung:** Der gesellschaftliche Umgang mit KI in Bewerbungen ist Normalität – laut einer softgarden-Umfrage (Mai–Juli 2025, n=6.929) nutzen 43,2 % der Bewerber bereits KI für Anschreiben, laut einer Canva-Umfrage 2025 akzeptieren 53 % der deutschen HR-Verantwortlichen KI-Einsatz für Lebenslaufinhalte [ingenieur.de](https://www.ingenieur.de/karriere/bewerbung/ki-und-karriere-wie-kuenstliche-intelligenz-den-bewerbungsprozess-praegt/) [wiwo.de](https://www.wiwo.de/erfolg/beruf/chatgpt-mensch-oder-maschine-wer-schreibt-die-bessere-bewerbung/29696332.html) – aktives Bewerben des KI-Einsatzes ist trotzdem nicht vorgesehen. **Offene Frage an den Nutzer:** Soll eine vorformulierte, ehrliche Standardantwort für den Fall einer direkten Nachfrage bereitgehalten werden (Kapitel 8)? Default-Annahme: nein, der Nutzer entscheidet situativ.
@@ -4780,7 +4822,8 @@ Der folgende Katalog ist die verbindliche Freigabe-Logik, die Orchestrator und R
 | ATS-Keyword-Abgleich und Formatprüfung (Kapitel 12) | Ja | – | – | Rein interne Qualitätsprüfung, keine Außenwirkung |
 | PDF/DOCX-Erzeugung aus geprüften, freigegebenen Inhalten (Kapitel 13) | Ja | – | – | Reine Formatierung, keine Außenwirkung |
 | E-Mail-Versand einer Bewerbung an ein Unternehmen | – | Ja | – | Außenwirkung, § 7 UWG-Grauzone, Reputationsrisiko (16.3) |
-| Ausfüllen und Absenden eines Bewerbungsformulars auf einer ATS-Karriereseite | – | Ja | – | Außenwirkung, verbindliche Erklärung gegenüber Dritten |
+| Vorbefüllen eines Bewerbungsformulars auf einer ATS-Karriereseite (Co-Pilot, sichtbarer Browser) | – | Ja | – | Außenwirkung erst beim Klick des Nutzers |
+| Automatisiertes Absenden eines Bewerbungsformulars (Klick auf „Absenden“, DSGVO-Einwilligung setzen) | – | – | Ja | Einwilligung und verbindliche Erklärung sind persönliche Handlungen (Kapitel 15.5) |
 | Automatisiertes Absenden über Plattform-Schnellbewerbung (Easy Apply, Indeed Apply) | – | – | Ja | ToS-Verbot der Plattformen (16.1) |
 | Massenversand identischer/unpersonalisierter Bewerbungstexte | – | – | Ja | Reputationsrisiko, AGG-Hopping-Nähe, Leitsatz Qualität statt Masse (16.3) |
 | Aufnahme von Foto/Geburtsdatum/Familienstand/Konfession ins CV | – | Ja | – | Keine Pflichtangabe, AGG-Risiko (16.4) |
@@ -4842,6 +4885,7 @@ Dieses Kapitel ersetzt keine Rechtsberatung. Zwei Punkte sind vor einer Kommerzi
 - ai-act-law.eu, Art. 2 KI-VO – https://ai-act-law.eu/de/artikel/2/
 - ai-act-law.eu, Art. 50 KI-VO – https://ai-act-law.eu/de/artikel/50/
 - forum-institut.de, KI-Kennzeichnung nach Art. 50 AI Act – https://forum-institut.de/eu-ai-act-2-august-2026/ki-kennzeichnung-nach-artikel-50
+- Gibson Dunn, EU AI Act Omnibus Agreement – https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/
 - KPMG, Digital Omnibus on AI (2026) – https://kpmg.com/at/de/insights/2026/07/digital-omnibus-on-ai.html
 - fgs.de, EU AI Act ab 2. August 2026 – https://www.fgs.de/news-and-insights/blog/detail/eu-ai-act-was-ab-dem-2-august-2026-gilt-und-was-verschoben-wurde
 - TÜV Consulting, Digital Omnibus KI-Verordnung Fristen – https://consulting.tuv.com/aktuelles/ki-im-fokus/digital-omnibus-ki-verordnung-fristen
@@ -4885,14 +4929,14 @@ Dieses Kapitel ist das vollständige Inventar aller Werkzeuge, die in den Kapite
 
 #### 17.2.1 Modelle und ihr Einsatz
 
-Preise laut Preisseite: Fable 5.1 $10/$50, Opus 5 $5/$25, Sonnet 5 $2/$10 (seit 1.9.2026 dauerhaft), Haiku 4.5 $1/$5 je 1 Mio. Token Input/Output; Cache-Lesen 0,1x des Eingabepreises, bei Fable 5.1 0,025x; Cache-Schreiben 1,25x (5 Minuten) oder 2x (1 Stunde); Batch 50 Prozent Rabatt; Modelle ab Claude 4.7 (also Opus 5, Sonnet 5, Fable 5.x) erzeugen mit dem neuen Tokenizer rund 30 Prozent mehr Tokens für denselben Text ([Pricing](https://platform.claude.com/docs/en/about-claude/pricing), [Prompt Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [Batch](https://platform.claude.com/docs/en/build-with-claude/batch-processing)). Fable 5.1, Fable 5, Mythos 5 und Mythos 5.1 sind „Covered Models“ mit Pflicht zur 30-Tage-Speicherung; Opus 5, Sonnet 5 und Haiku 4.5 sind es nicht ([Data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)).
+Preise laut Preisseite: Fable 5.1 $10/$50, Opus 5 $5/$25, Sonnet 5 $2/$10 (dauerhaft; die zum 1.9.2026 angekündigte Erhöhung auf $3/$15 ist entfallen), Haiku 4.5 $1/$5 je 1 Mio. Token Input/Output; Cache-Lesen 0,1x des Eingabepreises, bei Fable 5.1 0,025x; Cache-Schreiben 1,25x (5 Minuten) oder 2x (1 Stunde); Batch 50 Prozent Rabatt; Modelle ab Claude 4.7 (also Opus 5, Sonnet 5, Fable 5.x) erzeugen mit dem neuen Tokenizer rund 30 Prozent mehr Tokens für denselben Text ([Pricing](https://platform.claude.com/docs/en/about-claude/pricing), [Prompt Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [Batch](https://platform.claude.com/docs/en/build-with-claude/batch-processing)). Fable 5.1, Fable 5, Mythos 5 und Mythos 5.1 sind „Covered Models“ mit Pflicht zur 30-Tage-Speicherung; Opus 5, Sonnet 5 und Haiku 4.5 sind es nicht ([Data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)).
 
 | Modell (ID) | Preis In/Out, Cache-Lesen | Einsatz bei uns | Hinweise |
 |---|---|---|---|
-| Claude Fable 5.1 (`claude-fable-5-1`) | $10/$50; 0,025x | Rechercheur (effort high); Autor: Entwürfe high, Überarbeitung medium, Lebenslauf-Tailoring medium; Matcher-Tagesauswahl mit Begründung (medium) | Thinking immer aktiv, Tiefe nur über `effort`; 30-Tage-Speicherung muss im Konto aktiviert sein, sonst Fehler 400; `stop_reason: refusal` möglich, Fallback Opus 5 (Kapitel 11.10) |
+| Claude Fable 5.1 (`claude-fable-5-1`) | $10/$50; 0,025x | Rechercheur (effort high); Autor: Entwürfe high, Überarbeitung medium, Lebenslauf-Tailoring medium | Thinking immer aktiv, Tiefe nur über `effort`; 30-Tage-Speicherung muss im Konto aktiviert sein, sonst Fehler 400; `stop_reason: refusal` möglich, Fallback Opus 5 (Kapitel 11.10) |
 | Claude Opus 5 (`claude-opus-5`) | $5/$25; 0,1x | Kritiker: Rubrik (high), Stimm-Check und Leser-Test (medium); Refusal-Fallback; Umschalter `MODEL_TOP=claude-opus-5` für alle Fable-Rollen | ZDR-fähig; Alternative als Autor, falls keine 30-Tage-Speicherung gewünscht (Kapitel 16.2) |
-| Claude Sonnet 5 (`claude-sonnet-5`) | $2/$10; 0,1x | Matcher-Judge im Batch (medium); Autor-Briefing (medium); Fakten-Check (medium, Structured Output); ATS-Lesetest; Eskalation bei Extraktions- und Klassifikationsfehlern (low) | Arbeitspferd für Masse mit Erklärbarkeit |
-| Claude Haiku 4.5 (`claude-haiku-4-5`) | $1/$5; 0,1x | Extraktion normalisierter Anzeigen; Dedup-Zweifelsfälle; Injection-Screen; Keyword-Extraktion im ATS-Prüfer; Konsistenz-Check (low); Tracker-Antwortklassifikation (Standard); optionale Sichtprüfung der PDF-Vorschau | kein `effort`-Parameter (Kapitel 7.6); Cache-Mindestlänge 4.096 Token |
+| Claude Sonnet 5 (`claude-sonnet-5`) | $2/$10; 0,1x | Matcher-Judge im Batch (medium); Matcher-Tagesauswahl mit Begründung (medium); Autor-Briefing (medium); Fakten-Check (medium, Structured Output); ATS-Lesetest; Eskalation bei Extraktions- und Klassifikationsfehlern (low) | Arbeitspferd für Masse mit Erklärbarkeit |
+| Claude Haiku 4.5 (`claude-haiku-4-5`) | $1/$5; 0,1x | Extraktion normalisierter Anzeigen; Dedup-Zweifelsfälle; Injection-Screen; Keyword-Extraktion im ATS-Prüfer; Konsistenz-Check (low); Tracker-Antwortklassifikation (Standard); optionale Sichtprüfung der PDF-Vorschau | Cache-Mindestlänge 4.096 Token |
 
 Zuordnung je Rolle, konsolidiert aus den Modulkapiteln:
 
@@ -4900,7 +4944,7 @@ Zuordnung je Rolle, konsolidiert aus den Modulkapiteln:
 |---|---|---|---|
 | Scout: Extraktion, Dedup-Zweifel, Injection-Screen | Haiku 4.5 (Eskalation Sonnet 5) | Messages API, Batch | 7.6, 9.3, 7.8 |
 | Matcher: Judge | Sonnet 5, medium | Messages Batch, gecachter Präfix | 7.6, 9.5 |
-| Matcher: Tagesauswahl-Begründung | Fable 5.1, medium | Messages API | 7.6, 9.8 |
+| Matcher: Tagesauswahl-Begründung | Sonnet 5, medium | Messages API | 7.6, 9.8 |
 | Rechercheur | Fable 5.1, high | Agent SDK Subagent | 7.6, 10 |
 | Autor: Briefing | Sonnet 5, medium | Messages API | 11.8 |
 | Autor: Entwürfe / Überarbeitung / Tailoring | Fable 5.1, high / medium / medium | Agent SDK Subagent | 11.8, 11.10 |
@@ -4910,7 +4954,7 @@ Zuordnung je Rolle, konsolidiert aus den Modulkapiteln:
 | Tracker: Antwortklassifikation | Haiku 4.5, Eskalation Sonnet 5 unter Konfidenz 0,7 | Messages API | 15.6 |
 | Setzer, Bote, Cockpit, Orchestrator | kein Modell | Code | 13, 14, 15 |
 
-**Entscheidung** zu zwei Widersprüchen zwischen Kapiteln: Kapitel 7.6 nennt für den Kritiker Fable 5.1 mit Opus 5 als optionalem Zweitgutachter und für die Tracker-Klassifikation Sonnet 5; die Modulkapitel 11 und 15 legen Opus 5 als Kritiker und Haiku 4.5 mit Eskalation für den Tracker fest, und Kapitel 12, 19 und 20 folgen ihnen. Das Inventar folgt den Modulkapiteln. **Begründung:** Kapitel 11 begründet die Wahl mit Anthropics Empfehlung, Grader und Generator zu trennen, und mit der ZDR-Fähigkeit von Opus 5 ([Develop tests](https://platform.claude.com/docs/en/test-and-evaluate/develop-tests)); Kapitel 15 begründet Haiku 4.5 mit der Massenlogik des Styleguides. **Alternative:** Kapitel 7.6 anpassen; Kapitel 24 sollte den Stand vereinheitlichen. Alle Zuordnungen liegen in `config/modelle.yaml` (Kapitel 7.9), nicht im Code, und werden nach 20 Bewerbungen kalibriert (Kapitel 19.5, V-02).
+Die Zuordnung entspricht Kapitel 7.6, 11.8/11.10, 12.9 und 15.6; alle Werte liegen in `config/modelle.yaml` (Kapitel 7.9) und werden nach 20 freigegebenen Bewerbungen kalibriert (Kapitel 19.5, V-02).
 
 #### 17.2.2 Funktionen der Claude-API
 
@@ -4938,7 +4982,7 @@ Claude Code ist zugleich Bauwerkzeug (schreibt und testet den Code) und Laufzeit
 
 | Skill (`.claude/skills/…/SKILL.md`) | Zweck | Trigger | Modell, allowed-tools |
 |---|---|---|---|
-| `anschreiben` (in Kapitel 11.10 als `anschreiben-schreiben` referenziert; ein Name, hier `anschreiben`) | Struktur-Skelette A/B/C, Schreibregeln in Kurzform, Anti-Generik-Hinweise für den Autor | automatisch im Autor-Subagent, wenn Status „recherchiert“ und Briefing vorliegt | Fable 5.1; Read, Write nur im Stellenordner |
+| `anschreiben` | Struktur-Skelette A/B/C, Schreibregeln in Kurzform, Anti-Generik-Hinweise für den Autor | automatisch im Autor-Subagent, wenn Status „recherchiert“ und Briefing vorliegt | Fable 5.1; Read, Write nur im Stellenordner |
 | `lebenslauf-tailoring` | erlaubte Operationen, Tailoring-Log, Synonym-Spiegelung | automatisch im Autor-Subagent | Fable 5.1, medium; Read, Write |
 | `rubrik-kritik` | Rubrik K1–K7, Gates, Kritik-Schema, Leser-Test-Fragen | automatisch im Kritiker-Subagent | Opus 5; nur Read |
 | `din-5008-check` | Prüfliste Anschriftfeld, Betreff, Anrede-Formen, Anlagenvermerk | manuell `/din-5008-check` bei Vorlagenabnahme; automatisch nicht nötig, weil der Setzer Code ist | Haiku 4.5; Read |
@@ -5028,20 +5072,18 @@ Beispiel `.mcp.json` (Projekt-Scope, versioniert; Playwright erst in v2 aktiv):
 
 #### 17.2.5 Claude Agent SDK und Managed Agents
 
-| Baustein | Zweck bei uns | Zugriff | Kosten | Bewertung |
-|---|---|---|---|---|
-| Claude Agent SDK Python `claude-agent-sdk` ([PyPI](https://pypi.org/project/claude-agent-sdk/), [Doku](https://code.claude.com/docs/en/agent-sdk/python)) | Werkzeugschleife für Rechercheur, Autor, Kritiker; `query()` je Lauf, `ClaudeSDKClient` für Mehrschritt; `ClaudeAgentOptions` mit `allowed_tools`, `permission_mode`, `agents`, `hooks`, `output_format`, `max_budget_usd`, `model`, `effort`, `mcp_servers`, `skills` | `pip install claude-agent-sdk`; bündelt die Claude-Code-CLI, kein Node nötig; MIT | 0 EUR, Tokens separat | Kern (MVP) |
-| Permission-Auswertung ([Permissions](https://code.claude.com/docs/en/agent-sdk/permissions)) | sechs Stufen: Hooks → Deny → Ask → Modus → Allow → `canUseTool`; Modi default/acceptEdits/plan/bypassPermissions/dontAsk/auto | Konfiguration | – | Kern (MVP); `canUseTool` ist das Gate des Boten |
-| Structured Outputs im SDK ([Doku](https://code.claude.com/docs/en/agent-sdk/structured-outputs)) | `output_format` mit JSON-Schema, Feld `structured_output`, automatische Wiederholung bei Verstoß | Option | – | Kern (MVP) |
-| Cost Tracking ([Doku](https://code.claude.com/docs/en/agent-sdk/cost-tracking)) | `total_cost_usd` je Session, `max_budget_usd` als Session-Deckel | Option | clientseitige Schätzung, nicht autoritativ | Kern (MVP), plus Usage-API-Abgleich |
-| Session Storage, Hosting ([Storage](https://code.claude.com/docs/en/agent-sdk/session-storage), [Hosting](https://code.claude.com/docs/en/agent-sdk/hosting)) | JSONL-Transkripte unter `~/.claude/projects/`; je Session ein CLI-Subprozess | Dateisystem des VPS | – | Kern (MVP); SessionStore-Adapter erst bei Mehrhostbetrieb |
-| Managed Agents ([Overview](https://platform.claude.com/docs/en/managed-agents/overview)) | vollverwaltete Alternative: Sessions, Environments, Events | REST, Beta-Header `managed-agents-2026-04-01` | Tokens ohne Batch-Rabatt plus $0,08 je aktiver Session-Stunde plus $10 je 1.000 Websuchen ([Budgets](https://platform.claude.com/docs/en/managed-agents/budgets)) | optional (v1-Test für den Rechercheur, v2-Entscheidung, Kapitel 7.10) |
-| Scheduled Deployments ([Doku](https://platform.claude.com/docs/en/managed-agents/scheduled-deployments)) | Cron minutengenau, IANA-Zeitzone, Jitter bis 15 % (5 s bis 9 min), Budget je gestarteter Session, max. 1.000 Deployments je Organisation | REST | siehe oben | optional (v1-Test) |
-| Budgets ([Doku](https://platform.claude.com/docs/en/managed-agents/budgets)) | harter Deckel in USD-Cent, Session pausiert mit `budget_reached` | nur bei Session-Erstellung setzbar | – | optional |
-| Vaults ([Doku](https://platform.claude.com/docs/en/managed-agents/vaults)) | Credentials (`mcp_oauth`, `static_bearer`, `environment_variable`), Klartext nie im Kontext | REST; `environment_variable` nicht mit self-hosted Sandboxes | im Preis enthalten | optional (v2 bei Migration) |
-| Memory Stores ([Doku](https://platform.claude.com/docs/en/managed-agents/memory)) | Gedächtnis über Läufe; max. 8 je Session, 10.000 Einträge, 100 kB je Eintrag, 30 Tage Historie | Beta-Header `agent-memory-2026-07-22`, nicht mit `managed-agents-2026-04-01` kombinierbar (400) | im Preis enthalten | optional (v2, nur `read_only` in Läufen mit Drittinhalten) |
-| Webhooks ([Doku](https://platform.claude.com/docs/en/managed-agents/webhooks)) | Ereignisse `session.status_idled`, `budget_reached`, `deployment_run.*` | HMAC-signiert, 3 Zustellversuche, kein durables Log | – | optional |
-| Cloud Sandboxes ([Referenz](https://platform.claude.com/docs/en/managed-agents/cloud-sandboxes-reference)) | Ubuntu 24.04, bis 8 GB RAM, 10 GB Disk; Python, Node, Playwright mit Chromium, LibreOffice, Poppler, TeX Live, pandoc vorinstalliert; Tesseract nur Englisch | – | Session-Stunden | Hinweis für die Migration; ohne persistente DB |
+Begründungen für Einsatz und Abgrenzung gegenüber Managed Agents stehen in Kapitel 7.7.2 und 7.10; hier nur das Inventar.
+
+| Baustein | Zweck bei uns | Zugriff | Kosten | Bewertung | Kapitel |
+|---|---|---|---|---|---|
+| Claude Agent SDK Python `claude-agent-sdk` ([PyPI](https://pypi.org/project/claude-agent-sdk/), [Doku](https://code.claude.com/docs/en/agent-sdk/python)) | Werkzeugschleife für Rechercheur, Autor, Kritiker (`query()`, `ClaudeSDKClient`) | `pip install claude-agent-sdk`; bündelt die Claude-Code-CLI, kein Node nötig; MIT | 0 EUR, Tokens separat | Kern (MVP) | 7.6, 7.7.2 |
+| Permission-Auswertung ([Permissions](https://code.claude.com/docs/en/agent-sdk/permissions)) | sechs Stufen Hooks → Deny → Ask → Modus → Allow → `canUseTool` | Konfiguration | – | Kern (MVP); `canUseTool` ist das Gate des Boten | 7.8 |
+| Structured Outputs im SDK ([Doku](https://code.claude.com/docs/en/agent-sdk/structured-outputs)) | `output_format` mit JSON-Schema, Feld `structured_output` | Option | – | Kern (MVP) | 7.6 |
+| Cost Tracking ([Doku](https://code.claude.com/docs/en/agent-sdk/cost-tracking)) | `total_cost_usd` je Session, `max_budget_usd` als Session-Deckel | Option | clientseitige Schätzung, nicht autoritativ | Kern (MVP), plus Usage-API-Abgleich | 7.7.7 |
+| Session Storage, Hosting ([Storage](https://code.claude.com/docs/en/agent-sdk/session-storage), [Hosting](https://code.claude.com/docs/en/agent-sdk/hosting)) | JSONL-Transkripte unter `~/.claude/projects/`; je Session ein CLI-Subprozess | Dateisystem des VPS | – | Kern (MVP) | 7.7.3 |
+| Managed Agents Overview ([Doku](https://platform.claude.com/docs/en/managed-agents/overview)) | vollverwaltete Alternative: Sessions, Environments, Events, Budgets, Memory Stores, Webhooks, Cloud Sandboxes (vorinstalliert Python, Node, Playwright, LibreOffice, TeX Live) | REST, Beta-Header `managed-agents-2026-04-01` | Tokens ohne Batch-Rabatt plus $0,08 je aktiver Session-Stunde plus $10 je 1.000 Websuchen | optional (v1-Test für den Rechercheur, v2-Entscheidung) | 7.7.2, 7.10 |
+| Scheduled Deployments ([Doku](https://platform.claude.com/docs/en/managed-agents/scheduled-deployments)) | Cron minutengenau, IANA-Zeitzone, Jitter bis 15 % (5 s bis 9 min) | REST | siehe oben | optional (v1-Test) | 7.7.2, 17.2.6 |
+| Vaults ([Doku](https://platform.claude.com/docs/en/managed-agents/vaults)) | Credentials (`mcp_oauth`, `static_bearer`, `environment_variable`), Klartext nie im Kontext | REST; `environment_variable` nicht mit self-hosted Sandboxes | im Preis enthalten | optional (v2 bei Migration) | 7.7.6, 7.10 |
 
 #### 17.2.6 Zeitsteuerung auf Claude-Seite
 
@@ -5208,16 +5250,16 @@ Entscheidungen in Kapitel 15: Entwurfsmodus im MVP, SMTP-Versand in v1, Konto na
 | `deutschland` ([GitHub](https://github.com/bundesAPI/deutschland)) | Sammel-Client für Bundesanzeiger, Handelsregister, Jobsuche | pip, Apache-2.0 | 0 EUR | Kern (MVP) |
 | MTEB-Leaderboard ([Hugging Face](https://huggingface.co/spaces/mteb/leaderboard)) | Modellvergleich mit deutschen Tasks vor V-11 | Web | 0 EUR | Referenz |
 | Hetzner Object Storage ([Produkt](https://www.hetzner.com/storage/object-storage/)) | verschlüsseltes Offsite-Backup | S3-kompatibel | 4,99 €/Monat inkl. 1 TB (unbestätigt) | optional (v1, V-15) |
-| Managed Agents Memory Stores | Profil- und Firmenhistorie bei Migration | siehe 17.2.5 | im Preis enthalten | optional (v2) |
+| Managed Agents Memory Stores ([Doku](https://platform.claude.com/docs/en/managed-agents/memory)) | Profil- und Firmenhistorie bei Migration; max. 8 je Session, 10.000 Einträge, 100 kB je Eintrag, 30 Tage Historie | Beta-Header `agent-memory-2026-07-22`, nicht mit `managed-agents-2026-04-01` kombinierbar (400) | im Preis enthalten | optional (v2, nur `read_only` in Läufen mit Drittinhalten) |
 
 ### 17.9 (H) UI und Benachrichtigung
 
 | Werkzeug | Zweck bei uns | Zugriff | Kosten | Bewertung |
 |---|---|---|---|---|
-| FastAPI ([GitHub](https://github.com/fastapi/fastapi)) | Review-Cockpit-Backend, Telegram-Webhook | pip, MIT; nur über SSH-Tunnel erreichbar | 0 EUR | Kern (MVP) |
+| FastAPI ([GitHub](https://github.com/fastapi/fastapi)) | Review-Cockpit-Backend | pip, MIT; nur über SSH-Tunnel erreichbar | 0 EUR | Kern (MVP) |
 | htmx ([GitHub](https://github.com/bigskysoftware/htmx)) | Teil-Updates der Detailseite ohne SPA | Version 2.0.10; Lizenz vor Einsatz in der LICENSE-Datei prüfen (P0-22) | 0 EUR | Kern (MVP) |
 | Jinja2, `difflib` (stdlib) | serverseitiges Rendering; Wort-Diff Master vs. Variante | pip / stdlib | 0 EUR | Kern (MVP) |
-| python-telegram-bot ([GitHub](https://github.com/python-telegram-bot/python-telegram-bot)) | Push je Stelle, Tagesdigest, vier Aktionen als Inline-Buttons, Rückfragen | Bot-Token von BotFather; LGPL-3/GPL-Anteile beachten | 0 EUR | Kern (MVP) |
+| python-telegram-bot ([GitHub](https://github.com/python-telegram-bot/python-telegram-bot)) | Push je Stelle, Tagesdigest, vier Aktionen als Inline-Buttons, Rückfragen | Bot-Token von BotFather; Long Polling (`Application.run_polling`), kein eingehender Port, eigener systemd-Dienst neben dem Tracker-Daemon; LGPL-3/GPL-Anteile beachten | 0 EUR | Kern (MVP) |
 | E-Mail-Digest über das Bewerbungspostfach | Rückfallkanal bei Bot-Ausfall | Bote-Code | 0 EUR | Kern (MVP) |
 | NiceGUI ([GitHub](https://github.com/zauberzeug/nicegui)), Reflex ([GitHub](https://github.com/reflex-dev/reflex)) | fertige Python-UI-Bausteine | pip; MIT bzw. Apache-2.0 | 0 EUR | optional (v1, falls HTMX nicht reicht) |
 | Streamlit ([GitHub](https://github.com/streamlit/streamlit)), Gradio ([GitHub](https://github.com/gradio-app/gradio)) | – | pip | 0 EUR | vermeiden (Rerun-Modell, ML-Demo-Fokus) |
@@ -5231,27 +5273,28 @@ Entscheidungen in Kapitel 15: Entwurfsmodus im MVP, SMTP-Versand in v1, Konto na
 
 ### 17.10 (I) Betrieb: Hosting, Secrets, Observability, Backup
 
-| Werkzeug | Zweck bei uns | Zugriff | Kosten | Bewertung |
-|---|---|---|---|---|
-| Hetzner Cloud CPX22 ([Preisanpassung](https://docs.hetzner.com/de/general/infrastructure-and-availability/price-adjustment/), [Northflank](https://northflank.com/blog/hetzner-cloud-server-price-increases)) | Dauerserver in Falkenstein/Nürnberg, Ubuntu 24.04, Nutzer `agent`, nur SSH | Cloud-Konsole; 2 vCPU, 4 GB RAM, 80 GB NVMe | ca. 19,49–19,99 €/Monat nach der Erhöhung vom 15.6.2026 (vor Bestellung prüfen) | Kern (MVP) |
-| systemd-Timer und -Services | Tageslauf, Versandlauf, Nachlauf, Wartung, Tracker-Daemon; `Persistent=true`, Zeitzone im Timer | Units unter `deploy/systemd/` | 0 EUR | Kern (MVP) |
-| cron (cronie, `CRON_TZ`) | Alternative zu systemd | crontab | 0 EUR | optional |
-| Fly.io ([fly.io](https://fly.io/)) | Zero-Ops-Alternative | Git-Deploy | shared-cpu-1x/1 GB ca. 5,70–5,92 $/Monat (unbestätigt) | optional |
-| Mac mit Desktop-Scheduled-Tasks und Keychain | Entwicklung, Portal-Co-Pilot (residentielle IP) | lokal | 0 EUR | optional (Entwicklung, v2-Co-Pilot) |
-| sops + age ([sops](https://github.com/getsops/sops)) | `config/secrets.enc.yaml`; `sops exec-env` injiziert Umgebungsvariablen | CLI, MPL-2.0; privater age-Schlüssel nur auf dem Server (0400) und im Passwortmanager | 0 EUR | Kern (MVP) |
-| macOS Keychain (`security`, [ss64](https://ss64.com/mac/security-password.html)) | Secrets auf dem Mac des Nutzers für den Co-Piloten | systemeigen | 0 EUR | optional (v2, lokal) |
-| 1Password CLI ([Doku](https://developer.1password.com/docs/cli/secrets-scripts)) | Secret-Referenzen `op://…`, Service-Accounts | Abo nötig | Business 7,99 $/Nutzer/Monat (mittlere Konfidenz) | optional, nur bei bestehendem Abo |
-| Infisical ([GitHub](https://github.com/Infisical/infisical)) | Secret-Web-UI | Docker Compose self-hosted, MIT außer `ee/` | 0 EUR self-hosted; Cloud Pro 18 $/Identität/Monat (mittlere Konfidenz) | optional (mehrere Umgebungen) |
-| Doppler ([doppler.com](https://www.doppler.com/)) | – | Cloud-only | Free bis 5 Identitäten | vermeiden |
-| Managed Agents Vaults | Credentials ohne Klartext im Kontext | siehe 17.2.5 | im Preis | optional (v2 bei Migration) |
-| `event_log` (SQLite) | Observability und Kostenwahrheit im MVP | eigener Code | 0 EUR | Kern (MVP) |
-| Arize Phoenix ([GitHub](https://github.com/Arize-ai/phoenix)) | Tracing der Subagent-Läufe, OpenTelemetry, `openinference-instrumentation-anthropic` | `pip install arize-phoenix && phoenix serve`, SQLite-Backend | Elastic License 2.0, 0 EUR | Kern (v1, V-14) |
-| Langfuse ([Self-Hosting](https://langfuse.com/self-hosting)) | – | Docker Compose mit Postgres, ClickHouse, Redis, MinIO; 4+ CPU, 16 GiB RAM, ca. 100 GiB | self-hosted 0 EUR; Cloud Hobby $0, Core $29/Monat, Pro $199/Monat (mittlere Konfidenz) | vermeiden (zweiter Server nur für Tracing) |
-| Anthropic Console: Ausgabenlimit, Usage-and-Cost-API | dritte Stufe der Kostenkontrolle (Kapitel 7.7.7) | Console | 0 EUR | Kern (MVP) |
-| `sqlite3 .backup`, verschlüsselte Kopie an zweiten Ort | nächtliches Backup, wöchentlich offsite | Wartungslauf | 0 EUR; Object Storage siehe 17.8 | Kern (MVP); offsite v1 |
-| Docker (`deploy/Dockerfile`) | optionales Image mit Playwright- und WeasyPrint-Systempaketen | docker | 0 EUR | optional |
-| n8n Community Edition ([GitHub](https://github.com/n8n-io/n8n)) | Glue-Schicht für Webhooks | Docker, Sustainable-Use-Lizenz | 0 EUR self-hosted; Cloud ab 20 €/Monat (mittlere Konfidenz) | vermeiden im MVP; allenfalls optionale Glue-Schicht |
-| Temporal ([GitHub](https://github.com/temporalio/temporal)), Trigger.dev ([GitHub](https://github.com/triggerdotdev/trigger.dev)), Inngest ([GitHub](https://github.com/inngest/inngest)), LangGraph ([GitHub](https://github.com/langchain-ai/langgraph)), CrewAI ([GitHub](https://github.com/crewAIInc/crewAI)), APScheduler ([GitHub](https://github.com/agronholm/apscheduler)) | – | – | frei bis ca. 75 $/Monat (niedrige Konfidenz) | vermeiden (ein Lauf am Tag rechtfertigt keine Workflow-Engine; Agent SDK bringt Loop, Hooks, Permissions mit) |
+Begründungen stehen in Kapitel 7.7.2 bis 7.7.7; hier nur das Inventar.
+
+| Werkzeug | Zweck bei uns | Zugriff | Kosten | Bewertung | Kapitel |
+|---|---|---|---|---|---|
+| Hetzner Cloud CPX22 ([Preisanpassung](https://docs.hetzner.com/de/general/infrastructure-and-availability/price-adjustment/), [Northflank](https://northflank.com/blog/hetzner-cloud-server-price-increases)) | Dauerserver in Falkenstein/Nürnberg, Ubuntu 24.04, Nutzer `agent`, nur SSH | Cloud-Konsole; 2 vCPU, 4 GB RAM, 80 GB NVMe | rund 20 €/Monat (19,49–19,99 € je nach Quelle; vor Bestellung prüfen) | Kern (MVP) | 7.7.3 |
+| systemd-Timer und -Services | Tageslauf, Versandlauf, Nachlauf, Wartung, Tracker-Daemon | Units unter `deploy/systemd/` | 0 EUR | Kern (MVP) | 7.5 |
+| cron (cronie, `CRON_TZ`) | Alternative zu systemd | crontab | 0 EUR | optional | 7.5 |
+| Fly.io ([fly.io](https://fly.io/)) | Zero-Ops-Alternative | Git-Deploy | shared-cpu-1x/1 GB ca. 5,70–5,92 $/Monat (unbestätigt) | optional | 7.7.3 |
+| Mac mit Desktop-Scheduled-Tasks und Keychain | Entwicklung, Portal-Co-Pilot (residentielle IP) | lokal | 0 EUR | optional (Entwicklung, v2-Co-Pilot) | 7.7.3 |
+| sops + age ([sops](https://github.com/getsops/sops)) | `config/secrets.enc.yaml`; `sops exec-env` injiziert Umgebungsvariablen | CLI, MPL-2.0; privater age-Schlüssel nur auf dem Server (0400) und im Passwortmanager | 0 EUR | Kern (MVP) | 7.7.6 |
+| macOS Keychain (`security`, [ss64](https://ss64.com/mac/security-password.html)) | Secrets auf dem Mac des Nutzers für den Co-Piloten | systemeigen | 0 EUR | optional (v2, lokal) | 7.7.6 |
+| 1Password CLI ([Doku](https://developer.1password.com/docs/cli/secrets-scripts)) | Secret-Referenzen `op://…`, Service-Accounts | Abo nötig | Business 7,99 $/Nutzer/Monat (mittlere Konfidenz) | optional, nur bei bestehendem Abo | 7.7.6 |
+| Infisical ([GitHub](https://github.com/Infisical/infisical)) | Secret-Web-UI | Docker Compose self-hosted, MIT außer `ee/` | 0 EUR self-hosted; Cloud Pro 18 $/Identität/Monat (mittlere Konfidenz) | optional (mehrere Umgebungen) | 7.7.6 |
+| Doppler ([doppler.com](https://www.doppler.com/)) | – | Cloud-only | Free bis 5 Identitäten | vermeiden | 7.7.6 |
+| `event_log` (SQLite) | Observability und Kostenwahrheit im MVP | eigener Code | 0 EUR | Kern (MVP) | 7.7.7 |
+| Arize Phoenix ([GitHub](https://github.com/Arize-ai/phoenix)) | Tracing der Subagent-Läufe, OpenTelemetry, `openinference-instrumentation-anthropic` | `pip install arize-phoenix && phoenix serve`, SQLite-Backend | Elastic License 2.0, 0 EUR | Kern (v1, V-14) | 7.7.7 |
+| Langfuse ([Self-Hosting](https://langfuse.com/self-hosting)) | – | Docker Compose mit Postgres, ClickHouse, Redis, MinIO; 4+ CPU, 16 GiB RAM, ca. 100 GiB | self-hosted 0 EUR; Cloud Hobby $0, Core $29/Monat, Pro $199/Monat (mittlere Konfidenz) | vermeiden (zweiter Server nur für Tracing) | 7.7.7 |
+| Anthropic Console: Ausgabenlimit, Usage-and-Cost-API | dritte Stufe der Kostenkontrolle | Console | 0 EUR | Kern (MVP) | 7.7.7 |
+| `sqlite3 .backup`, verschlüsselte Kopie an zweiten Ort | nächtliches Backup, wöchentlich offsite | Wartungslauf | 0 EUR; Object Storage siehe 17.8 | Kern (MVP); offsite v1 | 7.7.4 |
+| Docker (`deploy/Dockerfile`) | optionales Image mit Playwright- und WeasyPrint-Systempaketen | docker | 0 EUR | optional | – |
+| n8n Community Edition ([GitHub](https://github.com/n8n-io/n8n)) | Glue-Schicht für Webhooks | Docker, Sustainable-Use-Lizenz | 0 EUR self-hosted; Cloud ab 20 €/Monat (mittlere Konfidenz) | vermeiden im MVP; allenfalls optionale Glue-Schicht | 7.7.2 |
+| Temporal ([GitHub](https://github.com/temporalio/temporal)), Trigger.dev ([GitHub](https://github.com/triggerdotdev/trigger.dev)), Inngest ([GitHub](https://github.com/inngest/inngest)), LangGraph ([GitHub](https://github.com/langchain-ai/langgraph)), CrewAI ([GitHub](https://github.com/crewAIInc/crewAI)), APScheduler ([GitHub](https://github.com/agronholm/apscheduler)) | – | – | frei bis ca. 75 $/Monat (niedrige Konfidenz) | vermeiden (ein Lauf am Tag rechtfertigt keine Workflow-Engine) | 7.7.2 |
 
 ### 17.11 (J) Entwicklungswerkzeuge und CLIs
 
@@ -5541,11 +5584,11 @@ Bis du anders entscheidest (Kapitel 22): Kritiker auf Opus 5, Tracker-Klassifika
 
 ## 18. Kosten: pro Bewerbung, pro Monat; Infrastruktur; Datenquellen; Sparhebel
 
-Für den Einzelnutzer-Fall (10 Bewerbungen/Tag, 22 Arbeitstage/Monat = 220 Bewerbungen/Monat) sind die Betriebskosten in jedem realistischen Szenario unkritisch: Sie liegen zwischen rund 150 € und rund 1.200 € im Monat, je nach Modellwahl und Gründlichkeit. Modell-Tokens dominieren die Rechnung, nicht Infrastruktur oder Datenquellen. Dieses Kapitel legt das Rechenmodell offen (Annahmen, Formel, Zahlen), rechnet drei Szenarien durch und benennt die wirksamsten Sparhebel.
+Für den Einzelnutzer-Fall (10 Bewerbungen/Tag, 22 Arbeitstage/Monat = 220 Bewerbungen/Monat) sind die Betriebskosten in jedem realistischen Szenario unkritisch: Sie liegen zwischen rund 260 € und rund 1.150 € im Monat, je nach Modellwahl und Gründlichkeit. Modell-Tokens dominieren die Rechnung, nicht Infrastruktur oder Datenquellen. Dieses Kapitel legt das Rechenmodell offen (Annahmen, Formel, Zahlen), rechnet drei Szenarien durch und benennt die wirksamsten Sparhebel.
 
 ### 18.1 Annahmen und Rechenweg
 
-**Modellpreise** (bestätigt, Stand September 2026, pro 1 Mio. Token Input/Output; siehe Kapitel 3 für Modellnamen):
+**Modellpreise** (bestätigt, Stand September 2026, pro 1 Mio. Token Input/Output; Rollen- und Modellzuordnung je Pipeline-Schritt siehe Kapitel 7.6 und 17.2.1):
 
 | Modell | Input | Output | Cache-Read | Cache-Write (5 Min / 1 Std.) |
 |---|---|---|---|---|
@@ -5566,10 +5609,14 @@ Rechenweg pro Bewerbung:
 
 ```
 Kosten pro Bewerbung =
-    Σ über Schritte (Rechercheur, Autor, Kritiker, ATS-Prüfer, Setzer):
-        (Input-Token / 1.000.000 × Modellpreis-Input)
-      + (Output-Token / 1.000.000 × Modellpreis-Output)
-      + (Websuchen im Schritt × 0,01 USD)
+    Σ über die Modellschritte der Pipeline (Kapitel 7.6):
+        Rechercheur; Autor (Briefing/Entwürfe/Überarbeitung);
+        Kritiker (Rubrik/Fakten-Check/Stimm-Leser-Test/Konsistenz-Check);
+        ATS-Prüfer (Begriffsextraktion/Lesetest)
+      → je Schritt: (Input-Token / 1.000.000 × Modellpreis-Input)
+                  + (Output-Token / 1.000.000 × Modellpreis-Output)
+                  + (Websuchen im Schritt × 0,01 USD)
+    + Setzer: 0 USD (Code ohne Modell, Kapitel 13.1)
 
 Kosten pro Monat (Bewerbungen)   = Kosten pro Bewerbung × 10 × 22
 Kosten pro Monat (Scout+Matcher) = Kosten pro gescannter Anzeige × Anzeigen/Tag × 22
@@ -5578,42 +5625,61 @@ Gesamt pro Monat = Modellkosten (Bewerbungen) + Scout/Matcher + Hosting + E-Mail
 
 ### 18.2 Kosten pro Bewerbung: drei Szenarien
 
-Die Pipeline pro ausgewählter Bewerbung durchläuft Rechercheur, Autor, Kritiker, ATS-Prüfer und Setzer (Kapitel 10–13). Scout und Matcher laufen separat als Massen-Scan über alle gescannten Anzeigen (18.3).
+Die Pipeline pro ausgewählter Bewerbung durchläuft Rechercheur, Autor, Kritiker, ATS-Prüfer und Setzer (Kapitel 10–13). Modell, effort und Rollentrennung je Teilschritt folgen der verbindlichen Zuordnung aus Kapitel 7.6: Fable 5.1 nur für die beiden qualitätskritischen Schritte Rechercheur und Autor, Opus 5 getrennt davon als Grader-Modell für den Kritiker (kein zusätzlicher Zweitgutachter), Sonnet 5 für die mittelschweren Einzelaufrufe (Autor-Briefing, Fakten-Check, ATS-Lesetest), Haiku 4.5 für mechanische Schritte. Der Setzer bleibt in allen drei Szenarien Code ohne Modellkosten (Kapitel 13.1). Scout und Matcher laufen separat als Massen-Scan über alle gescannten Anzeigen (18.3).
 
-**Szenario „sparsam"** – ein Entwurf, eine Kritikrunde, wenige Websuchen, mechanische Schritte auf Haiku 4.5:
+**Szenario „sparsam"** – Konfigurationsschalter `MODEL_TOP=claude-opus-5` (Kapitel 7.6): Rechercheur und Autor laufen auf dem günstigeren, ZDR-fähigen Opus 5 statt auf Fable 5.1, ein Entwurf, eine reduzierte Kritikrunde, 3 Websuchen, mechanische Schritte auf Haiku 4.5:
 
-| Schritt | Modell | Input-Token | Output-Token | Websuchen | Kosten |
+| Schritt | Modell (effort) | Input-Token | Output-Token | Websuchen | Kosten |
 |---|---|---|---|---|---|
-| Rechercheur | Sonnet 5 | 60.000 | 10.000 | 10 | $0,320 |
-| Autor (1 Entwurf) | Sonnet 5 | 12.000 | 15.000 | 0 | $0,174 |
-| Kritiker (1 Runde) | Sonnet 5 | 6.000 | 7.000 | 0 | $0,082 |
-| ATS-Prüfer | Haiku 4.5 | 8.000 | 3.000 | 0 | $0,023 |
-| Setzer | Haiku 4.5 | 3.000 | 1.000 | 0 | $0,008 |
-| **Summe** | | **89.000** | **36.000** | **10** | **$0,607 ≈ 0,57 €** |
+| Rechercheur | Opus 5 (high) | 55.000 | 9.000 | 3 | $0,530 |
+| Autor: Briefing | Sonnet 5 (medium) | 3.000 | 1.200 | 0 | $0,018 |
+| Autor: Entwurf (1) | Opus 5 (high) | 9.000 | 11.000 | 0 | $0,320 |
+| Autor: Überarbeitung/Tailoring | Opus 5 (medium) | 3.000 | 2.500 | 0 | $0,078 |
+| Kritiker: Rubrik | Opus 5 (high) | 7.000 | 1.800 | 0 | $0,080 |
+| Kritiker: Fakten-Check | Sonnet 5 (medium) | 3.500 | 1.000 | 0 | $0,017 |
+| Kritiker: Stimm-/Leser-Test | Opus 5 (medium) | 5.000 | 1.200 | 0 | $0,055 |
+| Kritiker: Konsistenz-Check | Haiku 4.5 (low) | 2.500 | 300 | 0 | $0,004 |
+| ATS-Prüfer: Begriffsextraktion | Haiku 4.5 | 6.000 | 1.500 | 0 | $0,014 |
+| ATS-Prüfer: Lesetest | Sonnet 5 | 5.000 | 1.500 | 0 | $0,025 |
+| **Summe** | | **99.000** | **31.000** | **3** | **$1,141 ≈ 1,06 €** |
 
-**Szenario „empfohlen"** (Standard) – zwei Entwürfe, finaler Kritik-/Authentizitätspass auf Opus 5, mechanische Schritte auf Haiku 4.5:
+`MODEL_TOP` schaltet Rechercheur und Autor auf dasselbe Modell wie den Kritiker um; die Trennung von Autor- und Grader-Modell (Kapitel 7.6) entfällt in diesem Szenario zugunsten von Kosten und Zero-Data-Retention.
 
-| Schritt | Modell | Input-Token | Output-Token | Websuchen | Kosten |
+**Szenario „empfohlen" (Standard)** – Rechercheur und Autor auf Fable 5.1 (Wunschbasis des Nutzers für die qualitätskritischen Schritte Recherche und Schreiben, Kapitel 7.6), Kritiker als vom Autor getrenntes Grader-Modell auf Opus 5, zwei Entwürfe, 6 Websuchen, mechanische Schritte auf Haiku 4.5:
+
+| Schritt | Modell (effort) | Input-Token | Output-Token | Websuchen | Kosten |
 |---|---|---|---|---|---|
-| Rechercheur | Sonnet 5 | 85.000 | 15.000 | 18 | $0,500 |
-| Autor (2 Entwürfe) | Sonnet 5 | 22.000 | 32.000 | 0 | $0,364 |
-| Kritiker (final) | Opus 5 | 14.000 | 3.500 | 0 | $0,158 |
-| ATS-Prüfer | Haiku 4.5 | 10.000 | 4.500 | 0 | $0,033 |
-| Setzer | Haiku 4.5 | 4.000 | 1.500 | 0 | $0,012 |
-| **Summe** | | **135.000** | **56.500** | **18** | **$1,066 ≈ 0,99 €** |
+| Rechercheur | Fable 5.1 (high) | 85.000 | 15.000 | 6 | $1,660 |
+| Autor: Briefing | Sonnet 5 (medium) | 4.000 | 1.500 | 0 | $0,023 |
+| Autor: Entwürfe (2) | Fable 5.1 (high) | 16.000 | 22.000 | 0 | $1,260 |
+| Autor: Überarbeitung/Tailoring | Fable 5.1 (medium) | 6.000 | 8.000 | 0 | $0,460 |
+| Kritiker: Rubrik | Opus 5 (high) | 12.000 | 3.000 | 0 | $0,135 |
+| Kritiker: Fakten-Check | Sonnet 5 (medium) | 5.000 | 1.500 | 0 | $0,025 |
+| Kritiker: Stimm-/Leser-Test | Opus 5 (medium) | 8.000 | 2.000 | 0 | $0,090 |
+| Kritiker: Konsistenz-Check | Haiku 4.5 (low) | 3.000 | 400 | 0 | $0,005 |
+| ATS-Prüfer: Begriffsextraktion | Haiku 4.5 | 8.000 | 2.500 | 0 | $0,021 |
+| ATS-Prüfer: Lesetest | Sonnet 5 | 7.000 | 2.000 | 0 | $0,034 |
+| **Summe** | | **154.000** | **57.900** | **6** | **$3,713 ≈ 3,45 €** |
 
-**Szenario „maximal"** – drei Entwürfe, mehrere Kritikrunden, durchgängig Fable 5.1 (die vom Nutzer gewünschte Basis für qualitätskritische Schritte, siehe Kapitel 3):
+**Szenario „maximal"** – wie „empfohlen", aber drei Entwürfe, mehrere Kritikrunden (Rubrik und Stimm-/Leser-Test je erneut), 8 Websuchen – die technische Obergrenze `max_uses` des Rechercheur-Subagents (Kapitel 7.6, 10.3):
 
-| Schritt | Modell | Input-Token | Output-Token | Websuchen | Kosten |
+| Schritt | Modell (effort) | Input-Token | Output-Token | Websuchen | Kosten |
 |---|---|---|---|---|---|
-| Rechercheur | Fable 5.1 | 100.000 | 18.000 | 25 | $2,150 |
-| Autor (3 Entwürfe) | Fable 5.1 | 28.000 | 45.000 | 0 | $2,530 |
-| Kritiker (mehrere Runden) | Fable 5.1 | 20.000 | 6.000 | 0 | $0,500 |
-| ATS-Prüfer | Sonnet 5 | 12.000 | 5.000 | 0 | $0,074 |
-| Setzer | Sonnet 5 | 5.000 | 2.000 | 0 | $0,030 |
-| **Summe** | | **165.000** | **76.000** | **25** | **$5,284 ≈ 4,91 €** |
+| Rechercheur | Fable 5.1 (high) | 100.000 | 18.000 | 8 | $1,980 |
+| Autor: Briefing | Sonnet 5 (medium) | 5.000 | 1.800 | 0 | $0,028 |
+| Autor: Entwürfe (3) | Fable 5.1 (high) | 24.000 | 34.000 | 0 | $1,940 |
+| Autor: Überarbeitung/Tailoring (mehrere Runden) | Fable 5.1 (medium) | 10.000 | 14.000 | 0 | $0,800 |
+| Kritiker: Rubrik (mehrere Runden) | Opus 5 (high) | 20.000 | 5.000 | 0 | $0,225 |
+| Kritiker: Fakten-Check | Sonnet 5 (medium) | 7.000 | 2.000 | 0 | $0,034 |
+| Kritiker: Stimm-/Leser-Test | Opus 5 (medium) | 12.000 | 3.000 | 0 | $0,135 |
+| Kritiker: Konsistenz-Check | Haiku 4.5 (low) | 4.000 | 500 | 0 | $0,007 |
+| ATS-Prüfer: Begriffsextraktion | Haiku 4.5 | 10.000 | 3.000 | 0 | $0,025 |
+| ATS-Prüfer: Lesetest | Sonnet 5 | 9.000 | 2.500 | 0 | $0,043 |
+| **Summe** | | **201.000** | **83.800** | **8** | **$5,217 ≈ 4,85 €** |
 
-Hochgerechnet auf 220 Bewerbungen/Monat (10 × 22 Tage): sparsam ≈ **124 €**, empfohlen ≈ **218 €**, maximal ≈ **1.081 €** – reine Modellkosten der Bewerbungs-Pipeline, ohne Massen-Scan und Infrastruktur.
+Der Setzer trägt in allen drei Szenarien 0 USD Modellkosten bei (Kapitel 13.1); seine Rechenzeit ist Teil der Hosting-Kosten (18.5). Optional prüft Claude Haiku 4.5 die gerenderte PDF-Vorschau auf sichtbare Layoutfehler (Setzer-QA, Kapitel 13.10) – bei rund 1.500 Input-/50 Output-Token je geprüfter Seite und 220 Bewerbungen/Monat sind das zusätzliche ≈ 0,4 €/Monat, vernachlässigbar gegenüber den übrigen Posten.
+
+Hochgerechnet auf 220 Bewerbungen/Monat (10 × 22 Tage): sparsam ≈ **233 €**, empfohlen ≈ **760 €**, maximal ≈ **1.067 €** – reine Modellkosten der Bewerbungs-Pipeline, ohne Massen-Scan und Infrastruktur.
 
 ### 18.3 Massen-Scan: Scout und Matcher
 
@@ -5626,13 +5692,13 @@ Selbst bei dreimal so vielen gescannten Anzeigen (300/Tag, größerer Suchradius
 
 ### 18.4 Websuche, Code-Execution, Datenquellen
 
-Die Websuchkosten sind bereits in den Rechercheur-Zeilen aus 18.2 enthalten (10/18/25 Suchen × $0,01 × 220 Bewerbungen ≈ 20 € / 37 € / 51 € pro Monat). Code-Execution (für die Skills `docx`/`pdf`, siehe Kapitel 13 und 17) ist kostenlos, solange es zusammen mit Web-Search/Web-Fetch läuft (aktuelle Toolversionen) oder innerhalb der 1.550 Freistunden/Organisation/Monat bleibt – bei 10 Dokumentensätzen/Tag bei Weitem ausreichend [Code-Execution-Tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool).
+Die Websuchkosten sind bereits in den Rechercheur-Zeilen aus 18.2 enthalten (3/6/8 Suchen × $0,01 × 220 Bewerbungen ≈ 6 € / 12 € / 16 € pro Monat); 8 Suchen je Bewerbung ist zugleich die technische Obergrenze, die `max_uses` im Rechercheur-Subagent erzwingt (Kapitel 7.6, 10.3). Code-Execution (für die Skills `docx`/`pdf`, siehe Kapitel 13 und 17) ist kostenlos, solange es zusammen mit Web-Search/Web-Fetch läuft (aktuelle Toolversionen) oder innerhalb der 1.550 Freistunden/Organisation/Monat bleibt – bei 10 Dokumentensätzen/Tag bei Weitem ausreichend [Code-Execution-Tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool).
 
-Datenquellen (Details und Vergleichsmatrix in Kapitel 6): Bundesagentur-für-Arbeit-Jobsuche-API und Adzuna sind kostenlos und sollten die Kernquellen sein; die öffentlichen ATS-Feeds (Personio, Greenhouse, Lever, Recruitee, SmartRecruiters) sind ebenfalls kostenlos und unauthentifiziert [BA-Jobsuche-API](https://github.com/bundesAPI/jobsuche-api), [Adzuna](https://developer.adzuna.com/). Bei 10 Bewerbungen/Tag reicht das voraussichtlich aus – **Kostenannahme: 0 €/Monat für Datenquellen im MVP.** Falls Kontingente nicht reichen (z. B. Google-for-Jobs-Zugriff für breitere Marktabdeckung), ist SerpAPI mit 250 kostenlosen Suchen/Monat, danach ab 25 $/Monat für 1.000 Suchen, die günstigste geprüfte Ergänzung [SerpAPI-Preise](https://serpapi.com/pricing); Firecrawl bietet für punktuelles Abrufen einzelner Karriereseiten einen Free-Tier mit 1.000 Credits/Monat, danach ab 16 $/Monat [Firecrawl-Preise](https://scrapegraphai.com/blog/firecrawl-pricing). Exa und Tavily wurden ebenfalls als günstige Ergänzungen recherchiert, ihre genauen 2026er-Preise konnten in dieser Recherche aber nicht zweifelsfrei an den Originalquellen bestätigt werden (unbestätigt) – vor Nutzung direkt bei den Anbietern prüfen. Bright Data und JSearch sind bei diesem Volumen überdimensioniert und teurer, Brave Search hat seinen kostenlosen Tier im Februar 2026 abgeschafft und ist seitdem keine günstige Option mehr.
+Datenquellen (Details und Vergleichsmatrix in Kapitel 6): Bundesagentur-für-Arbeit-Jobsuche-API und Adzuna sind kostenlos und sollten die Kernquellen sein; die öffentlichen ATS-Feeds (Personio, Greenhouse, Lever, Recruitee, SmartRecruiters) sind ebenfalls kostenlos und unauthentifiziert [BA-Jobsuche-API](https://github.com/bundesAPI/jobsuche-api), [Adzuna](https://developer.adzuna.com/). Bei 10 Bewerbungen/Tag reicht das voraussichtlich aus – **Kostenannahme: 0 €/Monat für Datenquellen im MVP.** Falls Kontingente nicht reichen (z. B. Google-for-Jobs-Zugriff für breitere Marktabdeckung), ist SerpAPI mit 250 kostenlosen Suchen/Monat, danach ab 25 $/Monat für 1.000 Suchen, die günstigste geprüfte Ergänzung [SerpAPI-Preise](https://serpapi.com/pricing); Firecrawl bietet für punktuelles Abrufen einzelner Karriereseiten einen Free-Tier mit 1.000 Credits/Monat, danach ab 16 $/Monat [Firecrawl-Preise](https://scrapegraphai.com/blog/firecrawl-pricing). Exa und Tavily wurden ebenfalls als günstige Ergänzungen recherchiert, ihre genauen 2026er-Preise konnten in dieser Recherche aber nicht zweifelsfrei an den Originalquellen bestätigt werden (unbestätigt) – vor Nutzung direkt bei den Anbietern prüfen. Bright Data und JSearch sind bei diesem Volumen überdimensioniert und teurer. Brave Search hat den kostenlosen Tier im Februar 2026 abgeschafft und rechnet seitdem guthabenbasiert ab ($5 je 1.000 Anfragen, Kreditkarte Pflicht); jeder Plan enthält aber $5 Gratis-Guthaben pro Monat (≈ 1.000 Suchen) – für das hier angenommene Volumen (18.1) kann dieses Monatsguthaben bereits ausreichen [Brave: Free-Tier-Ende](https://www.implicator.ai/brave-drops-free-search-api-tier-puts-all-developers-on-metered-billing/), [Brave-Preise](https://agentdeals.dev/vendor/brave-search-api).
 
 ### 18.5 Infrastruktur: Hosting und E-Mail
 
-**Entscheidung:** Hetzner-VPS CPX22 (2 vCPU/4 GB/80 GB) als Standard-Hosting für den Orchestrator (Cron/systemd-Timer, Agent-SDK-Prozess, siehe Kapitel 7), aktuell bestellbar für 19,99 €/Monat (Stand September 2026, nach der Preiserhöhung vom 15.6.2026; die früher oft zitierten CX22/CX32-Kampfpreise sind für Neubestellungen nicht mehr verfügbar) [Hetzner-Preisanpassung](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/). **Begründung:** bestes Preis-Kontrolle-Verhältnis für einen dauerhaft laufenden Ein-Personen-Server in der EU. **Alternative:** Anthropic Managed Agents (Scheduled Deployments) statt eigenem Server – $0,08 pro aktiver Session-Stunde, keine Grundgebühr; bei realistisch 30–60 aktiven Minuten/Tag ergibt das nur rund 1–2 $/Monat, ist aber Beta und bringt eine neue, sich noch ändernde API mit sich [Managed-Agents-Budgets](https://platform.claude.com/docs/en/managed-agents/budgets). Details zur Architekturentscheidung in Kapitel 7.
+**Entscheidung:** Hetzner-VPS CPX22 (2 vCPU/4 GB/80 GB) als Standard-Hosting für den Orchestrator (Cron/systemd-Timer, Agent-SDK-Prozess, siehe Kapitel 7), rund 20 €/Monat (19,49–19,99 € je nach Quelle; vor Bestellung im Hetzner-Konfigurator prüfen; Stand September 2026, nach der vierten Preisanpassung des Jahres am 15.6.2026) [Hetzner-Preisanpassung](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/), [Hetzner-Preisvergleich](https://northflank.com/blog/hetzner-cloud-server-price-increases). Ob die früher günstigeren CX23/CAX11-Linien für Neubestellungen noch verfügbar sind, ließ sich in der Recherche nicht belegen (unbestätigt). **Begründung:** bestes Preis-Kontrolle-Verhältnis für einen dauerhaft laufenden Ein-Personen-Server in der EU. **Alternative:** Anthropic Managed Agents (Scheduled Deployments) statt eigenem Server – $0,08 pro aktiver Session-Stunde, keine Grundgebühr; bei realistisch 30–60 aktiven Minuten/Tag ergibt das nur rund 1–2 $/Monat, ist aber Beta und bringt eine neue, sich noch ändernde API mit sich [Managed-Agents-Budgets](https://platform.claude.com/docs/en/managed-agents/budgets). Details zur Architekturentscheidung in Kapitel 7.
 
 E-Mail-Versand über das bestehende private Konto des Kandidaten (iCloud, Gmail oder Outlook) kostet 0 €/Monat und reicht für 10 Bewerbungen/Tag bei Weitem (Details Kapitel 15). Eine eigene Bewerbungsdomain für einen professionelleren Auftritt ist optional: mailbox.org Standard ab ca. 3 €/Monat (deutscher, DSGVO-fokussierter Anbieter) oder Fastmail Individual ab 5–6 $/Monat [mailbox.org-Preise](https://mailbox.org/en/news/new-price-plans-available-mailboxorg/), [Fastmail-Preise](https://www.fastmail.help/hc/en-us/articles/8033939068815-2024-pricing-and-plan-updates). **Default-Annahme:** bestehendes Konto nutzen, 0 €/Monat; offene Frage an dich in Kapitel 22.
 
@@ -5640,41 +5706,43 @@ E-Mail-Versand über das bestehende private Konto des Kandidaten (iCloud, Gmail 
 
 | Szenario | Modelle (Bewerbungen) | Scout/Matcher | Hosting | E-Mail/Daten | Gesamt/Monat |
 |---|---|---|---|---|---|
-| sparsam | 124 € | 9 € | 20 € | 0 € | **≈ 153 €** |
-| empfohlen | 218 € | 9 € | 20 € | 0 € | **≈ 247 €** |
-| maximal | 1.081 € | 35 € | 20 € | 29 € | **≈ 1.165 €** |
+| sparsam | 233 € | 9 € | 20 € | 0 € | **≈ 262 €** |
+| empfohlen | 760 € | 9 € | 20 € | 0 € | **≈ 789 €** |
+| maximal | 1.067 € | 35 € | 20 € | 29 € | **≈ 1.151 €** |
 
-Die Maximal-Spalte enthält zusätzlich eine eigene Domain (~6 €) und einen SerpAPI-Einstiegstarif (~23 €) sowie Scout/Matcher auf Sonnet 5 ohne Batch, weil das Szenario bewusst keine Sparhebel zieht. **Entscheidung:** „empfohlen" (Sonnet 5 als Arbeitspferd, Opus 5 punktuell für den finalen Kritikpass) als Standard-Betriebsmodus. **Begründung:** rund 247 €/Monat sind für ein Einzelprojekt unkritisch, das Modell-Mix erhält die Qualitätssicherung an der entscheidenden Stelle (Anti-Generik-Check vor Versand, Kapitel 11) und bleibt weit unter dem „maximal"-Szenario. **Alternative:** „sparsam" bei explizitem Kostenlimit, „maximal" wenn du durchgängig Fable 5.1 willst und die höheren Kosten akzeptierst.
+Die Maximal-Spalte enthält zusätzlich eine eigene Domain (~6 €) und einen SerpAPI-Einstiegstarif (~23 €) sowie ein höheres Scan-Volumen bei Scout/Matcher, weil das Szenario bewusst keine Sparhebel zieht. **Entscheidung:** „empfohlen" (Fable 5.1 für Rechercheur und Autor, Opus 5 als vom Autor getrenntes Grader-Modell für den Kritiker, Sonnet 5 für die mittelschweren Schritte Briefing/Fakten-Check/ATS-Lesetest, Haiku 4.5 für mechanische Schritte) als Standard-Betriebsmodus. **Begründung:** Diese Zuordnung folgt der verbindlichen Modellwahl aus Kapitel 7.6 – Fable 5.1 ist die Wunschbasis des Nutzers für die qualitätskritischen Schritte Recherche und Schreiben, der Kritiker bewertet als eigenständiges, vom Autor getrenntes Modell statt als zusätzlicher Zweitgutachter. Rund 789 €/Monat sind für ein Einzelprojekt unkritisch, und die Modellwahl erhält die Qualitätssicherung an der entscheidenden Stelle (Anti-Generik-Check vor Versand, Kapitel 11). **Alternative:** „sparsam" per Konfigurationsschalter `MODEL_TOP=claude-opus-5` (Rechercheur und Autor laufen dann auf dem günstigeren, ZDR-fähigen Opus 5 statt auf Fable 5.1 – zugleich die richtige Wahl ohne 30-Tage-Datenspeicherung bei Anthropic, Kapitel 7.6/16.2) bei explizitem Kostenlimit; „maximal" bei mehr Entwürfen und Kritikrunden, wenn du die höheren Kosten akzeptierst.
+
+**Daraus abgeleitet: Default-Budget je Tageslauf (Teil 2).** Die Pro-Bewerbung-Kosten aus 18.2 ergeben für einen vollständigen Tageslauf von zehn Bewerbungen (Teil 2, Schreiben und Setzen): im Szenario „empfohlen" 10 × 3,713 USD ≈ **37 USD**, im Szenario „maximal" 10 × 5,217 USD ≈ **52 USD**. **Entscheidung:** Das technisch durchgesetzte Default-Budget für Teil 2 ist **45 USD je Tageslauf** – es deckt „empfohlen" mit spürbarem Puffer (für Ausreißer wie zusätzliche Kritikrunden oder etwas höheren Tokenverbrauch), ohne einen vollen „maximal"-Lauf ungebremst durchzulassen. **Begründung:** Ein fester Dollar-Deckel je Lauf ist die harte, technische Leitplane, die verhindert, dass ein einzelner Tageslauf durch Endlosschleifen oder zu viele Websuchen aus dem Ruder läuft, unabhängig vom Wechselkurs oder von Tagesschwankungen einzelner Bewerbungen. **Alternative:** Wer dauerhaft im Szenario „maximal" arbeitet, hebt den Wert in `config/zeitplan.yaml` entsprechend an (z. B. auf 55–60 USD); dieser Deckel gilt identisch für die systemd-Unit/Crontab und die Kostenkontrolle in Kapitel 7.7.7 sowie für die Referenzen in Kapitel 19 und 22. Getrennt davon bleibt das kleinere Budget von 5 USD für den ersten echten Versandlauf in Woche 5 (Kapitel 19) unverändert – das ist ein anderer, bewusst kleiner Testlauf, kein Widerspruch zum 45-USD-Default für den laufenden Betrieb.
 
 ### 18.7 Sparhebel
 
 1. **Prompt-Caching**: Kandidatenprofil, Story-Bank, Stimmprofil und System-Prompt als stabilen Cache-Präfix (1-Stunden-TTL) vor die variablen Tagesdaten legen. Rechenbeispiel für einen 8.000-Token-Präfix, genutzt in drei Schritten × 10 Bewerbungen/Tag (30 Zugriffe) auf Sonnet 5: ohne Caching $0,48/Tag, mit Caching (1 Schreibvorgang + 29 Lesevorgänge) nur $0,078/Tag – 84 % Ersparnis auf diesem Anteil. Da der Cache-Präfix aber nur einen Teil des Gesamt-Inputs ausmacht (der variable Anteil aus Websuchergebnissen und Recherchefunden lässt sich kaum cachen), sinkt die Gesamtmonatsrechnung dadurch realistisch um niedrige zweistellige Prozentpunkte, nicht um 80–90 %. Bei Fable 5.1 ist der Cache-Read-Rabatt mit 0,025× sogar noch größer als bei den anderen Modellen.
 2. **Batch-API** für den nicht-interaktiven Massen-Scan (Scout + Matcher): 50 % Rabatt, bereits in 18.3 eingerechnet. Gilt nicht für die interaktive Autor-/Kritiker-Schleife mit Freigabeschritt, da Batch-Ergebnisse asynchron (typisch unter 24 Stunden) zurückkommen.
-3. **Modell-Mix statt Einheitsmodell**: Haiku 4.5 für mechanische Schritte (ATS-Prüfer, Setzer, Massen-Scan), Sonnet 5 als Arbeitspferd, Opus 5/Fable 5.1 nur punktuell für die qualitätskritischen Schritte. Würde man im „empfohlen"-Szenario den Opus-5-Kritikpass durch Sonnet 5 ersetzen, sänke die Monatsrechnung um rund 19 € – der Sparhebel ist real, kostet aber genau die Qualitätssicherung, die der Leitsatz „Qualität vor Quantität" verlangt (Kapitel 1).
+3. **Modell-Mix statt Einheitsmodell**: Haiku 4.5 für mechanische Schritte (Konsistenz-Check, ATS-Begriffsextraktion, Massen-Scan), Sonnet 5 für die mittelschweren Einzelaufrufe (Autor-Briefing, Fakten-Check, ATS-Lesetest), Fable 5.1 nur für die beiden qualitätskritischen Schritte Rechercheur und Autor, Opus 5 getrennt davon für den Kritiker als Grader-Modell (Kapitel 7.6). Würde man im „empfohlen"-Szenario die beiden Opus-5-Schritte des Kritikers (Rubrik-Bewertung und Stimm-/Leser-Test) durch Sonnet 5 ersetzen, sänke die Monatsrechnung um rund 28 € – der Sparhebel ist real, kostet aber genau die vom Autor getrennte Qualitätssicherung, die der Leitsatz „Qualität vor Quantität" verlangt (Kapitel 1). Größere Wirkung hat der Konfigurationsschalter `MODEL_TOP=claude-opus-5` (Basis von „sparsam", 18.2): Er ersetzt Fable 5.1 bei Rechercheur und Autor durch das günstigere Opus 5 und senkt die Monatsrechnung allein dadurch um mehrere Hundert Euro, hebt dabei aber die Trennung zwischen Autor- und Grader-Modell auf.
 4. **Weniger Entwürfe/Kritikrunden**: ein Entwurf statt zwei oder drei spart in der Autor-/Kritiker-Stufe rund ein Drittel bis die Hälfte der dortigen Kosten (Vergleich sparsam vs. empfohlen vs. maximal in 18.2).
 5. **Wiederverwendung von Dossiers**: Recherchiert der Rechercheur eine Firma bereits für eine Bewerbung, kostet eine zweite Bewerbung an dieselbe Firma (andere Stelle) nur noch einen Aktualitätscheck statt einer vollständigen Neu-Recherche – spart auf diesen Fall bezogen bis zu 80–90 % der Rechercheur-Kosten. Kandidatenprofil, Story-Bank und Stimmprofil sind ohnehin über alle Bewerbungen stabil und Teil des Cache-Präfix (Hebel 1).
 6. **Ghost-Job-Filter vor der teuren Recherche**: 18–38 % aller Online-Stellenanzeigen gelten laut mehreren 2025er-Quellen als Ghost Jobs [Ghost-Jobs-Studie](https://unternehmer.de/wirtschaft/625515-ghost-jobs-jede-dritte-stellenanzeige-betroffen). Ein Plausibilitäts-/Frische-Check im Matcher, bevor eine Anzeige den teuren Rechercheur- und Autor-Schritt durchläuft, spart entsprechend Token-Budget (Details Kapitel 9).
-7. **Harte Budget-Deckel technisch erzwingen**: `max_budget_usd` im Agent SDK bzw. das Session-Budget (`max_list_cost`, in US-Cent) bei Managed Agents verhindern Kostenausreißer durch Endlosschleifen oder zu viele Websuchen pro Bewerbung [Managed-Agents-Budgets](https://platform.claude.com/docs/en/managed-agents/budgets). Details zur Umsetzung in Kapitel 7 und 19.
+7. **Harte Budget-Deckel technisch erzwingen**: `max_budget_usd` im Agent SDK bzw. das Session-Budget (`max_list_cost`, in US-Cent) bei Managed Agents verhindern Kostenausreißer durch Endlosschleifen oder zu viele Websuchen pro Bewerbung [Managed-Agents-Budgets](https://platform.claude.com/docs/en/managed-agents/budgets). Konkret gesetzt auf 45 USD je Tageslauf (Teil 2), aus dem Szenario „empfohlen" abgeleitet und mit Puffer versehen (18.6). Details zur Umsetzung in Kapitel 7 und 19.
 
 ### 18.8 Einordnung: Vergleich mit Wettbewerbern und Coaching
 
 | Angebot | Art | Preis | Einordnung |
 |---|---|---|---|
-| Bewerbungsagent (empfohlen) | Eigenbau, KI + Freigabe | ≈ 247 €/Monat (≈ 1 €/Bewerbung) | volle Recherche + Individualisierung, Mensch prüft jede Bewerbung |
+| Bewerbungsagent (empfohlen) | Eigenbau, KI + Freigabe | ≈ 789 €/Monat (≈ 3,59 €/Bewerbung) | volle Recherche + Individualisierung, Mensch prüft jede Bewerbung |
 | Jobscan | SaaS, ATS-Keyword-Scan | 49,95 $/Monat (29,98 $/Monat quartalsweise) | nur Abgleich, kein Schreiben, kein Versand |
 | Teal+ | SaaS, Tracker | ≈ 29 $/Monat | kein Auto-Apply, reines Tracking |
 | Kickresume | SaaS, CV-Builder mit KI | 24 $/Monat bzw. 96 $/Jahr | Dokument-Tool, keine Recherche/Versand |
 | LazyApply | SaaS, Volumen-Auto-Apply | 99–999 $/Jahr | Massenversand ohne Individualisierung, 2,1/5 Trustpilot |
 | Bewerbung-Schreiber.com | DE, Mensch+KI-Hybrid | 99–199 €/Anschreiben | pro Bewerbung teurer als der Agent für einen ganzen Monat |
-| erfolgo.de | DE, reiner KI-Generator | 9,95 € Pauschale | günstig, aber dokumentierte Halluzinationsfälle (Qualitätsrisiko) |
+| erfolgo.de | DE, reiner KI-Generator | 9,95 € Pauschale | günstig, aber mindestens ein dokumentierter Halluzinationsfall (Qualitätsrisiko, niedrige Beleglage) |
 
 Quellen: [Jobscan](https://www.jobscan.co/), [Teal](https://www.tealhq.com/), [Kickresume](https://www.kickresume.com/), [LazyApply-Bewertung](https://www.loopcv.pro/directory/lazyapply/), [Bewerbung-Schreiber.com](https://bewerbung-schreiber.com/), [erfolgo.de](https://erfolgo.de/).
 
-Der Bewerbungsagent kostet im „empfohlen"-Szenario pro Bewerbung (≈ 1 €) einen Bruchteil dessen, was ein deutscher Mensch+KI-Hybrid-Dienst für ein einzelnes Anschreiben verlangt (99–199 €) – bei geringerem Automatisierungsgrad im Versand (Human-in-the-Loop bleibt Pflicht, Kapitel 14) und ohne den Anspruch, menschliches Coaching vollständig zu ersetzen. Marktübliche Stundensätze deutscher Bewerbungscoaches (grob 80–200 €/Stunde bzw. 300–1.500 € für ein komplettes Bewerbungspaket) konnten in der Recherche nicht live verifiziert werden und sind **unbestätigt** – sie dienen nur als grobe Orientierung, dass bereits ein bis zwei Wochen Agentenbetrieb (7–14 Bewerbungen, ca. 7–15 €) günstiger sind als eine einzelne Coaching-Stunde, ohne dass die Qualität eins zu eins vergleichbar wäre.
+Der Bewerbungsagent kostet im „empfohlen"-Szenario pro Bewerbung (≈ 3,59 €) einen Bruchteil dessen, was ein deutscher Mensch+KI-Hybrid-Dienst für ein einzelnes Anschreiben verlangt (99–199 €) – bei geringerem Automatisierungsgrad im Versand (Human-in-the-Loop bleibt Pflicht, Kapitel 14) und ohne den Anspruch, menschliches Coaching vollständig zu ersetzen. Marktübliche Stundensätze deutscher Bewerbungscoaches (grob 80–200 €/Stunde bzw. 300–1.500 € für ein komplettes Bewerbungspaket) konnten in der Recherche nicht live verifiziert werden und sind **unbestätigt** – sie dienen nur als grobe Orientierung, dass bereits ein bis zwei Wochen reiner Modellkosten des Agentenbetriebs (7–14 Bewerbungen, ca. 24–48 €) günstiger sind als eine einzelne Coaching-Stunde, ohne dass die Qualität eins zu eins vergleichbar wäre.
 
 ### Offene Fragen
 
-- **Monatliches Kostenlimit**: Gibt es eine harte Obergrenze, die der Agent (per `max_budget_usd`/Session-Budget) technisch durchsetzen soll? Default-Annahme: kein hartes Limit, aber „empfohlen"-Szenario (~250 €/Monat) als Ausgangspunkt.
+- **Monatliches Kostenlimit**: Gibt es eine harte Obergrenze, die der Agent (per `max_budget_usd`/Session-Budget) technisch durchsetzen soll? Default-Annahme: kein hartes Monatslimit; technisch durchgesetzt wird stattdessen das Default-Budget von 45 USD je Tageslauf (18.6, Kapitel 7.7.7), das „empfohlen" mit Puffer deckt. Das „empfohlen"-Szenario (~789 €/Monat) dient als Erwartungswert und Ausgangspunkt für die Monatsrechnung, nicht als hart durchgesetzter Deckel.
 - **Scan-Volumen**: Wie viele Anzeigen/Tag realistisch gescannt werden, hängt von Zielrolle, Branche, Ort und Suchradius ab (unbekannt, siehe Kapitel 22). Default-Annahme dieses Kapitels: 100/Tag; der Kostenanteil bleibt auch bei deutlich mehr Anzeigen gering.
 - **Eigene E-Mail-Domain**: bestehendes Konto (0 €) oder eigene Domain (3–6 €/Monat) für einen professionelleren Auftritt? Default-Annahme: bestehendes Konto.
 - **Zahlungsbereitschaft für Datenquellen**, falls Freikontingente (BA-API, Adzuna, Firecrawl/SerpAPI-Free-Tier) nicht reichen. Default-Annahme: kostenlose Quellen zuerst ausreizen, erst bei nachgewiesenem Bedarf auf bezahlte Stufen wechseln.
@@ -5691,6 +5759,9 @@ Der Bewerbungsagent kostet im „empfohlen"-Szenario pro Bewerbung (≈ 1 €) e
 - [SerpAPI – Preise](https://serpapi.com/pricing)
 - [Firecrawl-Preise (Drittquelle)](https://scrapegraphai.com/blog/firecrawl-pricing)
 - [Hetzner – Preisanpassung Cloud](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/)
+- [Hetzner-Preisvergleich (Northflank)](https://northflank.com/blog/hetzner-cloud-server-price-increases)
+- [Brave: Free-Tier-Ende (implicator.ai)](https://www.implicator.ai/brave-drops-free-search-api-tier-puts-all-developers-on-metered-billing/)
+- [Brave-Preise (agentdeals)](https://agentdeals.dev/vendor/brave-search-api)
 - [mailbox.org – neue Preispläne](https://mailbox.org/en/news/new-price-plans-available-mailboxorg/)
 - [Fastmail – Preise](https://www.fastmail.help/hc/en-us/articles/8033939068815-2024-pricing-and-plan-updates)
 - [Ghost-Jobs-Studie (unternehmer.de)](https://unternehmer.de/wirtschaft/625515-ghost-jobs-jede-dritte-stellenanzeige-betroffen)
@@ -5722,18 +5793,19 @@ Die Roadmap übersetzt die Entscheidungen der Kapitel 6 bis 16 in eine Reihenfol
 | Phase | Zeitraum | Ziel | Ergebnis am Ende | Laufende Kosten (Größenordnung) |
 |---|---|---|---|---|
 | Phase 0 | Woche 0 | Voraussetzungen schaffen | Accounts, Server, zwei Repos, vollständiges Kandidatenprofil, geprüfte Quellenzugänge | Server ca. 20 €/Monat; API nur Testaufrufe |
-| MVP | Wochen 1–4 | Durchstich: Quelle → Entwurf im Postfach | Tageslauf liefert täglich bis zu 10 Bewerbungen im Status „bereit zur Freigabe“; Freigabe im Cockpit; Bote legt Entwürfe ab; du sendest selbst | Server; API-Budget bis 10 USD je Tageslauf; Datenquellen 0 EUR |
+| MVP-Kern | Wochen 1–4 | Durchstich: Quelle → Entwurf im Postfach | Tageslauf liefert täglich bis zu 10 Bewerbungen im Status „bereit zur Freigabe“; Freigabe im Cockpit; Bote legt Entwürfe ab; du sendest selbst (MS1) | Server; API-Budget bis 45 USD je Tageslauf (aus Kapitel 18.2 abgeleitet, siehe 19.4); Datenquellen 0 EUR |
+| MVP-Rest | Wochen 5–6 | Ursprünglich geplanten MVP-Funktionsumfang abschließen, vor dem eigentlichen v1-Betrieb | ATS-Prüfer Stufe 2, DOCX-Builder und Mappe, FastAPI-Detailseite, weitere Quellenadapter, Abdeckungsmessung | Server; API-Budget wie MVP-Kern |
 | v1 | Monat 2–3 | Betrieb stabilisieren, Versand und Rückkanal | SMTP-Versand nach Freigabe, Tracker mit Antwortklassifikation und Nachfassen, SerpAPI, weitere ATS-Adapter, Embeddings, Cockpit als Web-App, Phoenix | + SerpAPI 25 USD/Monat, Firecrawl 0–16 USD/Monat |
 | v2 | Monat 4–6 | Portale, Lernen, Mehrnutzer-Vorbereitung | Co-Pilot für Portalformulare, gelernte Scoring-Gewichte, Auth im Cockpit, Managed-Agents-Entscheidung, rechtliche Prüfung vor Öffnung | + optionale Gelb-Quellen nach Freigabe, Kapitel 6.6 |
 
-Die belastbare Kostenrechnung je Bewerbung und je Monat steht in Kapitel 18; die Zahlen hier sind nur die Deckel, die die Architektur setzt (Kapitel 7.7.7, 6.6).
+Der MVP ist für vier Wochen zu breit zugeschnitten (Begründung und Aufteilung in Kern und Rest in 19.4); Wochen 5–6 laufen kalendarisch parallel zum Anlauf von v1 (19.5), gehören inhaltlich aber noch zum MVP. Die belastbare Kostenrechnung je Bewerbung und je Monat steht in Kapitel 18; die Zahlen hier sind nur die Deckel, die die Architektur setzt (Kapitel 7.7.7, 6.6) und werden aus Kapitel 18 abgeleitet, nicht neu berechnet.
 
 Fünf Meilensteine markieren die Übergänge. Jeder hat ein einziges Abnahmeereignis, das du selbst auslöst, und die Definition of Done der jeweiligen Phase als Bedingung:
 
 | Meilenstein | Ende von | Abnahmeereignis | Bedingung |
 |---|---|---|---|
 | MS0 „Startklar“ | Woche 0 | Commit `profil/` im Daten-Repository, `pytest` grün auf dem Server | Definition of Done Phase 0 (19.3) |
-| MS1 „Durchstich“ | Woche 4 | Du klickst im eigenen Mailprogramm auf Senden für einen Entwurf, den der Bote angelegt hat | Definition of Done MVP (19.4), fünf Betriebstage |
+| MS1 „Durchstich“ | Woche 4 | Du klickst im eigenen Mailprogramm auf Senden für einen Entwurf, den der Bote angelegt hat | Definition of Done MVP-Kern (19.4), fünf Betriebstage |
 | MS2 „Erster Versand und Kalibrierung“ | Woche 8 | Erste SMTP-Sendung durch den Boten im Versandfenster; Kalibrierungstermin nach 20 Freigaben protokolliert | V-01 bis V-07 abgenommen |
 | MS3 „v1 abgenommen“ | Woche 12 | Baseline für Rücklauf- und Interviewquote mit dir festgehalten (Kapitel 1.3) | Definition of Done v1 (19.5) |
 | MS4 „v2 und Go/No-Go“ | Woche 26 | Go/No-Go-Entscheidung nach Kapitel 21.5 dokumentiert | Definition of Done v2 (19.6) |
@@ -5770,7 +5842,7 @@ Betrieb (tägliche Reviews)   ├───────────────�
 
 - [ ] P0-08 Zwei private Git-Repositories anlegen: `bewerbungsagent` (Code) und `bewerbungen-data` (Profil, Bewerbungen, Datenbank; nie veröffentlichen), Struktur nach Kapitel 7.9.
 - [ ] P0-09 age-Schlüsselpaar erzeugen, privaten Schlüssel nur auf dem Server (`/etc/bewerbungsagent/age.key`, 0400) und im Passwortmanager; `.sops.yaml` und `config/secrets.enc.yaml` mit API-Key, E-Mail-Passwort, Telegram-Token, Adzuna-Keys ([sops](https://github.com/getsops/sops)).
-- [ ] P0-10 Claude-Code-Projekt initialisieren: `CLAUDE.md` mit Statusbegriffen, den zehn Sicherheitsregeln als Verbotsliste, Testpflicht (Kapitel 7.9); `.claude/settings.json` mit Deny-Regeln und `PreToolUse`-Hook (Kapitel 7.8); `pyproject.toml` mit gepinnten Abhängigkeiten (`claude-agent-sdk` 0.2.152, Python 3.10+, [PyPI](https://pypi.org/project/claude-agent-sdk/)); `schema.sql` aus Kapitel 7.3 als erste Migration; leere Modulordner; `pytest` mit einem ersten Test, der die Migration ausführt.
+- [ ] P0-10 Claude-Code-Projekt initialisieren: `CLAUDE.md` mit Statusbegriffen, den zehn Sicherheitsregeln als Verbotsliste, Testpflicht (Kapitel 7.9); `.claude/settings.json` mit Deny-Regeln und `PreToolUse`-Hook (Kapitel 7.8); `pyproject.toml` mit gepinnten Abhängigkeiten (`claude-agent-sdk` 0.2.152, Python 3.10+, [PyPI](https://pypi.org/project/claude-agent-sdk/)); `schema.sql` aus Kapitel 7.3 als erste Migration; `schemas/`- und `config/`-Verträge, von denen alle MVP-Pakete abhängen (Arbeitspaket M-00, 19.4); leere Modulordner; `pytest` mit einem ersten Test, der die Migration ausführt.
 - [ ] P0-11 Systempakete auf dem Server: Python 3.12, Node (für Playwright MCP ab v2), WeasyPrint-Abhängigkeiten, Poppler (`pdftotext`, `pdffonts`), Java für `tika-server` (Apache Tika 4.0.0, [Tika](https://github.com/apache/tika)), LibreOffice headless nur für die DOCX-Prüfung (Kapitel 13.2), Tesseract mit deutschem Sprachpaket (Kapitel 13.8). Schriftdateien Carlito und Liberation Sans nach `assets/fonts/` (Kapitel 13.3).
 - [ ] P0-12 systemd-Units aus Kapitel 7.5 anlegen, aber die Timer noch deaktiviert lassen.
 
@@ -5804,65 +5876,77 @@ Summe Phase 0: rund 4 bis 4,5 PT deiner Zeit, davon 2,5 bis 3 PT für das Kandid
 
 **Risiken dieser Phase:** Das Onboarding ist der einzige Schritt, den niemand für dich beschleunigen kann; unvollständige Story-Bank bedeutet dünne Belege in jeder Bewerbung (Kapitel 8.9 Schritt 6). Die inoffizielle BA-API kann anders antworten als die OpenAPI-Beschreibung (Kapitel 6.3); dann wird der Adapter in Woche 1 gegen die reale Antwort gebaut, nicht gegen die Spezifikation. Hetzner-Preise und Verfügbarkeit einzelner Linien waren nicht abschließend belegbar (Kapitel 7.7.3).
 
-### 19.4 MVP (Wochen 1–4): der kleinste Durchstich, der echten Wert liefert
+### 19.4 MVP (Wochen 1–6): der kleinste Durchstich, der echten Wert liefert
 
-**Ziel:** Ein Tageslauf, der aus BA-API, Watchlist-Feeds, Adzuna, Arbeitnow und Job-Alert-Mails eine Tagesauswahl bildet, sie recherchiert, schreibt, prüft, setzt und dir im Cockpit vorlegt; nach deiner Freigabe legt der Bote die fertige E-Mail als Entwurf im Postfach ab, und du sendest sie selbst. Genau die Kette aus Kapitel 7.2, mit den Stufen-Festlegungen aus Kapitel 6.6 und 7.10.
+**Ziel:** Ein Tageslauf, der aus BA-API, Watchlist-Feeds, Adzuna, Arbeitnow und Job-Alert-Mails eine Tagesauswahl bildet, sie recherchiert, schreibt, prüft, setzt und dir im Cockpit vorlegt; nach deiner Freigabe legt der Bote die fertige E-Mail als Entwurf im Postfach ab, und du sendest sie selbst. Genau die Kette aus Kapitel 7.2, mit den Stufen-Festlegungen aus Kapitel 6.6 und 7.10. Fünfzehn Arbeitspakete in vier Wochen sind nicht belastbar (13 PT eigener Zeit, 25 bis 35 Claude-Code-Sitzungen für den vollen ursprünglichen Zuschnitt); deshalb teilt sich der MVP in einen **Kern** (Wochen 1–4, trägt MS1 „Durchstich“) und einen **Rest** (Wochen 5–6, schließt den ursprünglich geplanten Funktionsumfang ab, bevor der eigentliche v1-Betrieb mit Kalibrierung und SMTP-Versand beginnt, 19.5).
 
-**Im MVP enthalten:** Scout-Adapter BA-API, Personio, Greenhouse, Lever, Adzuna, Arbeitnow, Job-Alert-Mails (nur Metadaten, Volltext erst nach Klick); Extraktion Haiku 4.5, Dedup mit datasketch, Injection-Screen; Matcher mit Muss-Filter, BM25 und Judge auf Sonnet 5 im Batch, Tagesauswahl mit Diversitätskappung; Rechercheur, Autor, Kritiker als Agent-SDK-Subagents; Claims-Abgleich und Anti-Generik-Katalog; ATS-Prüfer Stufe 1 und 2 mit Tika und OpenResume; Setzer mit WeasyPrint und python-docx, Layout `sachlich`, Mappe; Cockpit als Telegram-Bot plus FastAPI/HTMX-Detailseite mit Checkliste, Wort-Diff, Seitenvorschau und den vier Aktionen; Bote im Entwurfsmodus; `event_log`, Budget je Lauf, systemd-Timer. Portal-Bewerbungen im MVP: Der Bote liefert Link, Standardantworten und Dateien, du füllst das Formular selbst aus (Kapitel 2.12, 15.5).
+**Im MVP-Kern enthalten (Wochen 1–4):** Scout-Adapter BA-API, Personio, Greenhouse (Watchlist-Kern); Extraktion Haiku 4.5, Dedup mit datasketch, Injection-Screen; Matcher mit Muss-Filter, BM25 und Judge auf Sonnet 5 im Batch, Tagesauswahl mit Diversitätskappung; Rechercheur, Autor, Kritiker als Agent-SDK-Subagents; Claims-Abgleich und Anti-Generik-Katalog; ATS-Prüfer Stufe 1; Setzer mit WeasyPrint, Layout `sachlich`, zunächst nur PDF plus `anschreiben.txt`; Cockpit als Telegram-Bot mit Checkliste und den vier Aktionen; Bote im Entwurfsmodus; `event_log`, Budget je Lauf, systemd-Timer. Portal-Bewerbungen im MVP: Der Bote liefert Link, Standardantworten und Dateien, du füllst das Formular selbst aus (Kapitel 2.12, 15.5).
 
-**Nicht im MVP:** SMTP-Versand, SerpAPI und alle Gelb-Quellen, Embeddings und Reranker, Antwortklassifikation und Nachfassen, Portalformular-Vorbefüllung, Kanban und Statistikseite, Phoenix, Zweitgutachter, Lernschleife (Gründe werden nur gesammelt), Motivationsschreiben, englische Vorlage nur, wenn deine Zielrollen sie brauchen (Kapitel 22).
+**Im MVP-Rest enthalten (Wochen 5–6):** ATS-Prüfer Stufe 2 mit Tika und OpenResume; Setzer-Ausbau mit python-docx-Builder und Mappe; FastAPI/HTMX-Detailseite mit Wort-Diff und Seitenvorschau als Ergänzung zum Telegram-Bot; weitere Scout-Adapter Lever, Adzuna, Arbeitnow, Job-Alert-Mails; Abdeckungsmessung.
+
+**Nicht im MVP:** SMTP-Versand, SerpAPI und alle Gelb-Quellen, Embeddings und Reranker, Antwortklassifikation und Nachfassen, Portalformular-Vorbefüllung, Kanban und Statistikseite, Phoenix, Lernschleife (Gründe werden nur gesammelt), Motivationsschreiben, englische Vorlage nur, wenn deine Zielrollen sie brauchen (Kapitel 22).
 
 **Arbeitspakete (Checkliste):**
 
+- [ ] M-00 Verträge: erzeugt `schemas/` (`extraktion.json`, `judge.json`, `dossier.json`, `briefing.json`, `anschreiben-mit-claims.json`, `kritik.json`, `tailoring_log.json`, `ats_report.json`, `antwort.json`, `checkliste.json`) und `config/rubrik.yaml`, `config/scoring.yaml`, `config/anti_generik.yaml`, `config/ats_rules.yaml`, `config/ats_detection_rules.yaml`, `config/modelle.yaml`, `config/zeitplan.yaml` sowie je Schema einen leeren Golden-Test; erste Instanz aus P0-10 (19.3). Läuft vor allen vier Strängen, weil jedes MVP-Paket gegen diese Verträge baut (Definition of Ready, 19.8).
 - [ ] M-01 Orchestrator-Kern: CLI `bewerbungsagent`, `run` und `event_log` mit Triggern, Statusmaschine mit den erlaubten Übergängen aus Kapitel 7.4, `--budget-usd` mit hartem Abbruch, `--resume`, Commit ins Daten-Repository nach jedem Statuswechsel (Kapitel 7.5, 7.7.5).
-- [ ] M-02 Scout-Adapter BA-API mit Schema-Validierung, Backoff, Tagesnotiz bei Einbruch der Trefferzahl (Kapitel 6.3); Adapter Personio, Greenhouse, Lever für die Watchlist; Adzuna, Arbeitnow; IMAP-Leser für Job-Alert-Mails (Kapitel 6.5). Jeder Adapter liefert den Rohtreffer aus Kapitel 6.7 und hat einen Fixture-Test.
+- [ ] M-02 Scout-Adapter BA-API mit Schema-Validierung, Backoff, Tagesnotiz bei Einbruch der Trefferzahl (Kapitel 6.3); Adapter Personio, Greenhouse für den Watchlist-Kern (Kapitel 6.5). Jeder Adapter liefert den Rohtreffer aus Kapitel 6.7 und hat einen Fixture-Test.
+- [ ] M-02b Scout-Adapter Rest (MVP-Rest, Wochen 5–6): Lever für die Watchlist; Adzuna, Arbeitnow; IMAP-Leser für Job-Alert-Mails (Kapitel 6.5), gleiches Schema und Fixture-Test wie M-02.
 - [ ] M-03 Normalisierung und Extraktion mit Haiku 4.5 und Structured Output nach dem Schema aus Kapitel 9.2; Eskalation auf Sonnet 5 bei leeren Pflichtfeldern; pydantic-Nachprüfung (Kennziffer, PLZ).
 - [ ] M-04 Dedup dreistufig (ID, Blocking mit Jaro-Winkler 0,90, MinHashLSH 0,75–0,85 mit `datasketch`, [datasketch](https://github.com/ekzhu/datasketch)), Grenzband als „mögliches Duplikat“ (Kapitel 9.4).
 - [ ] M-05 Injection-Screen und Scam-Signal mit Haiku 4.5 vor dem Judge (Kapitel 7.8 Regel 5, 9.5); Fixtures mit eingebetteten Anweisungen und Weißtext.
 - [ ] M-06 Matcher: Muss-Filter aus `praeferenzen.yaml`, BM25-Vorauswahl mit `bm25s` ([bm25s](https://github.com/xhluca/bm25s)), Judge auf Sonnet 5 als Message Batch mit gecachtem Präfix (Kapitel 7.6, [Batch](https://platform.claude.com/docs/en/build-with-claude/batch-processing), [Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)); synchroner Fallback für die Top-40; Tagesauswahl Top-10 mit maximal zwei Anzeigen je Arbeitgeber (Kapitel 9.8); Begründungsfeld je Anzeige (Kapitel 9.6).
 - [ ] M-07 Rechercheur als Subagent (Definition aus Kapitel 7.6): Stufenfolge Anzeige, Karriereseite, Impressum, Register nur im Zweifel (Kapitel 10.1); `allowed_domains`, `max_uses: 8`; Dossier nach `schemas/dossier.json`; Rückfragen als `question`-Datensätze mit den drei Fragetypen und Defaults aus Kapitel 10.4; `contact.delete_after` (Kapitel 10.7).
 - [ ] M-08 Autor als Subagent: Format-Router (Kapitel 11.3), Briefing-Schritt auf Sonnet 5, drei Varianten in einem Aufruf, Lebenslauf-Tailoring mit Log (Kapitel 11.7), `claims` mit Story-IDs; Skills `anschreiben`, `lebenslauf-tailoring`; System-Prompt-Skelett aus Kapitel 11.10.
-- [ ] M-09 Kritiker: deterministische Prüfungen und `anti_generik.yaml` (Kapitel 11.5), Rubrik K1–K7 mit Gates (Kapitel 11.9), Fakten-Check gegen Story-Bank, Stimm-Check und Leser-Test im frischen Kontext, Konsistenz-Check (Kapitel 11.8); höchstens zwei Schleifen, danach Cockpit. Modell für Kritiker und Zweitgutachter nach Kapitel 11.10 in `config/modelle.yaml` konfigurieren, nicht im Code festschreiben.
-- [ ] M-10 ATS-Prüfer Stufe 1: Begriffsextraktion mit Haiku 4.5, Abdeckungsquote deterministisch, Stuffing-Regeln (Kapitel 12.2–12.4). Stufe 2: `tika-server` und OpenResume-Parser lokal, Formatcheckliste, Lesetest auf Sonnet 5, ATS-Report (Kapitel 12.5–12.8, [OpenResume](https://github.com/xitanggg/open-resume)).
-- [ ] M-11 Setzer: Jinja2-Vorlagen `sachlich` für Anschreiben (DIN 5008 Form B) und Lebenslauf, WeasyPrint, python-docx-Builder für den Lebenslauf, Typografie-Nachbearbeitung, QA-Tabelle aus Kapitel 13.10, Mappe mit pypdf, Dateinamen nach Kapitel 13.6, `render/vN`, `final/` mit Hashes, Manifest (Kapitel 13.11, [WeasyPrint](https://weasyprint.com/)).
-- [ ] M-12 Cockpit: Telegram-Bot mit Push je Stelle, Tagesdigest, vier Aktionen als Inline-Buttons, Rückfragen als Buttons oder Freitext (Kapitel 14.6–14.8); FastAPI/HTMX-Detailseite über SSH-Tunnel mit Checkliste aus Kapitel 14.4, Wort-Diff (`difflib`, Kapitel 14.5), Seitenvorschau, Undo-Fenster 60 Sekunden; Audit-Einträge in `event_log`; E-Mail-Digest als Rückfallkanal.
+- [ ] M-09 Kritiker: deterministische Prüfungen und `anti_generik.yaml` (Kapitel 11.5), Rubrik K1–K7 mit Gates (Kapitel 11.9), Fakten-Check gegen Story-Bank, Stimm-Check und Leser-Test im frischen Kontext, Konsistenz-Check (Kapitel 11.8); höchstens zwei Schleifen, danach Cockpit. Modell für den Kritiker (Claude Opus 5, Rubrik effort high, Stimm-/Leser-Test effort medium) nach Kapitel 11.10 in `config/modelle.yaml` konfigurieren, nicht im Code festschreiben.
+- [ ] M-10 ATS-Prüfer Stufe 1 (MVP-Kern): Begriffsextraktion mit Haiku 4.5, Abdeckungsquote deterministisch, Stuffing-Regeln (Kapitel 12.2–12.4).
+- [ ] M-10b ATS-Prüfer Stufe 2 (MVP-Rest, Wochen 5–6): `tika-server` und OpenResume-Parser lokal, Formatcheckliste, Lesetest auf Sonnet 5, ATS-Report (Kapitel 12.5–12.8, [OpenResume](https://github.com/xitanggg/open-resume)).
+- [ ] M-11 Setzer (MVP-Kern): Jinja2-Vorlage `sachlich` für Anschreiben (DIN 5008 Form B) und Lebenslauf, WeasyPrint, Typografie-Nachbearbeitung, QA-Tabelle aus Kapitel 13.10, Dateinamen nach Kapitel 13.6, `render/vN`, `final/` mit Hashes, Manifest (Kapitel 13.11, [WeasyPrint](https://weasyprint.com/)); Ausgabe zunächst nur PDF plus `anschreiben.txt`.
+- [ ] M-11a Kostenmessung (Ende Woche 3, MVP-Kern): eine vollständige Bewerbung (Rechercheur → Autor → Kritiker → ATS-Prüfer → Setzer) an einer echten Anzeige durchlaufen lassen, sobald M-11 steht; alle `response.usage`-Werte in `event_log` protokollieren. Ergebnis kalibriert Kapitel 18 (Entscheidung „Mini-Prototyp“, Kapitel 18.1) und ist die geprüfte Grundlage für das Lauf-Budget aus der Definition of Done (19.4 Punkt 6–7).
+- [ ] M-11b Setzer-Ausbau (MVP-Rest, Wochen 5–6): python-docx-Builder für den Lebenslauf, Mappe mit pypdf.
+- [ ] M-12 Cockpit (MVP-Kern): Telegram-Bot mit Push je Stelle, Tagesdigest, vier Aktionen als Inline-Buttons, Rückfragen als Buttons oder Freitext (Kapitel 14.6–14.8); Checkliste aus Kapitel 14.4; Audit-Einträge in `event_log`; E-Mail-Digest als Rückfallkanal.
+- [ ] M-12b Cockpit-Ausbau (MVP-Rest, Wochen 5–6): FastAPI/HTMX-Detailseite über SSH-Tunnel mit Wort-Diff (`difflib`, Kapitel 14.5), Seitenvorschau, Undo-Fenster 60 Sekunden.
 - [ ] M-13 Bote im Entwurfsmodus: E-Mail mit Betreff nach Konvention, Anschreiben als Mailtext aus `anschreiben.txt`, Mappe als Anhang, IMAP-APPEND in „Entwürfe“ oder Gmail-Drafts-API ([Gmail Drafts](https://developers.google.com/workspace/gmail/api/guides/drafts)); nur aus `final/`, nur bei Hash-Gleichheit und `review_item.status = freigegeben` (Kapitel 7.8, 15.1). Auth-Fehler 535 erzeugt eine Warnung statt Wiederholungen (Kapitel 15.4). Für Portal-Stellen: Nachricht mit Link, Dateipfaden und `standardantworten.yaml`-Auszug.
 - [ ] M-14 Betrieb: Timer für Tageslauf Teil 1 und 2 aktivieren, Wartungslauf mit `sqlite3 .backup`, wöchentlicher Kostenabgleich über die Usage-and-Cost-API ([Cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking)), Telegram-Zusammenfassung am Ende von Teil 2 (Kapitel 7.7.7).
-- [ ] M-15 Abdeckungsmessung: in der letzten MVP-Woche täglich bis zu 8 SerpAPI-Suchen aus dem Free-Tier mit deinen Zielrollen; Treffer gegen die Grün-Quellen abgleichen und die Lücke dokumentieren (Kapitel 6.5). Das Ergebnis entscheidet, ob SerpAPI in v1 kommt.
+- [ ] M-15 Abdeckungsmessung (MVP-Rest, Wochen 5–6): täglich bis zu 8 SerpAPI-Suchen aus dem Free-Tier mit deinen Zielrollen; Treffer gegen die Grün-Quellen abgleichen und die Lücke dokumentieren (Kapitel 6.5). Das Ergebnis entscheidet, ob SerpAPI in v1 kommt.
 
-**Abhängigkeiten und Parallelisierung.** Die Pakete sind über Schemas (`schemas/`) und Fixtures (`tests/fixtures/`) entkoppelt; sobald M-01 steht, können vier Stränge in getrennten Claude-Code-Sitzungen laufen:
+**Abhängigkeiten und Parallelisierung.** Die Pakete sind über Schemas (`schemas/`) und Fixtures (`tests/fixtures/`) entkoppelt, die M-00 zuerst liefert; erst danach können vier Stränge in getrennten Claude-Code-Sitzungen laufen:
 
 ```text
-M-01 Orchestrator (Statusmaschine, run, event_log, Budget)
- ├─ Strang A  M-02 Adapter → M-03 Extraktion → M-04 Dedup → M-05 Screen → M-06 Matcher
- ├─ Strang B  M-07 Rechercheur → M-08 Autor → M-09 Kritiker      (Eingabe: Fixture-Anzeigen + Profil)
- ├─ Strang C  M-11 Setzer ⇄ M-10 ATS-Prüfer                       (Eingabe: Beispiel-Dossier aus Kapitel 13.3)
- └─ Strang D  M-12 Cockpit                                        (Eingabe: Datensätze aus schema.sql)
-Zusammenführung: A+B+C+D → M-13 Bote → M-14 Betrieb → M-15 Messung
+M-00 Verträge (schemas/, config/)
+ └─ M-01 Orchestrator (Statusmaschine, run, event_log, Budget)
+     ├─ Strang A  M-02 Adapter (BA-API, Personio, Greenhouse) → M-03 Extraktion → M-04 Dedup → M-05 Screen → M-06 Matcher
+     ├─ Strang B  M-07 Rechercheur → M-08 Autor → M-09 Kritiker      (Eingabe: Fixture-Anzeigen + Profil)
+     ├─ Strang C  M-11 Setzer (PDF, `sachlich`) ⇄ M-10 ATS-Prüfer Stufe 1   (Eingabe: Beispiel-Dossier aus Kapitel 13.3)
+     └─ Strang D  M-12 Cockpit (Telegram)                             (Eingabe: Datensätze aus schema.sql)
+Zusammenführung MVP-Kern: B+C → M-11a Kostenmessung; A+B+C+D → M-13 Bote → M-14 Betrieb → MS1 „Durchstich“ (Ende Woche 4)
+MVP-Rest (Wochen 5–6, vor v1): M-02b weitere Adapter, M-10b ATS-Prüfer Stufe 2, M-11b DOCX/Mappe, M-12b Detailseite, M-15 Abdeckungsmessung
 ```
 
-Strang C braucht keinen Modellaufruf und kann ganz am Anfang laufen; Strang B braucht das committete Profil aus Phase 0.
+M-00 liefert die Verträge, von denen alle vier Stränge abhängen, und muss vor ihnen abgeschlossen sein. Strang C braucht keinen Modellaufruf für den Setzer-Teil und kann früh laufen; Strang B braucht das committete Profil aus Phase 0.
 
 **Sprintplan (Annahme: eine Person, Claude Code baut, du prüfst):**
 
 | Woche | Schwerpunkt | Arbeitspakete | Zwischenergebnis | Deine Zeit |
 |---|---|---|---|---|
-| 1 | Daten rein | M-01 bis M-06 | `bewerbungsagent tageslauf --teil 1` läuft gegen echte Quellen; morgens steht eine Top-10 mit Begründung in der Datenbank und als Telegram-Text | ca. 3 PT (Adapter gegen echte Antworten prüfen, Judge-Begründungen an 30 Anzeigen lesen, Muss-Filter nachjustieren) |
+| 1 | Verträge und Daten rein | M-00, M-01 bis M-06 | Schemas und Konfiguration im Repo; `bewerbungsagent tageslauf --teil 1` läuft gegen echte Quellen; morgens steht eine Top-10 mit Begründung in der Datenbank und als Telegram-Text | ca. 3 PT (Adapter gegen echte Antworten prüfen, Judge-Begründungen an 30 Anzeigen lesen, Muss-Filter nachjustieren) |
 | 2 | Text raus | M-07 bis M-09 | Für drei echte Anzeigen liegen Dossier, Anschreiben-Varianten, Tailoring-Log, Kritikbericht und Fakten-Check als Dateien vor | ca. 3 PT (Dossiers auf Fehler prüfen, Anschreiben gegen dein Stimmprofil lesen, Rückfrage-Fälle durchspielen) |
-| 3 | Datei raus | M-10, M-11 | Erste Mappe als PDF, Setzer-QA und ATS-Report grün, Reproduzierbarkeits-Hash stabil | ca. 3 PT (Vorlagenabnahme am Bildschirm und im Druck, DOCX in Word öffnen, Test-Parsing-Berichte lesen) |
-| 4 | Mensch dazu | M-12 bis M-15 | Vollständiger Tageslauf bis „bereit zur Freigabe“, Freigabe per Telegram, Entwurf im Postfach, fünf Betriebstage, Abdeckungsmessung | ca. 4 PT (tägliche Reviews, Freigaben, Fehlerprotokoll, Messung) |
+| 3 | Datei raus, Kosten messen | M-10, M-11, M-11a | Erste Mappe als PDF, Setzer-QA und ATS-Report Stufe 1 grün, Reproduzierbarkeits-Hash stabil, gemessene Kosten einer echten Bewerbung liegen vor | ca. 3 PT (Vorlagenabnahme am Bildschirm und im Druck, Test-Parsing-Berichte lesen, Kostenmessung mit Kapitel 18 abgleichen) |
+| 4 | Mensch dazu | M-12 bis M-14 | Vollständiger Tageslauf bis „bereit zur Freigabe“, Freigabe per Telegram, Entwurf im Postfach, fünf Betriebstage — MS1 erreicht | ca. 4 PT (tägliche Reviews, Freigaben, Fehlerprotokoll) |
+| 5–6 | MVP-Rest abschließen | M-02b, M-10b, M-11b, M-12b, M-15 | ATS-Prüfer Stufe 2, DOCX und Mappe, Detailseite, weitere Quellenadapter und Abdeckungsmessung ergänzt; MVP vollständig wie ursprünglich geplant | ca. 2 PT je Woche (Rest-Pakete abnehmen, Messung dokumentieren) |
 
-Summe MVP: rund 13 PT deiner Zeit über vier Wochen, plus ab Woche 4 täglich 30 bis 60 Minuten Review (Kapitel 2.13). Claude-Code-Sitzungen: je Arbeitspaket ein bis drei Sitzungen zu zwei bis vier Stunden, insgesamt etwa 25 bis 35 Sitzungen.
+Summe MVP: rund 13 PT deiner Zeit im Kern (Wochen 1–4) plus rund 4 PT im Rest (Wochen 5–6), zusammen rund 17 PT über sechs Wochen, plus ab Woche 4 täglich 30 bis 60 Minuten Review (Kapitel 2.13). Claude-Code-Sitzungen: je Arbeitspaket ein bis drei Sitzungen zu zwei bis vier Stunden, insgesamt etwa 28 bis 40 Sitzungen für Kern und Rest zusammen.
 
-**Definition of Done (MVP), gemessen aus Tracker- und `event_log`-Daten (Kapitel 1.5):**
+**Definition of Done (MVP-Kern, Ende Woche 4), gemessen aus Tracker- und `event_log`-Daten (Kapitel 1.5):**
 
 1. Zwei aufeinanderfolgende Tagesläufe liefern ohne manuellen Eingriff eine Tagesauswahl; jede ausgewählte Stelle erreicht „bereit zur Freigabe“ oder trägt eine begründete Rückfrage beziehungsweise einen Cockpit-Eintrag „Kritiker unzufrieden“.
 2. Median der Review-Zeit („bereit zur Freigabe“ bis „freigegeben“) unter 10 Minuten (Kapitel 1.3).
 3. Null unbelegte Aussagen in freigegebenen Dokumenten (Kritiker-Fakten-Check plus Stichprobe von dir an mindestens fünf Bewerbungen).
-4. ATS-Parsing-Gates in 100 Prozent der freigegebenen Dokumente bestanden.
+4. ATS-Parsing-Gates Stufe 1 in 100 Prozent der freigegebenen Dokumente bestanden (Stufe 2 folgt im MVP-Rest, M-10b).
 5. Null Vorgänge mit Außenwirkung ohne Freigabe: Der Bote hat ausschließlich Entwürfe angelegt, jeder mit `review_item.status = freigegeben` und passendem Hash.
-6. Kosten je Tageslauf innerhalb des Budgets (Default 10 USD, Kapitel 7.11) und nach dem ersten Wochenabgleich mit der Usage-Seite ohne Abweichung über 20 Prozent gegenüber dem `event_log` (Schwelle ist eine Annahme).
-7. Abdeckungsmessung dokumentiert (M-15); Ablehnungsgründe aus dem Cockpit liegen strukturiert vor.
+6. Kosten je Tageslauf innerhalb des Budgets (Default 45 USD, abgeleitet aus Kapitel 18.2: Szenario „empfohlen“ kostet 3,713 USD je Bewerbung, also rund 37 USD für zehn Bewerbungen, Szenario „maximal“ 5,217 USD je Bewerbung, also rund 52 USD; der Default deckt „empfohlen“ mit Puffer, kein frei gewählter Wert; wer dauerhaft „maximal“ fährt, hebt den Wert in `config/zeitplan.yaml` an) und nach dem ersten Wochenabgleich mit der Usage-Seite ohne Abweichung über 20 Prozent gegenüber dem `event_log` (Schwelle ist eine Annahme).
+7. Gemessene Kosten je Bewerbung liegen vor (M-11a) und Kapitel 18 ist damit kalibriert; das Budget aus Punkt 6 ist gegen diese Messung geprüft.
+8. Ablehnungsgründe aus dem Cockpit liegen strukturiert vor.
 
 Die Punkte 2, 4, 5 und 6 berechnet ein Skript `scripts/abnahme.py` aus dem Schema in Kapitel 7.3; die Abfragen gehören zum Arbeitspaket M-14, damit die Abnahme nicht von Hand zusammengesucht wird:
 
@@ -5893,6 +5977,13 @@ WHERE is_final = 1 AND json_extract(ats_check, '$.gate_status') <> 'bestanden';
 SELECT id, started_at, status, spent_usd, budget_usd
 FROM run WHERE kind = 'tageslauf' ORDER BY started_at DESC LIMIT 10;
 ```
+
+**Definition of Done (MVP-Rest, Ende Woche 6):**
+
+- Abdeckungsmessung dokumentiert (M-15); das Ergebnis entscheidet, ob SerpAPI in v1 kommt (Kapitel 6.5).
+- ATS-Prüfer Stufe 2 (Tika, OpenResume, Lesetest) läuft auf allen freigegebenen Dokumenten (M-10b).
+- DOCX und Mappe bestehen die gleiche Setzer-QA wie das PDF (M-11b, Kapitel 13.10).
+- FastAPI/HTMX-Detailseite ist über den SSH-Tunnel erreichbar und zeigt Wort-Diff und Seitenvorschau (M-12b).
 
 **Testplan (MVP):**
 
@@ -5936,7 +6027,7 @@ FROM run WHERE kind = 'tageslauf' ORDER BY started_at DESC LIMIT 10;
 *Cockpit, Qualität, Betrieb*
 
 - [ ] V-12 Cockpit als vollwertige lokale Web-App: Kanban über alle Status, Statistikseite mit Review-Zeit, Rückmeldequote, Ablehnungsgründen (Kapitel 14.10); Feedback-Tags werden zu `profilvorschlag`-Einträgen, die du bestätigst (Kapitel 7.8 Regel 6, 7.10); Formular für einzelne Profilfelder statt erneutem Interview (Kapitel 8.9 Alternative).
-- [ ] V-13 Zweitgutachter auf Opus 5 vor der Freigabe als Option (Kapitel 7.6, 11.10); Entscheidung nach Kosten-Nutzen aus V-02.
+- [ ] V-13 effort-Kalibrierung des Kritikers (Opus 5) nach 20 Freigaben: Rubrik-effort (high/medium) je Prüfschritt gegen die tatsächlichen Korrekturschleifen aus V-02 nachjustieren (Kapitel 11.10 Punkt 9).
 - [ ] V-14 Arize Phoenix mit SQLite-Backend und Anthropic-Instrumentierung ([Phoenix](https://github.com/Arize-ai/phoenix)); Langfuse bleibt wegen des Ressourcenbedarfs außen vor (Kapitel 7.7.7).
 - [ ] V-15 Backup verschlüsselt an einen zweiten Ort, etwa Hetzner Object Storage (4,99 €/Monat inklusive 1 TB, [Hetzner](https://www.hetzner.com/storage/object-storage/)); Wiederherstellung einmal geübt.
 - [ ] V-16 Optional: Typst als Zweitrenderer für den Lebenslauf evaluieren (Kapitel 13.2); Layouts `klassisch` und `international-en` nur nach bestandenem Test-Parsing (Kapitel 13.3), englischer Anti-Generik-Katalog E01–E36 (Kapitel 11.11). Optional: eigene Bewerbungsdomain über mailbox.org (laut Anbieter ab rund 3 €/Monat) oder Fastmail (rund 6 $/Monat) mit Warm-up, wenn Zustellbarkeit oder Seriosität es verlangen (Kapitel 15.2, [mailbox.org](https://mailbox.org/en/news/new-price-plans-available-mailboxorg/), [Fastmail](https://www.fastmail.help/hc/en-us/articles/8033939068815-2024-pricing-and-plan-updates); beide Preise vom Faktenprüfer nicht geprüft).
@@ -6024,16 +6115,16 @@ Kapitel 7.10 legt fest, welcher Baustein in welcher Stufe welche Form hat. Die R
 | Baustein | MVP-Paket | v1-Paket | v2-Paket | Auslöser für den nächsten Schritt |
 |---|---|---|---|---|
 | Laufzeit | M-01, M-14 (Agent SDK + Messages API, systemd) | V-17 optional: nur Rechercheur als Scheduled Deployment | W-10 Vollmigration oder Verbleib | Managed Agents laut Anthropic-Doku nicht mehr Beta, und ein konkreter Bedarf an Vaults oder Webhooks; nie vor abgenommenem v1 |
-| Modelle | M-06, M-08, M-09 (Fable 5.1, Sonnet 5, Haiku 4.5; Kritiker-Modell in `config/modelle.yaml`) | V-02 effort-Sweep, V-13 Zweitgutachter Opus 5 | W-06 Sweep mit Freigabedaten | 20 freigegebene Bewerbungen liegen vor (Kalibrierungstermin) |
-| Quellen | M-02 (BA-API, Personio, Greenhouse, Lever, Adzuna, Arbeitnow, Alert-Mails) | V-08 SerpAPI, V-09 weitere Adapter, V-10 Detektor | W-08 Playwright MCP, JOIN, Gelb-Quellen nach Freigabe | M-15 belegt eine Abdeckungslücke; Watchlist-Abdeckung unter 90 %; für Gelb zusätzlich deine Freigabe in `config/quellen.yaml` |
+| Modelle | M-06, M-08, M-09 (Fable 5.1 für Rechercheur/Autor, Sonnet 5 für Judge/Matcher, Haiku 4.5 für Massenarbeit, Opus 5 als Kritiker; Modelle in `config/modelle.yaml`) | V-02 effort-Sweep, V-13 effort-Kalibrierung Kritiker (Opus 5) | W-06 Sweep mit Freigabedaten | 20 freigegebene Bewerbungen liegen vor (Kalibrierungstermin) |
+| Quellen | M-02 (BA-API, Personio, Greenhouse), M-02b (Lever, Adzuna, Arbeitnow, Alert-Mails, MVP-Rest) | V-08 SerpAPI, V-09 weitere Adapter, V-10 Detektor | W-08 Playwright MCP, JOIN, Gelb-Quellen nach Freigabe | M-15 belegt eine Abdeckungslücke; Watchlist-Abdeckung unter 90 %; für Gelb zusätzlich deine Freigabe in `config/quellen.yaml` |
 | Matching | M-06 (Muss-Filter, BM25, Judge im Batch) | V-11 Embeddings, LanceDB, Reranker | W-05 gelernte Gewichte | Vergleichstest an 100 bewerteten Anzeigen zeigt, dass BM25 relevante Treffer verfehlt; für Lernen mindestens 100 strukturierte Cockpit-Urteile |
 | Versand | M-13 Entwurfsmodus | V-04 SMTP nach Freigabe, Sendeprotokoll | W-01 bis W-04 Portal-Co-Pilot | MVP-DoD Punkt 5 erfüllt und 20 Werktage stabil; für Portale: Anteil der Portal-Stellen an der Tagesauswahl über vier Wochen mindestens ein Drittel (Annahme, im Tracker zählbar) |
 | Datenbank | SQLite | + LanceDB nur mit V-11 | W-11 Postgres/pgvector nur bei Mehrnutzer | zweiter realer Nutzer steht an (Go nach Kapitel 21.5) |
 | Secrets | P0-09 sops + age | unverändert | Vaults nur bei Migration | wie Laufzeit |
 | Observability | M-14 `event_log`, Digest, Wochenabgleich | V-14 Phoenix | Langfuse nur mit größerem Server | Kosten- oder Latenzabweichung lässt sich aus `event_log` nicht mehr erklären; sonst kein Wechsel |
 | Gedächtnis und Lernen | Profil-Dateien, `company.last_contacted_at`, Blacklist | V-12 Feedback-Tags werden `profilvorschlag` | W-05, W-06; Memory Store `read_only` bei Migration | mindestens 100 strukturierte Urteile; jede Profiländerung weiterhin nur durch dich |
-| Cockpit | M-12 Telegram + Detailseite | V-12 Kanban, Statistik, Profilformular | W-09 Anmeldung, Mandant | Review-Zeit-Median über 10 Minuten oder verlorene Rückfragen ziehen V-12 vor; Mehrnutzer nur bei Go |
-| Dokumente | M-11 WeasyPrint, python-docx, `sachlich` | V-16 Typst-Evaluation, `klassisch`, `international-en` | W-07 Motivationsschreiben, Kurzbewerbung | Zielrollen verlangen Englisch oder konservatives Layout (Kapitel 22); Tracker zählt wiederholt Anzeigen, die ein Motivationsschreiben fordern |
+| Cockpit | M-12 Telegram (Kern), M-12b Detailseite (MVP-Rest) | V-12 Kanban, Statistik, Profilformular | W-09 Anmeldung, Mandant | Review-Zeit-Median über 10 Minuten oder verlorene Rückfragen ziehen V-12 vor; Mehrnutzer nur bei Go |
+| Dokumente | M-11 WeasyPrint, `sachlich`, PDF (Kern); M-11b python-docx, Mappe (MVP-Rest) | V-16 Typst-Evaluation, `klassisch`, `international-en` | W-07 Motivationsschreiben, Kurzbewerbung | Zielrollen verlangen Englisch oder konservatives Layout (Kapitel 22); Tracker zählt wiederholt Anzeigen, die ein Motivationsschreiben fordern |
 
 Der Wechsel ist bausteinweise möglich, weil alle Modellaufrufe hinter `src/bewerbungsagent/llm/` liegen (Kapitel 7.10) und alle Quellen hinter dem Adapter-Interface aus Kapitel 9.1. Rückwärts geht es genauso: Ein Baustein, dessen Auslöser sich später als Fehlmessung erweist, fällt ohne Codeänderung an anderer Stelle auf die MVP-Stufe zurück (Konfigurationsschalter in `config/quellen.yaml`, `config/modelle.yaml`, `config/zeitplan.yaml`).
 
@@ -6043,7 +6134,7 @@ Die Aufwandsannahmen dieses Kapitels gelten nur, wenn die Bauarbeit in einer fes
 
 1. **Ein Arbeitspaket, eine Sitzung, ein Auftrag.** Jede Claude-Code-Sitzung bekommt genau ein Paket aus 19.3 bis 19.6 mit Ziel, Eingaben, Ausgaben, Abnahme und Sperrliste. Die Sitzung endet erst, wenn `pytest` grün ist und die Abnahmebedingung erfüllt ist; halbfertige Pakete werden nicht committet.
 2. **`CLAUDE.md` ist Kontext, Settings und Hooks sind die Regel.** `CLAUDE.md` enthält die Statusbegriffe, die zehn Sicherheitsregeln und die Testpflicht (Kapitel 7.9; [Memory](https://code.claude.com/docs/en/memory)); erzwungen wird über `.claude/settings.json` und den `PreToolUse`-Hook, die auch beim Bauen aktiv sind. Claude Code schreibt beim Bauen nie in `profil/`, sieht nie `config/secrets.enc.yaml` im Klartext und baut keinen Versandpfad ohne die negativen Bote-Tests aus dem Testplan.
-3. **Definition of Ready je Paket.** Ein Paket startet erst, wenn die Schemas, Fixtures und Konfigurationsdateien, die es braucht, im Repo liegen; sonst baut Claude Code gegen Annahmen. Für Strang B in 19.4 heißt das: committetes Profil und ein Beispiel-Dossier; für Strang C: das Dossier-Skelett aus Kapitel 13.3.
+3. **Definition of Ready je Paket.** Ein Paket startet erst, wenn die Schemas, Fixtures und Konfigurationsdateien, die es braucht, im Repo liegen; sonst baut Claude Code gegen Annahmen. M-00 (19.4) liefert genau diese Verträge und ist deshalb das einzige Paket, das vor allen anderen fertig sein muss. Für Strang B in 19.4 heißt das zusätzlich: committetes Profil und ein Beispiel-Dossier; für Strang C: das Dossier-Skelett aus Kapitel 13.3.
 4. **Deine Prüfroutine je Paket, in dieser Reihenfolge:** Diff lesen (Ziel: 15 Minuten), Tests selbst laufen lassen, das Paket an drei echten Fällen ausprobieren, dann Commit. Was du dabei findest, wird als Fixture oder Test festgehalten, nicht als Notiz.
 
 Arbeitsauftrag-Vorlage, mit der jede Sitzung beginnt (Datei `docs/auftraege/<paket>.md`, damit sie versioniert ist):
@@ -6068,25 +6159,28 @@ Wochenrhythmus im MVP: Montag Pakete der Woche festlegen und Aufträge schreiben
 
 ### 19.9 Die ersten 10 konkreten Schritte ab morgen
 
-Alle Schritte gehören zu Phase 0 und lassen sich in fünf bis sechs Werktagen erledigen. Zeitangaben sind Annahmen für deine eigene Zeit.
+Alle Schritte gehören zu Phase 0 und lassen sich in sechs bis acht Werktagen erledigen (P0-17 Zeugnisse normalisieren und P0-21 Fingerprints sammeln laufen nebenher und lassen sich parallel zu den übrigen Schritten einplanen). Zeitangaben sind Annahmen für deine eigene Zeit.
 
-1. **Blocker entscheiden (P0-01, 30 Minuten).** Fünf Antworten aufschreiben: primäres E-Mail-Konto (iCloud oder Gmail), Server (Hetzner-VPS oder Mac), Top-Modell (Fable 5.1 mit 30-Tage-Speicherung oder Opus 5), Budget je Tageslauf (Default 10 USD), Zielrollen und Orte. Die Datei `config/entscheidungen.md` im Daten-Repository hält sie fest.
+1. **Blocker entscheiden (P0-01, 30 Minuten).** Fünf Antworten aufschreiben: primäres E-Mail-Konto (iCloud oder Gmail), Server (Hetzner-VPS oder Mac), Top-Modell (Fable 5.1 mit 30-Tage-Speicherung oder Opus 5), Budget je Tageslauf (Default 45 USD, hergeleitet aus Kapitel 18.2, siehe 19.4), Zielrollen und Orte. Die Datei `config/entscheidungen.md` im Daten-Repository hält sie fest.
 2. **Anthropic-Zugang einrichten (P0-02, 45 Minuten).** Organisation, Commercial-API-Key, Ausgabenlimit, Auftragsverarbeitungsvertrag; bei Fable 5.1 die 30-Tage-Speicherung aktivieren und einen Testaufruf machen, der ohne Fehler 400 antwortet.
 3. **Server bestellen (P0-03, 1 Stunde).** Hetzner CPX22 in Deutschland, Ubuntu 24.04, SSH-Schlüssel, Nutzer `agent`, Firewall nur SSH; Preis im Konfigurator festhalten.
 4. **Kanäle anlegen (P0-04, P0-05, 1 Stunde).** Telegram-Bot bei BotFather mit Chat-ID; bei iCloud App-spezifisches Passwort, bei Gmail OAuth-Projekt im Testing-Modus mit den Scopes aus P0-05. Ein Test-Entwurf per IMAP-APPEND, danach wieder löschen.
 5. **Quellenkonten und Job-Alerts (P0-06, P0-07, 45 Minuten).** Adzuna-Konto mit App-ID und Key (Rate Limits notieren), SerpAPI-Konto nur anlegen, Job-Alerts bei StepStone, Indeed, LinkedIn und XING auf das Bewerbungspostfach.
-6. **Projektgerüst bauen lassen (P0-08 bis P0-12, 2 bis 3 Stunden, erste Claude-Code-Sitzung).** Zwei Repositories, `CLAUDE.md`, `.claude/settings.json` mit Deny-Regeln und Hook, `pyproject.toml`, `schema.sql` als Migration, erster `pytest`, sops mit age, Systempakete und deaktivierte systemd-Units auf dem Server. Auftrag nach der Vorlage in 19.8.
+6a. **Repos und Projektgerüst (P0-08 bis P0-10, 2 bis 3 Stunden, erste Claude-Code-Sitzung).** Zwei Repositories, `CLAUDE.md`, `.claude/settings.json` mit Deny-Regeln und Hook, `pyproject.toml`, `schema.sql` als erste Migration, `schemas/`- und `config/`-Verträge (M-00), erster `pytest`, sops mit age. Auftrag nach der Vorlage in 19.8.
+6b. **Server provisionieren (P0-11, P0-12, 2 bis 3 Stunden, zweite Claude-Code-Sitzung, teils Wartezeit für Paketinstallation).** Systempakete (Python 3.12, WeasyPrint-Abhängigkeiten, Poppler, Java für `tika-server`, LibreOffice headless, Tesseract mit deutschem Sprachpaket), Schriftdateien nach `assets/fonts/`, deaktivierte systemd-Units; am besten als Skript `scripts/provision.sh` mit fester Paketliste, damit der Server reproduzierbar neu aufgesetzt werden kann.
 7. **Material sammeln (P0-13, P0-18, 1 bis 2 Stunden).** Lebenslauf, alte Anschreiben, 5 bis 10 Textproben, Zeugnis-Scans in einen Eingangsordner; dazu 20 bis 50 Wunscharbeitgeber mit Karriereseiten-URL als erste `watchlist.yaml`.
 8. **Onboarding, Teil 1 (P0-14, 2 bis 3 Stunden, zweite Claude-Code-Sitzung).** Skill `profil-onboarding` anlegen lassen, dann Blöcke A bis C: Kontakt, Werdegang, 8 bis 10 Erfolge mit Zahl und Beleg. Ergebnis sind `lebenslauf.yaml` und `story_bank.yaml` als Entwürfe.
 9. **Onboarding, Teil 2 und Freigabe (P0-15, P0-16, 2 bis 3 Stunden, dritte Sitzung).** Blöcke D bis H, Stimmprofil-Vorschlag aus den Textproben korrigieren, Tabus `NUTZER-001…` setzen, alle fünf Dateien lesen, Commit im Daten-Repository, `candidate_profile` mit Hashes füllen. Danach schreibt kein Modell mehr in `profil/`.
-10. **Quellen-Smoke-Tests und Zeugnisse (P0-17, P0-19 bis P0-22, 2 Stunden, vierte Sitzung).** BA-API live aufrufen und als Fixture speichern, je einen Personio-, Greenhouse- und Lever-Feed abrufen, Teamtailor testen, Fingerprints für softgarden, rexx, d.vinci, SuccessFactors und JOIN sammeln; Zeugnisse normalisieren und OCR mit deutschem Sprachpaket; htmx-Lizenz und DIN-5008-Maße prüfen. Damit ist MS0 erreicht, und Woche 1 beginnt mit M-01 und M-02.
+10a. **Quellen-Smoke-Tests (P0-19, P0-20, P0-22, 2 Stunden, vierte Sitzung).** BA-API live aufrufen und als Fixture speichern, je einen Personio-, Greenhouse- und Lever-Feed abrufen, Teamtailor testen; htmx-Lizenz und DIN-5008-Maße prüfen.
+10b. **ATS-Fingerprints (P0-21, 2 Stunden, fünfte Sitzung).** Fingerprints für softgarden, rexx, d.vinci, SAP SuccessFactors und JOIN an je drei Beispielseiten sammeln und in `ats_detection_rules.yaml` eintragen.
+10c. **Zeugnisse normalisieren und OCR (P0-17, 1 bis 2 Stunden, abhängig von der Zahl der Dokumente, läuft parallel zu 10a/10b).** Zeugnisse normalisieren, OCR mit deutschem Tesseract-Sprachpaket, komprimieren. Damit ist MS0 erreicht, und Woche 1 beginnt mit M-00, M-01 und M-02.
 
 ### 19.10 Default-Annahmen und offene Fragen (für Kapitel 22)
 
 Bis du anders entscheidest, gilt für die Roadmap:
 
 - Start sofort mit Phase 0; Umsetzung durch Claude Code, Prüfung durch dich; rund 3 PT deiner Zeit je Woche im MVP, danach 1 bis 2 PT je Woche plus tägliche Review-Routine.
-- Phasenzuschnitt wie in 19.2; kein Baustein wechselt die Stufe ohne den Auslöser aus 19.7.
+- Phasenzuschnitt wie in 19.2 (MVP-Kern Wochen 1–4, MVP-Rest Wochen 5–6); kein Baustein wechselt die Stufe ohne den Auslöser aus 19.7.
 - MVP im Entwurfsmodus (du sendest selbst); erster SMTP-Versand in Woche 5 mit Budget 5 USD und Tageslimit 3, danach die Defaults aus Kapitel 7.11.
 - Kalibrierungstermin nach 20 freigegebenen Bewerbungen als gemeinsamer Termin von rund 2 PT (V-02).
 - Deutsche Vorlage `sachlich` im MVP; `international-en` und `klassisch` erst in v1 nach Test-Parsing.
@@ -6097,18 +6191,17 @@ Bis du anders entscheidest, gilt für die Roadmap:
 Offene Fragen an dich, gesammelt in Kapitel 22:
 
 1. Wann startet Phase 0, und wie viel Zeit je Woche kannst du verbindlich einplanen? Default: Start diese Woche, 3 PT je Woche im MVP.
-2. Fable 5.1 mit 30-Tage-Speicherung oder Opus 5 für Rechercheur, Autor und Kritiker? Default: Fable 5.1 mit dokumentierter Zustimmung (Kapitel 16.2); Umschalter `MODEL_TOP` bleibt.
+2. Fable 5.1 mit 30-Tage-Speicherung oder Opus 5 für Rechercheur und Autor (Umschalter `MODEL_TOP`)? Der Kritiker ist von dieser Wahl nicht betroffen und läuft in jedem Fall auf Claude Opus 5. Default: Fable 5.1 mit dokumentierter Zustimmung (Kapitel 16.2); Umschalter `MODEL_TOP` bleibt.
 3. Hetzner-VPS oder eigener Mac für Betrieb und Entwicklung? Default: VPS; der Mac nur für den Portal-Co-Pilot in v2 (residentielle IP).
 4. Primäres E-Mail-Konto: iCloud per IMAP-APPEND oder Gmail per Drafts-API? Default: das Konto, das du heute für Bewerbungen nutzt; beide Wege werden gebaut.
-5. Budget je Tageslauf und Monatsbudget für Datenquellen? Default: 10 USD je Tageslauf, 0 EUR Datenquellen im MVP, bis 41 USD in v1.
+5. Budget je Tageslauf und Monatsbudget für Datenquellen? Default: 45 USD je Tageslauf (abgeleitet aus Kapitel 18.2, 19.4 Punkt 6), 0 EUR Datenquellen im MVP, bis 41 USD in v1.
 6. Sind englischsprachige Zielrollen relevant, sodass `international-en` schon im MVP gebraucht wird? Default: nein, v1.
 7. Ist der Start des echten Versands in Woche 5 mit Tageslimit 3 und Budget 5 USD akzeptabel, oder soll der Entwurfsmodus länger laufen? Default: Woche 5.
 8. Onboarding in zwei Sitzungen zu je 2 bis 3 Stunden oder verteilt über die Woche? Default: zwei Sitzungen.
 9. Kannst du in Phase 0 eine Watchlist mit 20 bis 50 Wunscharbeitgebern liefern? Default: ja; sonst startet der MVP nur mit BA-API, Adzuna, Arbeitnow und Alert-Mails.
-10. Zweitgutachter auf Opus 5 in v1 grundsätzlich gewünscht, oder nur, wenn V-02 einen Nutzen zeigt? Default: nur nach V-02.
-11. Soll der Managed-Agents-Test (V-17) überhaupt stattfinden? Default: optional, nur Rechercheur, nur wenn Zeit bleibt.
-12. Welche Portalfamilien zuerst im Co-Pilot (W-02)? Default: Personio, softgarden, JOIN; SuccessFactors und Workday danach; Plattform-Schnellbewerbungen nur nach ausdrücklicher Entscheidung.
-13. Soll die anwaltliche Prüfung (W-12) vor v2 budgetiert werden oder erst bei einer Go-Entscheidung? Default: erst bei Go.
+10. Soll der Managed-Agents-Test (V-17) überhaupt stattfinden? Default: optional, nur Rechercheur, nur wenn Zeit bleibt.
+11. Welche Portalfamilien zuerst im Co-Pilot (W-02)? Default: Personio, softgarden, JOIN; SuccessFactors und Workday danach; Plattform-Schnellbewerbungen nur nach ausdrücklicher Entscheidung.
+12. Soll die anwaltliche Prüfung (W-12) vor v2 budgetiert werden oder erst bei einer Go-Entscheidung? Default: erst bei Go.
 
 **Quellen dieses Kapitels:**
 
@@ -6178,7 +6271,7 @@ Das Register ersetzt nicht den Compliance-Katalog aus Kapitel 16 und nicht die K
 
 ### 20.2 Technische Risiken
 
-Die inoffizielle Jobsuche-API der Bundesagentur für Arbeit hatte bereits Schema-Brüche zwischen den Versionen v4 und v6 und offene Issues zu Zugriffsproblemen [Quelle](https://github.com/bundesAPI/jobsuche-api/issues). Cloudflare blockiert seit dem 1. Juli 2025 standardmäßig bekannte AI-Crawler auf neuen Domains [Quelle](https://blog.cloudflare.com/control-content-use-for-ai-training/). Claude Code Routines laufen 2026 offiziell im Status „research preview" [Quelle](https://code.claude.com/docs/en/routines), Anthropics eigene Leitlinie zur Abwehr von Prompt-Injection verlangt eine strikte Trennung von System-Prompt und nicht vertrauenswürdigem `tool_result`-Inhalt [Quelle](https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks). Bei mehreren bestehenden KI-Bewerbungstools sind bereits erfundene Lebenslaufdetails dokumentiert [Quelle](https://jobara.ai/blog/use-massive-review). App-spezifische iCloud-Passwörter werden bei jeder Apple-ID-Passwortänderung automatisch und ohne Vorwarnung ungültig [Quelle](https://www.sysinfotools.com/how-to/generate-app-password-in-icloud.html); im Google-Cloud-OAuth-Testing-Modus laufen Access-Tokens für Testnutzer nach 7 Tagen ab [Quelle](https://support.google.com/cloud/answer/15549945?hl=en).
+Die inoffizielle Jobsuche-API der Bundesagentur für Arbeit hatte bereits Schema-Brüche zwischen den Versionen v4 und v6 und offene Issues zu Zugriffsproblemen [Quelle](https://github.com/bundesAPI/jobsuche-api/issues). Cloudflare blockiert seit dem 1. Juli 2025 standardmäßig bekannte AI-Crawler auf neuen Domains [Quelle](https://blog.cloudflare.com/control-content-use-for-ai-training/). Claude Code Routines laufen 2026 offiziell im Status „research preview" [Quelle](https://code.claude.com/docs/en/routines), Anthropics eigene Leitlinie zur Abwehr von Prompt-Injection verlangt eine strikte Trennung von System-Prompt und nicht vertrauenswürdigem `tool_result`-Inhalt [Quelle](https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks). Bei mehreren bestehenden KI-Bewerbungstools sind bereits erfundene Lebenslaufdetails dokumentiert [Quelle](https://jobara.ai/blog/use-massive-review). App-spezifische iCloud-Passwörter werden bei jeder Apple-ID-Passwortänderung automatisch und ohne Vorwarnung ungültig [Quelle](https://www.sysinfotools.com/how-to/generate-app-password-in-icloud.html); im Google-Cloud-OAuth-Testing-Modus (External + Testing) läuft der Refresh-Token für Testnutzer nach 7 Tagen ab und erfordert eine erneute Browser-Autorisierung [Quelle](https://support.google.com/cloud/answer/15549945?hl=en).
 
 | Risiko | Wahrscheinlichkeit | Auswirkung | Frühindikator | Gegenmaßnahme | Verantwortlich |
 |---|---|---|---|---|---|
@@ -6206,7 +6299,7 @@ Kapitel 16 legt den vollständigen Compliance-Katalog fest (autonom / nur mit Fr
 
 ### 20.4 Qualitative Risiken
 
-Kapitel 11 beschreibt die Anti-Generik-Regeln und die Kritiker-Rubrik im Detail; hier stehen die Risiken, die entstehen, wenn diese Mechanismen versagen. Eine vielzitierte StepStone-Studie 2025 berichtet, dass Mehrheiten befragter Recruiter KI-Anschreiben zwar als professioneller, aber als weniger individuell und weniger authentisch wahrnehmen – die genauen Prozentwerte ließen sich in dieser Recherche nicht unabhängig nachprüfen (unbestätigt) [Quelle](https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitat/). Der Resume Genius Hiring Trends Report 2026 nennt „KI-generierten Inhalt" laut eigenem Report bei 53% der befragten Hiring Manager als größtes Red Flag [Quelle](https://resumegenius.com/blog/ai-impact-on-hiring-2026). Ghost Jobs machen laut Greenhouse-Daten 18–22% (in einzelnen Branchen bis 38%) aller Online-Stellenanzeigen aus [Quelle](https://unternehmer.de/wirtschaft/625515-ghost-jobs-jede-dritte-stellenanzeige-betroffen). Verbraucherzentralen warnen zusätzlich aktiv vor professionell wirkenden Fake-Stellenanzeigen mit dem Ziel Identitätsdiebstahl [Quelle](https://www.verbraucherzentrale.de/jobscamming-was-tun-wenn-das-traumangebot-zur-falle-wird-110906).
+Kapitel 11 beschreibt die Anti-Generik-Regeln und die Kritiker-Rubrik im Detail; hier stehen die Risiken, die entstehen, wenn diese Mechanismen versagen. Eine vielzitierte StepStone-Studie 2025 berichtet, dass Mehrheiten befragter Recruiter KI-Anschreiben zwar als professioneller, aber als weniger individuell und weniger authentisch wahrnehmen – die genauen Prozentwerte ließen sich in dieser Recherche nicht unabhängig nachprüfen (unbestätigt) [Quelle](https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitat/). Der Resume Genius Hiring Trends Report 2026 nennt „KI-generierten Inhalt" laut eigenem Report bei 53% der befragten Hiring Manager als größtes Red Flag [Quelle](https://resumegenius.com/blog/ai-impact-on-hiring-2026). Ghost Jobs machen laut einer Greenhouse-Analyse (US) 18–22% aller Online-Stellenanzeigen aus [Quelle](https://www.fox5ny.com/news/ghost-jobs-greenhouse-analysis), in einzelnen Branchen bis 38%, im öffentlichen Sektor knapp 60% [Quelle](https://unternehmer.de/wirtschaft/625515-ghost-jobs-jede-dritte-stellenanzeige-betroffen) [Quelle](https://www.livecareer.de/bewerbung/ghost-jobs). Verbraucherzentralen warnen zusätzlich aktiv vor professionell wirkenden Fake-Stellenanzeigen mit dem Ziel Identitätsdiebstahl [Quelle](https://www.verbraucherzentrale.de/jobscamming-was-tun-wenn-das-traumangebot-zur-falle-wird-110906).
 
 | Risiko | Wahrscheinlichkeit | Auswirkung | Frühindikator | Gegenmaßnahme | Verantwortlich |
 |---|---|---|---|---|---|
@@ -6261,7 +6354,9 @@ Dieses Register ist kein einmaliges Dokument. Mehrere Grundannahmen (Preise, Bet
 - dejure.org – KI-Verordnung Art. 2: https://dejure.org/gesetze/KI-Verordnung/2.html
 - StepStone AT – Studie: Jede zweite Bewerbung mit Hilfe von KI erstellt: https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitat/
 - Resume Genius – AI Impact on Hiring 2026: https://resumegenius.com/blog/ai-impact-on-hiring-2026
+- Fox5NY – Ghost Jobs Greenhouse Analysis: https://www.fox5ny.com/news/ghost-jobs-greenhouse-analysis
 - unternehmer.de – Ghost Jobs: Jede dritte Stellenanzeige betroffen: https://unternehmer.de/wirtschaft/625515-ghost-jobs-jede-dritte-stellenanzeige-betroffen
+- LiveCareer – Ghost Jobs: https://www.livecareer.de/bewerbung/ghost-jobs
 - Verbraucherzentrale – Jobscamming: Was tun, wenn das Traumangebot zur Falle wird: https://www.verbraucherzentrale.de/jobscamming-was-tun-wenn-das-traumangebot-zur-falle-wird-110906
 - Anthropic Docs – Managed Agents: Budgets: https://platform.claude.com/docs/en/managed-agents/budgets
 - GongRzhe/Gmail-MCP-Server (GitHub, archiviert seit 3.3.2026): https://github.com/GongRzhe/Gmail-MCP-Server
@@ -6332,7 +6427,7 @@ Vor jeder Öffnung für zahlende Kunden: Gewerbeanmeldung, Impressumspflicht (§
 
 Dieses Kapitel sammelt jede Frage, die in Kapitel 1 bis 21 als „offene Frage an dich“ markiert wurde, sowie alle `open_questions_for_user` aus den 15 Recherche-Dateien. Dedupliziert, gruppiert, mit Antwortoptionen und der Default-Annahme, die der Plan bis zu deiner Antwort verwendet. Die Default-Annahmen sind identisch mit denen, die in den jeweiligen Kapiteln bereits als **Entscheidung** oder **Default-Annahme** stehen – dieses Kapitel widerspricht ihnen an keiner Stelle, sondern bündelt sie an einem Ort zum Durcharbeiten.
 
-45 Fragen in sieben Gruppen: Profil & Ziele, Quellen & Regionen, Sprache & Ton, Versand & Konten, Technik & Budget, Recht & Grenzen, Produktname. Acht davon sind **Blocker vor Phase 0** (Kapitel 19.3, Arbeitspaket P0-01) – ohne Antwort auf diese acht kann Woche 0 nicht sauber starten, weil kein sinnvoller Platzhalter existiert oder weil die Architektur zwei grundverschiedene Wege vorsieht. Für alle übrigen Fragen gilt: Die genannte Default-Annahme ist bereits aktiv in der Architektur verankert; du kannst mit dem Bau beginnen, ohne sie einzeln zu bestätigen, und sie später über `config/` oder das Onboarding-Interview (Kapitel 8) ändern.
+53 Fragen in acht Gruppen: Profil & Ziele, Quellen & Regionen, Sprache & Ton, Versand & Konten, Technik & Budget, Recht & Grenzen, Produktname, Roadmap & Tempo. Acht davon sind **Blocker vor Phase 0** (Kapitel 19.3, Arbeitspaket P0-01) – ohne Antwort auf diese acht kann Woche 0 nicht sauber starten, weil kein sinnvoller Platzhalter existiert oder weil die Architektur zwei grundverschiedene Wege vorsieht. Für alle übrigen Fragen gilt: Die genannte Default-Annahme ist bereits aktiv in der Architektur verankert; du kannst mit dem Bau beginnen, ohne sie einzeln zu bestätigen, und sie später über `config/` oder das Onboarding-Interview (Kapitel 8) ändern.
 
 ### 22.1 Die acht Blocker im Überblick
 
@@ -6345,7 +6440,7 @@ Dieses Kapitel sammelt jede Frage, die in Kapitel 1 bis 21 als „offene Frage a
 | 30 | Commercial-API-Key oder Pro/Max-Abo | Commercial-API-Key | 7, 16 |
 | 31 | Hosting: Hetzner-VPS, Mac lokal oder Managed Agents | Hetzner-VPS in Deutschland | 7 |
 | 32 | Fable 5.1 (30-Tage-Speicherung) oder durchgängig Opus 5 (ZDR) | Fable 5.1 mit Offenlegung, Opus-5-Umschalter vorhanden | 7, 11, 16 |
-| 33 | Tägliches/monatliches Kostenlimit | 10 USD je Tageslauf, Monatsdeckel offen | 7, 18 |
+| 33 | Tägliches/monatliches Kostenlimit | 45 USD je Tageslauf (Kapitel 18.2); Monatsdeckel offen, Orientierung rund 262–1.151 EUR/Monat je nach Szenario, rund 789 EUR im empfohlenen Szenario | 7, 18 |
 
 Fragen 1 und 8 haben bewusst keine Default-Annahme: Der Plan enthält an keiner Stelle eine geratene Branche, einen geratenen Beruf oder einen geratenen Ort – jedes Beispiel im Dokument ist ein Platzhalter. Ohne diese zwei Antworten kann der Scout (Kapitel 6, 9) keine einzige Quelle sinnvoll konfigurieren.
 
@@ -6381,7 +6476,7 @@ Fragen 1 und 8 haben bewusst keine Default-Annahme: Der Plan enthält an keiner 
 
 **14. Ansprechpartner-Recherche auf LinkedIn/XING.** Bist du bereit, diesen Schritt selbst manuell zu übernehmen (der Agent liefert dir einen vorbereiteten Link), oder soll stärker automatisiert werden trotz ToS-Risiko? **Default-Annahme:** du übernimmst es manuell (company_research.json).
 
-**15. Rückfrage-Schwelle beim Ansprechpartner.** Soll bei niedriger Konfidenz immer eine blockierende Rückfrage kommen, oder reicht eine Kennzeichnung im Cockpit ohne Unterbrechung des Tageslaufs? **Default-Annahme:** nur die Anschrift ist blockierend; Ansprechpartner/Anrede erhalten nur einen Konfidenz-Vermerk (Kapitel 10.4).
+**15. Rückfrage-Schwelle beim Ansprechpartner.** Soll bei niedriger Konfidenz immer eine Rückfrage ohne Default kommen, oder reicht eine Rückfrage mit Default, die sich von selbst auflöst? **Default-Annahme:** Nur eine unsichere oder widersprüchliche Anschrift löst eine Rückfrage ohne Default aus (kein Textbaustein möglich, Archivierung nach 5 Werktagen ohne Antwort); eine unsichere Ansprechperson/Anrede löst ebenfalls eine Rückfrage aus, aber mit Default, der bei Nichtantwort automatisch zu Beginn des nächsten Tageslaufs eingetragen und in der Review-Checkliste als „per Default beantwortet – bitte prüfen" markiert wird (Kapitel 10.4, 14.4).
 
 **16. Abweichender Firmenstandort.** Wenn Stellenanzeige und Impressum/Hauptsitz voneinander abweichen: automatisch den Anzeige-Standort übernehmen, oder immer nachfragen? **Default-Annahme:** Anzeige-Standort übernehmen, bei echter Unsicherheit Rückfrage (company_research.json).
 
@@ -6421,9 +6516,9 @@ Fragen 1 und 8 haben bewusst keine Default-Annahme: Der Plan enthält an keiner 
 
 **31. [Blocker] Hosting.** Eigener Hetzner-VPS in Deutschland, dein Mac lokal, oder vollständig Anthropic-verwaltete Managed Agents (Beta/Research Preview)? **Default-Annahme:** Hetzner-VPS in Deutschland (Kapitel 7.7.3, 7.11).
 
-**32. [Blocker] Modellwahl für die qualitätskritischen Schritte.** Claude Fable 5.1 (deine Wunschbasis, aber 30-Tage-Datenspeicherung bei Anthropic für Covered Models, [API and data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)) oder durchgängig Claude Opus 5 (ZDR-fähig, identische Preisstruktur $5/$25 statt $10/$50)? Der Kritiker läuft standardmäßig ohnehin auf einem anderen Modell als der Autor, um Selbstbewertungs-Bias zu vermeiden. **Default-Annahme:** Fable 5.1 mit Offenlegung und Zustimmung im Onboarding; Opus 5 als jederzeit aktivierbarer Umschalter; Kritiker = Opus 5 gegen Fable-5.1-Entwurf (Kapitel 7.11, 11.12, 16.2).
+**32. [Blocker] Modellwahl für die qualitätskritischen Schritte.** Claude Fable 5.1 (deine Wunschbasis für Rechercheur und Autor, aber 30-Tage-Datenspeicherung bei Anthropic für Covered Models, [API and data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention)) oder durchgängig Claude Opus 5 (ZDR-fähig und mit $5/$25 pro 1 Mio. Token halb so teuer wie Fable 5.1 mit $10/$50)? Der Kritiker läuft unabhängig von dieser Wahl immer als eigenständiges, vom Autor getrenntes Grader-Modell auf Opus 5 – kein zusätzlicher Zweitgutachter obendrauf. **Default-Annahme:** Fable 5.1 mit Offenlegung und Zustimmung im Onboarding für Rechercheur und Autor; der Konfigurationsschalter `MODEL_TOP` schaltet bei Bedarf alle Fable-5.1-Schritte auf Opus 5 um (dann ohne 30-Tage-Speicherung); der Kritiker bleibt davon unberührt und läuft in jedem Fall auf Opus 5 (Kapitel 7.6, 7.11, 11.12, 16.2).
 
-**33. [Blocker] Kostenlimit.** Wie hoch darf das tägliche bzw. monatliche Budget für Modell-Tokens, Websuche und Session-Laufzeit sein? **Default-Annahme:** 10 USD je Tageslauf; eine feste Monatsobergrenze ist noch offen und sollte spätestens bei P0-02 (Ausgabenlimit in der Anthropic Console) konkret gesetzt werden (Kapitel 7.11, 18).
+**33. [Blocker] Kostenlimit.** Wie hoch darf das tägliche bzw. monatliche Budget für Modell-Tokens, Websuche und Session-Laufzeit sein? **Default-Annahme:** 45 USD je Tageslauf (abgeleitet aus Kapitel 18.2: rund 37 USD für zehn Bewerbungen im empfohlenen Szenario, plus Puffer); eine feste Monatsobergrenze ist noch offen und sollte spätestens bei P0-02 (Ausgabenlimit in der Anthropic Console) konkret gesetzt werden – als Orientierung nennt Kapitel 18 für 220 Bewerbungen im Monat (inkl. Massen-Scan 9 EUR und Server 20 EUR) rund 262 EUR im sparsamen, rund 789 EUR im empfohlenen und rund 1.151 EUR im maximalen Szenario (Kapitel 7.11, 18).
 
 **34. EU-Hosting der Bewerbungsdaten.** Sollen Kandidatenprofil und Bewerbungshistorie ausschließlich in der EU liegen? **Default-Annahme:** ja, konsistent mit der Hetzner-VPS-Wahl (Kapitel 7.7.3).
 
@@ -6453,9 +6548,29 @@ Fragen 1 und 8 haben bewusst keine Default-Annahme: Der Plan enthält an keiner 
 
 **45. Sichtbarkeit des Namens gegenüber Dritten.** Soll der Name in E-Mail-Signaturen, im Telegram-Bot-Anzeigenamen oder sonst gegenüber Empfängern auftauchen, oder komplett intern bleiben? **Default-Annahme:** intern bleiben; gegenüber Arbeitgebern tritt ausschließlich der Kandidat auf, nicht das Werkzeug (konsistent mit Kapitel 15, 16).
 
-### 22.9 Wie mit dieser Liste weiterarbeiten
+### 22.9 Roadmap & Tempo
 
-Kapitel 19.3 (Arbeitspaket P0-01) verlangt, die acht Blocker aus 22.1 vor Beginn von Phase 0 zu beantworten; für alle übrigen 37 Fragen gilt bis zu deiner Antwort die genannte Default-Annahme unverändert. Antworten trägst du am einfachsten direkt in `config/` bzw. in die entsprechenden Profildateien aus Kapitel 8 ein, sobald das Onboarding läuft – eine separate Antwortdatei ist nicht nötig, da jede Frage bereits auf die Stelle verweist, an der die Antwort technisch wirksam wird.
+Diese Gruppe bündelt die offenen Fragen aus der Roadmap (Kapitel 19.10), die kein anderes Kapitel als „offene Frage an dich" führt: Tempo, Umfang und Reihenfolge der ersten Monate. Keine davon ist ein Blocker vor Phase 0.
+
+**46. Startzeitpunkt und Wochenkapazität für Phase 0.** Wann startet Phase 0 tatsächlich, und wie viel Zeit kannst du dir verbindlich pro Woche dafür nehmen? **Default-Annahme:** Start noch in dieser Woche; rund 3 Personentage (PT) je Woche im MVP, danach 1 bis 2 PT je Woche plus die tägliche Review-Routine aus Kapitel 2.13 (Kapitel 19.9, 19.10).
+
+**47. Englischsprachige Zielrollen bereits im MVP.** Sind englischsprachige Zielrollen relevant genug, dass die Vorlage `international-en` (Kapitel 13.3) schon im MVP gebraucht wird? **Default-Annahme:** nein; `international-en` und `klassisch` folgen erst in v1, nach dem Test-Parsing der MVP-Vorlage `sachlich` (Kapitel 13.3, 19.5, 19.10).
+
+**48. Versandstart in Woche 5.** Ist der Start des echten Versands in Woche 5 mit Tageslimit 3 und Budget 5 USD akzeptabel, oder soll der Entwurf-Modus länger laufen? **Default-Annahme:** Woche 5; danach gelten die Limits aus Kapitel 7.11 (Kapitel 15.1, 19.4, 19.10).
+
+**49. Zuschnitt des Onboarding-Interviews.** Soll das Onboarding-Interview in zwei Sitzungen zu je 2 bis 3 Stunden laufen (P0-14 bis P0-16), oder lieber über mehrere kürzere Termine verteilt über die Woche? **Default-Annahme:** zwei Sitzungen (Kapitel 8, 19.9, 19.10).
+
+**50. Watchlist-Zusage in Phase 0.** Kannst du die Watchlist mit 20 bis 50 Wunscharbeitgebern (Frage 9) bereits in Phase 0 liefern (P0-13), oder erst im laufenden Betrieb nachreichen? **Default-Annahme:** ja, in Phase 0; sonst startet der MVP zunächst nur mit BA-API, Adzuna, Arbeitnow und Alert-Mails (Kapitel 6.9, 19.9, 19.10).
+
+**51. Managed-Agents-Test durchführen.** Soll der optionale Managed-Agents-Test für den Rechercheur (V-17) in v1 überhaupt stattfinden? **Default-Annahme:** optional, nur wenn Zeit bleibt; das Ergebnis fließt erst in eine spätere v2-Entscheidung ein (Kapitel 7.10, 19.5, 19.10).
+
+**52. Reihenfolge der Portalfamilien im Co-Pilot.** Welche Portalfamilien sollen im Portal-Co-Pilot (W-02, v2) zuerst unterstützt werden? **Default-Annahme:** Personio, softgarden, JOIN zuerst; SAP SuccessFactors und Workday danach; Plattform-Schnellbewerbungen nur nach ausdrücklicher Entscheidung (Kapitel 15.5, 19.6, 19.10).
+
+**53. Anwaltliche Prüfung vor v2 budgetieren.** Soll die anwaltliche Prüfung (W-12) schon vor v2 budgetiert werden, oder erst bei einer Go-Entscheidung? **Default-Annahme:** erst bei einer Go-Entscheidung nach Kapitel 21.5 (Kapitel 19.6, 19.10).
+
+### 22.10 Wie mit dieser Liste weiterarbeiten
+
+Kapitel 19.3 (Arbeitspaket P0-01) verlangt, die acht Blocker aus 22.1 vor Beginn von Phase 0 zu beantworten; für alle übrigen 45 Fragen gilt bis zu deiner Antwort die genannte Default-Annahme unverändert. Antworten trägst du am einfachsten direkt in `config/` bzw. in die entsprechenden Profildateien aus Kapitel 8 ein, sobald das Onboarding läuft – eine separate Antwortdatei ist nicht nötig, da jede Frage bereits auf die Stelle verweist, an der die Antwort technisch wirksam wird.
 
 **Quellen dieses Kapitels:**
 
@@ -6479,7 +6594,7 @@ Kapitel 19.3 (Arbeitspaket P0-01) verlangt, die acht Blocker aus 22.1 vor Beginn
 
 ## 23. Glossar
 
-Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen wie in Kapitel 3 festgelegt; englische Fach- und Produktbegriffe bleiben unübersetzt. Rechtsbegriffe tragen eine Fundstelle, unbestätigte Recherchebefunde sind entsprechend gekennzeichnet.
+Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen wie in Kapitel 7 festgelegt; englische Fach- und Produktbegriffe bleiben unübersetzt. Rechtsbegriffe tragen eine Fundstelle, unbestätigte Recherchebefunde sind entsprechend gekennzeichnet.
 
 **Agent SDK (Claude Agent SDK).** Python-/TypeScript-Bibliothek (`claude-agent-sdk`, MIT-Lizenz, Version 0.2.152 vom 2.9.2026), die die Claude-Code-CLI bündelt und Subagents, Hooks, Permission-Modes und Structured Outputs bereitstellt ([PyPI](https://pypi.org/project/claude-agent-sdk/)). Bildet zusammen mit dem Messages-API-SDK die technische Basis der Architektur aus Kapitel 7; Rechercheur, Autor und Kritiker laufen darüber als Subagents.
 
@@ -6527,7 +6642,7 @@ Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen
 
 **ESCO.** Kostenlose, mehrsprachige EU-Taxonomie für Skills, Kompetenzen, Qualifikationen und Berufe; primäre Normalisierungsgrundlage des Matchers für den Skill-/Berufsabgleich, ergänzt um ein Mapping zur deutschen KldB 2010 (Kapitel 9).
 
-**Fable 5.1 (Claude Fable 5.1).** Modell `claude-fable-5-1`, 10/50 $ pro 1 Mio. Token Input/Output, dauerhaft aktives Thinking, Covered Model mit 30-Tage-Speicherung. Wunschmodell für Autor und Kritiker, wo Formulierungsqualität zählt (Kapitel 7, 11).
+**Fable 5.1 (Claude Fable 5.1).** Modell `claude-fable-5-1`, 10/50 $ pro 1 Mio. Token Input/Output, dauerhaft aktives Thinking, Covered Model mit 30-Tage-Speicherung. Wunschmodell für Rechercheur und Autor, wo Formulierungsqualität zählt (Kapitel 7, 10, 11).
 
 **Format-Router.** Entscheidungslogik (Kapitel 11.3), die vor jedem Autor-Lauf pro Stelle festlegt, ob überhaupt ein Anschreiben entsteht und in welcher Länge und Sprache – abhängig von Anzeige, Portal-Feldern und Rechercheur-Signalen.
 
@@ -6547,7 +6662,7 @@ Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen
 
 **Jobscamming.** Betrügerische Stellenanzeige mit dem Ziel Identitätsdiebstahl; typische Signale sind Kontaktaufnahme nur über WhatsApp/Telegram oder die Forderung nach Video-Ident bzw. Kontoeröffnung vor Vertragsschluss ([Verbraucherzentrale](https://www.verbraucherzentrale.de/jobscamming-was-tun-wenn-das-traumangebot-zur-falle-wird-110906)). Der Matcher schließt solche Anzeigen hart aus, unabhängig vom sonstigen Score (Kapitel 9).
 
-**Judge.** LLM-als-Bewertungsschritt im Matcher: bewertet jede Stelle gegen das Kandidatenprofil mit Zahlenankern statt Adjektiven, meist im Batch mit Sonnet 5 oder Haiku 4.5. Grundprinzip auch der Kritiker-Rubrik: Das bewertende Modell ist nie dasselbe wie das schreibende (Kapitel 9, 11).
+**Judge.** LLM-als-Bewertungsschritt im Matcher: bewertet jede Stelle gegen das Kandidatenprofil mit Zahlenankern statt Adjektiven, mit Claude Sonnet 5 im Batch. Grundprinzip auch der Kritiker-Rubrik: Das bewertende Modell ist nie dasselbe wie das schreibende (Kapitel 9, 11).
 
 **Kandidatenprofil.** Komponente (Kapitel 8): Master-Lebenslauf, Story-Bank, Stimmprofil, Präferenzen und Standardantworten – die strukturierte Datenbasis, auf die sich jede andere Komponente stützt, ohne sie zu verändern.
 
@@ -6571,7 +6686,7 @@ Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen
 
 **Nachlauf.** Geplanter Lauf zur Antwortverarbeitung und zum Nachfassen, getrennt vom Tageslauf. Der Tracker wertet hier eingegangene Rückmeldungen aus und stößt Erinnerungen an (Kapitel 2, 15).
 
-**Opus 5 (Claude Opus 5).** Modell `claude-opus-5`, 5/25 $ pro 1 Mio. Token, kein Covered Model, damit ZDR-fähig. Eingesetzt als Zweitgutachter vor der Freigabe und als Alternative zu Fable 5.1 für Verarbeitungsschritte, bei denen 30-Tage-Speicherung vermieden werden soll (Kapitel 7, 16).
+**Opus 5 (Claude Opus 5).** Modell `claude-opus-5`, 5/25 $ pro 1 Mio. Token, kein Covered Model, damit ZDR-fähig. Eingesetzt als Kritiker (Rubrik, Stimm-Check, Leser-Test) – als vom Autor getrenntes Grader-Modell, kein separater Zweitgutachter – und über den Konfigurationsschalter MODEL_TOP als ZDR-fähige Alternative zu Fable 5.1 für Verarbeitungsschritte, bei denen 30-Tage-Speicherung vermieden werden soll (Kapitel 7, 11, 16).
 
 **Orchestrator.** Komponente, die Zeitplan, Reihenfolge, Budget und Fehlerbehandlung des Tageslaufs steuert und jeden Schritt im `event_log` protokolliert (Kapitel 7).
 
@@ -6605,7 +6720,7 @@ Begriffe alphabetisch. Komponentennamen, Status-Begriffe und Modellbezeichnungen
 
 **Sonnet 5 (Claude Sonnet 5).** Modell `claude-sonnet-5`, 2/10 $ pro 1 Mio. Token, kein Covered Model. Arbeitspferd des Systems für Scan, Bewertung, Extraktion und den Claims-Abgleich (Kapitel 7, 9, 11).
 
-**Status-Pipeline.** Feste Statusfolge jeder Stelle: entdeckt → dedupliziert → bewertet → ausgewählt → recherchiert → geschrieben → geprüft → bereit zur Freigabe → freigegeben → gesendet → Rückmeldung → Interview → Absage/Zusage/archiviert, ergänzt um „Rückfrage offen“ (Kapitel 3). Durchzieht alle Modulkapitel als gemeinsame Sprache.
+**Status-Pipeline.** Feste Statusfolge jeder Stelle: entdeckt → dedupliziert → bewertet → ausgewählt → recherchiert → geschrieben → geprüft → bereit zur Freigabe → freigegeben → gesendet → Rückmeldung → Interview → Absage/Zusage/archiviert, ergänzt um „Rückfrage offen“ (Kapitel 1.2 und 7.4). Der Status „bereit zur Freigabe“ wird erst gesetzt, wenn Setzer-QA und ATS-Prüfer-Stufe 2 bestanden sind (Kapitel 12, 13). Durchzieht alle Modulkapitel als gemeinsame Sprache.
 
 **Stimmprofil.** Teil des Kandidatenprofils (Kapitel 8): dein Schreibstil, deine Wortwahl, deine Tabus. Autor und Kritiker prüfen jeden Entwurf gegen das Stimmprofil, damit ein Anschreiben nicht generisch, sondern nach dir klingt.
 
@@ -6670,7 +6785,7 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://www.adaline.ai/blog/llm-as-a-judge-reliability-bias (Kapitel 11)
 - https://www.adzuna.com/blog/loopcv-review-and-the-best-alternatives/ (Kapitel 3)
 - https://www.afa-anwalt.de/news/entgelttransparenzgesetz-2026-rl-2023-970/ (Kapitel 9)
-- https://agentdeals.dev/vendor/brave-search-api (Kapitel 10, 17)
+- https://agentdeals.dev/vendor/brave-search-api (Kapitel 10, 17, 18)
 - https://ai-act-law.eu/de/artikel/2/ (Kapitel 4, 16, 23)
 - https://ai-act-law.eu/de/artikel/50/ (Kapitel 4, 16)
 - https://aigner-business-solutions.com/blog/anwendbarkeit-der-datenschutzgrundverordnung-reichweite-und-grenzen-der-haushaltsausnahme/ (Kapitel 20)
@@ -6719,7 +6834,7 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://www.bitkom.org/sites/main/files/2026-02/bitkom-leitfaden-kuenstliche-intelligenz-und-mitbestimmung.pdf (Kapitel 4)
 - https://blog.careerscribeai.com/star-story-bank-template/ (Kapitel 8, 11)
 - https://blog.cloudflare.com/control-content-use-for-ai-training/ (Kapitel 6, 20)
-- https://blog.loopcv.pro/jobcopilot-review/ (Kapitel 3)
+- https://blog.loopcv.pro/jobcopilot-review/ (Kapitel 1, 3)
 - https://blog.theinterviewguys.com/ats-resume-rejection-myth/ (Kapitel 4, 12)
 - https://blog.theinterviewguys.com/is-jobscan-worth-it-in-2026/ (Kapitel 3)
 - https://blog.theinterviewguys.com/job-seekers-are-hiding-secret-text-in-their-resumes/ (Kapitel 4, 12)
@@ -6779,7 +6894,7 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://dejure.org/gesetze/UrhG/44b.html (Kapitel 16)
 - https://www.destatis.de/DE/Methoden/Klassifikationen/Berufe/klassifikation-berufe-kldb-2010.html (Kapitel 17)
 - https://dev.softgarden.de/career-websites-api/jobs-api/ (Kapitel 6, 17)
-- https://developer.1password.com/docs/cli/secrets-scripts (Kapitel 7, 15, 17, 22)
+- https://developer.1password.com/docs/cli/secrets-scripts (Kapitel 7, 17, 22)
 - https://developer.adzuna.com/ (Kapitel 6, 9, 17, 18, 19)
 - https://developer.textkernel.com/Parser/master/ (Kapitel 4)
 - https://developers.google.com/maps/documentation/places/web-service (Kapitel 17)
@@ -6793,7 +6908,6 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://www.dgfp.de/aktuell/recruiting-strukturen-2025-recruiting-wird-strukturierter-datengetriebener-und-technologischer (Kapitel 4, 5, 23)
 - https://dl.acm.org/doi/fullHtml/10.1145/3486622.3493928 (Kapitel 2, 9, 23)
 - https://doc.courtbouillon.org/weasyprint/stable/common_use_cases.html (Kapitel 13, 17)
-- https://docs.claude.com/en/docs/build-with-claude/structured-outputs (Kapitel 9)
 - https://docs.cloud.google.com/talent-solution/job-search/v3/docs/basics (Kapitel 6, 17)
 - https://docs.hetzner.com/de/general/infrastructure-and-availability/price-adjustment/ (Kapitel 7, 17, 19)
 - https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/ (Kapitel 18)
@@ -6826,14 +6940,14 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://fleschindex.de/lesbarkeitsindex (Kapitel 11)
 - https://fly.io/ (Kapitel 17)
 - https://forum-institut.de/eu-ai-act-2-august-2026/ki-kennzeichnung-nach-artikel-50 (Kapitel 4, 16)
-- https://www.fox5ny.com/news/ghost-jobs-greenhouse-analysis (Kapitel 9)
+- https://www.fox5ny.com/news/ghost-jobs-greenhouse-analysis (Kapitel 9, 20)
 - https://www.g2.com/products/resume-parser-by-affinda/pricing (Kapitel 4, 12, 17)
 - https://www.gartner.com/en/newsroom/press-releases/2025-07-31-gartner-survey-shows-just-26-percent-of-job-applicants-trust-ai-will-fairly-evaluate-them (Kapitel 1, 3)
 - https://www.gehalt.de/ (Kapitel 17)
 - https://www.gesetze-im-internet.de/a_g/__11.html (Kapitel 6, 9, 22, 23)
 - https://www.gesetze-im-internet.de/ddg/__5.html (Kapitel 10, 16, 17)
 - https://www.gesetze-im-internet.de/urhg/__44b.html (Kapitel 6)
-- https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/ (Kapitel 4, 20, 23)
+- https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/ (Kapitel 4, 16, 20, 23)
 - https://github.com/AnswerDotAI/rerankers (Kapitel 9, 17)
 - https://github.com/Arize-ai/phoenix (Kapitel 7, 17, 19)
 - https://github.com/FlagOpen/FlagEmbedding (Kapitel 7, 9, 17)
@@ -6934,7 +7048,7 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://www.hrdive.com/news/fake-job-candidates-ai/757126/ (Kapitel 1, 3)
 - https://huggingface.co/spaces/mteb/leaderboard (Kapitel 17)
 - https://iab-forum.de/online-medien-sind-bei-der-personalsuche-auf-dem-vormarsch/ (Kapitel 5)
-- https://www.implicator.ai/brave-drops-free-search-api-tier-puts-all-developers-on-metered-billing/ (Kapitel 10, 17)
+- https://www.implicator.ai/brave-drops-free-search-api-tier-puts-all-developers-on-metered-billing/ (Kapitel 10, 17, 18)
 - https://www.indeed.com/legal (Kapitel 6, 15, 16, 17)
 - https://www.ingenieur.de/karriere/bewerbung/ki-und-karriere-wie-kuenstliche-intelligenz-den-bewerbungsprozess-praegt/ (Kapitel 4, 16)
 - https://insolvenz-radar.de/funktionen/ (Kapitel 9, 17)
@@ -6942,7 +7056,7 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://www.iwkoeln.de/presse/pressemitteilungen/alexander-burstedde-jurek-tiedemann-2028-fehlen-768000-fachkraefte.html (Kapitel 5)
 - https://jina.ai/reader/ (Kapitel 6, 17, 19)
 - https://jina.ai/reranker/ (Kapitel 17)
-- https://jobara.ai/blog/use-massive-review (Kapitel 3, 20)
+- https://jobara.ai/blog/use-massive-review (Kapitel 1, 3, 20)
 - https://jobcannon.io/blog/ai-resume-statistics-2026 (Kapitel 5, 11)
 - https://jobcannon.io/research/stats/resumeio-49-reject (Kapitel 5, 11)
 - https://jobright.ai/blog/simplify-copilot-review-2026-features-pricing-and-top-alternatives/ (Kapitel 3)
@@ -6976,7 +7090,6 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://www.kmk.org/themen/anerkennung-auslaendischer-abschluesse.html (Kapitel 5, 8)
 - https://kpmg.com/at/de/insights/2026/07/digital-omnibus-on-ai.html (Kapitel 4, 16)
 - https://www.kununu.com/ (Kapitel 17)
-- https://www.kununu.com/de/musterhandel-solutions (Kapitel 10)
 - https://langfuse.com/self-hosting (Kapitel 7, 17)
 - https://www.lazyapply.com/ (Kapitel 17)
 - https://www.leadersnet.de/news/89828,ki-macht-bewerbungen-professioneller-aber-weniger-authentisch.html (Kapitel 3)
@@ -6987,8 +7100,7 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://leverx.com/newsroom/ai-recruiting-in-sap-successfactors (Kapitel 4)
 - https://www.linkedin.com/help/linkedin/answer/a1341387 (Kapitel 6, 10, 15, 16, 17)
 - https://www.linkedin.com/help/linkedin/answer/a1341387/verbotene-software-und-erweiterungen?lang=de-DE (Kapitel 3, 22)
-- https://www.linkedin.com/search/results/people/?keywords=Erika%20Musterfrau%20Musterhandel%20Solutions (Kapitel 10)
-- https://www.livecareer.de/bewerbung/ghost-jobs (Kapitel 3, 9)
+- https://www.livecareer.de/bewerbung/ghost-jobs (Kapitel 3, 9, 20)
 - https://www.loopcv.pro/directory/aiapply/ (Kapitel 3)
 - https://www.loopcv.pro/directory/lazyapply/ (Kapitel 3, 18, 21)
 - https://www.lto.de/recht/hintergruende/h/bgh-urteil-izr22412-screen-scraping-flugdaten-automatisiert-auslesen-ryanair-reiseportal (Kapitel 16)
@@ -7003,16 +7115,13 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://www.monster.com/inside/terms-of-use (Kapitel 6, 16, 17)
 - https://www.morganlewis.com/blogs/sourcingatmorganlewis/2022/12/linkedin-v-hiq-landmark-data-scraping-suit-provides-guidance-to-data-scrapers-and-web-operators (Kapitel 16)
 - https://www.munich-startup.de/en/news/personio-acquires-recruiting-ai-startup-aurio (Kapitel 4)
-- https://www.musterhandel-solutions.example/impressum (Kapitel 10)
-- https://www.musterhandel-solutions.example/karriere (Kapitel 10)
-- https://www.musterhandel-solutions.example/karriere/team (Kapitel 10)
 - https://myjobhub.de/en/knowledge/bewerbungsservice-vergleich-2026 (Kapitel 3)
 - https://www.mynewsdesk.com/de/linkedin-deutschland/pressreleases/schneller-passende-talente-finden-linkedin-startet-hiring-assistant-auf-deutsch-3452429 (Kapitel 3)
 - https://www.namequick.app/de/blog/how-to-name-a-resume-file (Kapitel 13)
 - https://www.noerr.com/de/insights/bgh-urteil-zum-immateriellen-schadensersatz-der-dsgvo-wegen-scraping (Kapitel 6)
 - https://nominatim.org/release-docs/latest/api/Overview/ (Kapitel 17)
 - https://www.northdata.de/ (Kapitel 10, 17)
-- https://northflank.com/blog/hetzner-cloud-server-price-increases (Kapitel 7, 17, 19)
+- https://northflank.com/blog/hetzner-cloud-server-price-increases (Kapitel 7, 17, 18, 19)
 - https://notchresume.com/resources/greenhouse-job-application.html (Kapitel 4)
 - https://nubela.co/blog/is-scraping-linkedin-legal-in-2026/ (Kapitel 6)
 - https://www.onapply.de/recruiting-wissen/k-o-fragen (Kapitel 8)
@@ -7032,14 +7141,14 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://www.personio.com/about-personio/press/personio-profitability-acquisition-aurio/ (Kapitel 4)
 - https://www.photo-bergmeister.de/2025/08/22/bewerbungsfoto-pflicht-das-solltest-du-2025-wissen/ (Kapitel 5, 13)
 - https://pitchmeai.com/blog/jobscan-pricing-plans (Kapitel 4, 12, 17)
-- https://platform.claude.com/docs/en/about-claude/pricing (Kapitel 2, 7, 9, 10, 11, 17, 18, 19)
+- https://platform.claude.com/docs/en/about-claude/pricing (Kapitel 2, 7, 9, 10, 17, 18, 19)
 - https://platform.claude.com/docs/en/agents-and-tools/tool-use/browser-use-tool (Kapitel 7, 17)
 - https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool (Kapitel 17, 18, 23)
 - https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool (Kapitel 17)
 - https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool (Kapitel 6, 7, 10, 17)
 - https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool (Kapitel 7, 17, 18, 23)
 - https://platform.claude.com/docs/en/api/rate-limits (Kapitel 17)
-- https://platform.claude.com/docs/en/build-with-claude/batch-processing (Kapitel 7, 17, 18, 19, 23)
+- https://platform.claude.com/docs/en/build-with-claude/batch-processing (Kapitel 7, 9, 17, 18, 19, 23)
 - https://platform.claude.com/docs/en/build-with-claude/effort (Kapitel 7, 11, 17)
 - https://platform.claude.com/docs/en/build-with-claude/files (Kapitel 17, 19)
 - https://platform.claude.com/docs/en/build-with-claude/pdf-support (Kapitel 17)
@@ -7048,7 +7157,7 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1 (Kapitel 11)
 - https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5 (Kapitel 11)
 - https://platform.claude.com/docs/en/build-with-claude/skills-guide (Kapitel 17)
-- https://platform.claude.com/docs/en/build-with-claude/structured-outputs (Kapitel 7, 11, 17)
+- https://platform.claude.com/docs/en/build-with-claude/structured-outputs (Kapitel 7, 9, 11, 17)
 - https://platform.claude.com/docs/en/manage-claude/api-and-data-retention (Kapitel 7, 10, 11, 16, 17, 19, 21, 22, 23)
 - https://platform.claude.com/docs/en/managed-agents/budgets (Kapitel 7, 17, 18, 19, 20)
 - https://platform.claude.com/docs/en/managed-agents/cloud-sandboxes-reference (Kapitel 7, 13, 17)
@@ -7085,7 +7194,6 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://raw.githubusercontent.com/enthec/webappanalyzer/main/src/categories.json (Kapitel 4, 6, 17, 19)
 - https://raw.githubusercontent.com/microsoft/playwright-mcp/main/README.md (Kapitel 7, 15, 17, 19)
 - https://rendercv.com/ (Kapitel 3, 8)
-- https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/{base64(refnr (Kapitel 6)
 - https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs (Kapitel 6)
 - https://resufit.com/blog/best-fonts-for-resume-ats-tested/ (Kapitel 13)
 - https://resufit.com/blog/optimizing-resume-text-for-autofill-success-a-guide-to-workday-and-ats-compatibility/ (Kapitel 13)
@@ -7100,7 +7208,7 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://www.roberthalf.com/de/de/insights/bewerbungs-tipps/initiativbewerbung-erster-schritt-zum-traumjob-oder-eher-vergebene-liebesmueh (Kapitel 1, 11)
 - https://rolesapi.com/blog/does-indeed-have-an-api/ (Kapitel 6)
 - https://www.saatkorn.com/studie-relevanz-von-arbeitgeberbewertungen/ (Kapitel 5)
-- https://scoutify.com/blog/lazyapply-review/ (Kapitel 3)
+- https://scoutify.com/blog/lazyapply-review/ (Kapitel 1, 3)
 - https://scrapegraphai.com/blog/firecrawl-pricing (Kapitel 6, 17, 18, 19)
 - https://scrapeops.io/websites/glassdoor/ (Kapitel 6)
 - https://www.scraperapi.com/pricing/ (Kapitel 6, 17)
@@ -7113,12 +7221,11 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://softgarden.career.softgarden.de/en/ (Kapitel 4)
 - https://softgarden.com/de/ressourcen/studien/ki-trifft-recruiting-2026/ (Kapitel 5)
 - https://sourceforge.net/software/product/Massive-Job-Search/ (Kapitel 3)
-- https://ss64.com/mac/security-password.html (Kapitel 7, 15, 17, 22)
+- https://ss64.com/mac/security-password.html (Kapitel 7, 17, 22)
 - https://www.startbase.de/ (Kapitel 17)
-- https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitaet/ (Kapitel 3)
-- https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitat/ (Kapitel 20)
+- https://www.stepstone.at/Ueber-StepStone/pressebereich/studie-jede-zweite-bewerbung-mit-hilfe-von-ki-erstellt-recruiterinnen-fehlt-individualitat/ (Kapitel 3, 20)
 - https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/bewerberqualitaet-steigern (Kapitel 3, 5, 11)
-- https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/stepstone-studie-2025-ki-und-jobsuche (Kapitel 5, 11)
+- https://www.stepstone.de/e-recruiting/hr-wissen/recruiting/stepstone-studie-2025-ki-und-jobsuche (Kapitel 3, 5, 11)
 - https://www.stepstone.de/magazin/artikel/persoenliche-daten-lebenslauf (Kapitel 5, 13)
 - https://www.stepstone.de/ueber-stepstone/nutzungsbedingungen-2022-03/ (Kapitel 6, 15, 16, 17)
 - https://www.stratag.de/bewerbung-dateigroesse (Kapitel 2, 13)
@@ -7165,10 +7272,8 @@ Alle im Dokument verlinkten Quellen, alphabetisch nach Domain, mit den Kapiteln,
 - https://www.workday.com/content/dam/web/en-us/documents/datasheets/hiredscore-ai-recruiting.pdf (Kapitel 4)
 - https://www.workday.com/en-us/products/talent-management/ai-recruiting.html (Kapitel 4)
 - https://workspace.google.com/terms/use_policy-20210218/ (Kapitel 16)
-- https://www.xing.com/search/members?keywords=Erika%20Musterfrau%20Musterhandel%20Solutions (Kapitel 10)
 - https://www.yena.ai/de/blog/ki-im-recruiting-studie-dach-2026 (Kapitel 4)
 - https://www.youngcapital.de/blog/4062-ohne-linkedin-xing-und-co-keine-chance-auf-deinen-traumjob (Kapitel 5)
 - https://zapier.com/mcp (Kapitel 17)
 - https://www.zeitblueten.com/news/brief-din-5008/ (Kapitel 13)
 - https://zety.de/blog/lebenslauf-persoenliche-daten (Kapitel 16)
-- https://{cockpit}/tag/2026-09-08 (Kapitel 2)
